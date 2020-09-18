@@ -1,0 +1,105 @@
+________________________________________________________________________________
+circuit oram (compiled -O3)
+(P=20) (RUN=1000) (STASH=8) (Z=3)
+
+real    1096m54.746s							=> 18.15h
+user    1089m3.248s
+sys     0m13.948s
+________________________________________________________________________________
+path oram (compiled -O3)
+(P=20) (RUN=1000) (STASH=48) (Z=4)
+
+real    745m14.480s							=> 12.42h
+user    745m12.496s
+sys     0m0.320s
+________________________________________________________________________________
+path oram (compiled -O3)
+(P=20) (RUN=1000) (STASH=64) (Z=4)
+
+real    745m42.587s
+user    745m39.724s
+sys     0m0.988s
+________________________________________________________________________________
+path oram with obl. shuffle (compiled with -O3)
+(P=20) (RUN=1000) (STASH=64*) (Z=4)
+
+real    1356m22.245s
+user    1356m18.916s
+sys     0m0.324s
+
+* greater stash was only required by the obl::shuffle procedure, that operates on
+arrays whose size is a power of two
+
+Oddly, I double checked everything and everything seems to be fine, so I suppose
+it's just SLOWER
+________________________________________________________________________________
+path oram with obl. shuffle (compiled with -O3)
+(P=20) (RUN=1000) (STASH=64*) (Z=4)
+
+real    993m29.949s
+user    993m25.800s
+sys     0m1.648s
+
+No more full scan of the bufu map
+
+* stash optimization not requiring the stash to be fully scanned to perform eviction
+________________________________________________________________________________
+circuit oram with wolfCrypt (compiled -O3)
+(P=20) (RUN=1000) (STASH=8) (Z=3)
+
+[wolfCrypt max opts: assembly, RNRND, AES-NI, purged useless features]
+real    543m8.284s
+user    543m3.136s
+sys     0m1.636s
+
+[after refactoring]
+real    564m50.199s
+user    564m34.428s
+sys     0m6.964s
+
+[after refactoring with macros -- it's worse??]
+real    566m27.440s
+user    563m51.380s
+sys     0m4.164s
+
+[fully oblivious (with cmov)]
+real    577m13.358s
+user    577m6.716s
+sys     0m3.704s
+
+[inline cmov]
+real    573m38.244s
+user    573m34.796s
+sys     0m1.936s
+
+[with openssl]
+real    686m33.333s
+user    686m29.640s
+sys     0m1.740s
+
+[with ipps]
+real    721m27.853s
+user    721m24.204s
+sys     0m1.592s
+________________________________________________________________________________
+ring oram (compiled -O3)
+(P=20) (RUN=1000) (params: Z=4, A=3, S=6, STASH=32)
+
+real    525m56.033s
+user    525m38.568s
+sys     0m15.848s
+________________________________________________________________________________
+ring oram (compiled -O3)
+(P=20) (RUN=1000) (params: Z=8, A=8, S=13, STASH=64)
+[removed two levels from the ORAM tree]
+
+real    462m36.853s
+user    461m2.220s
+sys     0m13.620s
+________________________________________________________________________________
+path oram (with stash optimization + wolfCrypt) (compiled -O3)
+(P=20) (RUN=1000) (STASH=64) (Z=4)
+
+real    559m21.968s
+user    559m18.280s
+sys     0m2.224s

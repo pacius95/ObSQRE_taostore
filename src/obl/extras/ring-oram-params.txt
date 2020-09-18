@@ -1,0 +1,11 @@
+choose Z
+
+(largest A <= 2Z)
+Z*ln(2*Z/A)+A/2-Z-ln(4) > 0 where Z=8
+
+(minimize)
+(2*Z+S)*(1 + Q(floor(A)+1,S)) where Z=8 A=8
+
++ Z=4, A=3, S=6
++ Z=6, A=5, S=9
++ Z=8, A=8, S=13 (half height) -- stash taken from paper

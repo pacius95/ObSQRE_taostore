@@ -1,0 +1,349 @@
+From 95f93372de2bf11d81d3d8bdca51454dbc57a5f6 Mon Sep 17 00:00:00 2001
+From: Davide Sampietro <davide.sampietro@mail.polimi.it>
+Date: Tue, 21 May 2019 01:07:31 +0200
+Subject: [PATCH] Compile for SGX
+
+---
+ wolfcrypt/src/cpuid.c        | 38 ++++++++++++++++----------------------
+ wolfcrypt/src/hash.c         | 12 ++++++------
+ wolfcrypt/src/pwdbased.c     | 14 +++++++-------
+ wolfcrypt/src/wc_encrypt.c   | 24 ++++++++++++------------
+ wolfcrypt/test/test.c        |  4 ++--
+ wolfssl/wolfcrypt/pwdbased.h |  4 ++--
+ 6 files changed, 45 insertions(+), 51 deletions(-)
+
+diff --git a/wolfcrypt/src/cpuid.c b/wolfcrypt/src/cpuid.c
+index 2613a1b3f..87c0fe3b4 100644
+--- a/wolfcrypt/src/cpuid.c
++++ b/wolfcrypt/src/cpuid.c
+@@ -28,11 +28,8 @@
+ 
+ #include <wolfssl/wolfcrypt/cpuid.h>
+ 
+-#if (defined(WOLFSSL_X86_64_BUILD) || defined(USE_INTEL_SPEEDUP) || \
++/*#if (defined(WOLFSSL_X86_64_BUILD) || defined(USE_INTEL_SPEEDUP) || \
+      defined(WOLFSSL_AESNI)) && !defined(WOLFSSL_NO_ASM)
+-    /* Each platform needs to query info type 1 from cpuid to see if aesni is
+-     * supported. Also, let's setup a macro for proper linkage w/o ABI conflicts
+-     */
+ 
+     #ifndef _MSC_VER
+         #define cpuid(reg, leaf, sub)\
+@@ -47,32 +44,30 @@
+         #define cpuid(a,b,c) __cpuidex((int*)a,b,c)
+ 
+         #define XASM_LINK(f)
+-    #endif /* _MSC_VER */
++    #endif
+ 
+     #define EAX 0
+     #define EBX 1
+     #define ECX 2
+-    #define EDX 3
++    #define EDX 3*/
+ 
+     static word32 cpuid_check = 0;
+     static word32 cpuid_flags = 0;
+ 
+-    static word32 cpuid_flag(word32 leaf, word32 sub, word32 num, word32 bit)
++    /*static word32 cpuid_flag(word32 leaf, word32 sub, word32 num, word32 bit)
+     {
+         int got_intel_cpu = 0;
+         int got_amd_cpu = 0;
+-        unsigned int reg[5];
++        int reg[5];
+         reg[4] = '\0';
+         cpuid(reg, 0, 0);
+ 
+-        /* check for Intel cpu */
+         if (XMEMCMP((char *)&(reg[EBX]), "Genu", 4) == 0 &&
+             XMEMCMP((char *)&(reg[EDX]), "ineI", 4) == 0 &&
+             XMEMCMP((char *)&(reg[ECX]), "ntel", 4) == 0) {
+             got_intel_cpu = 1;
+         }
+ 
+-        /* check for AMD cpu */
+         if (XMEMCMP((char *)&(reg[EBX]), "Auth", 4) == 0 &&
+             XMEMCMP((char *)&(reg[EDX]), "enti", 4) == 0 &&
+             XMEMCMP((char *)&(reg[ECX]), "cAMD", 4) == 0) {
+@@ -84,21 +79,20 @@
+             return ((reg[num] >> bit) & 0x1);
+         }
+         return 0;
+-    }
++    }*/
+ 
+ 
+     void cpuid_set_flags(void)
+     {
+-        if (!cpuid_check) {
+-            if (cpuid_flag(1, 0, ECX, 28)) { cpuid_flags |= CPUID_AVX1  ; }
+-            if (cpuid_flag(7, 0, EBX,  5)) { cpuid_flags |= CPUID_AVX2  ; }
+-            if (cpuid_flag(7, 0, EBX,  8)) { cpuid_flags |= CPUID_BMI2  ; }
+-            if (cpuid_flag(1, 0, ECX, 30)) { cpuid_flags |= CPUID_RDRAND; }
+-            if (cpuid_flag(7, 0, EBX, 18)) { cpuid_flags |= CPUID_RDSEED; }
+-            if (cpuid_flag(1, 0, ECX, 26)) { cpuid_flags |= CPUID_AESNI ; }
+-            if (cpuid_flag(7, 0, EBX, 19)) { cpuid_flags |= CPUID_ADX   ; }
+-            cpuid_check = 1;
+-        }
++    	// select your features
++        cpuid_flags |= CPUID_AVX1  ;
++        cpuid_flags |= CPUID_AVX2  ;
++        cpuid_flags |= CPUID_BMI2  ;
++        cpuid_flags |= CPUID_RDRAND;
++        cpuid_flags |= CPUID_RDSEED;
++        cpuid_flags |= CPUID_AESNI ;
++        cpuid_flags |= CPUID_ADX   ;
++        cpuid_check = 1;
+     }
+ 
+     word32 cpuid_get_flags(void)
+@@ -107,4 +101,4 @@
+             cpuid_set_flags();
+         return cpuid_flags;
+     }
+-#endif
++//#endif
+diff --git a/wolfcrypt/src/hash.c b/wolfcrypt/src/hash.c
+index 975b4d4eb..55da9e407 100644
+--- a/wolfcrypt/src/hash.c
++++ b/wolfcrypt/src/hash.c
+@@ -41,7 +41,7 @@
+     #include <wolfcrypt/src/misc.c>
+ #endif
+ 
+-#if !defined(NO_ASN) || !defined(NO_DH) || defined(HAVE_ECC)
++//#if !defined(NO_ASN) || !defined(NO_DH) || defined(HAVE_ECC)
+ 
+ #ifdef NO_ASN
+ enum Hash_Sum  {
+@@ -129,9 +129,9 @@ enum wc_HashType wc_HashTypeConvert(int hashType)
+ }
+ 
+ 
+-int wc_HashGetOID(enum wc_HashType hash_type)
++/*int wc_HashGetOID(enum wc_HashType hash_type)
+ {
+-    int oid = HASH_TYPE_E; /* Default to hash type error */
++
+     switch(hash_type)
+     {
+         case WC_HASH_TYPE_MD2:
+@@ -191,7 +191,7 @@ int wc_HashGetOID(enum wc_HashType hash_type)
+         #endif
+             break;
+ 
+-        /* Not Supported */
++
+         case WC_HASH_TYPE_MD4:
+         case WC_HASH_TYPE_BLAKE2B:
+         case WC_HASH_TYPE_NONE:
+@@ -255,13 +255,13 @@ enum wc_HashType wc_OidGetHash(int oid)
+         case SHA3_512h:
+             hash_type = WC_HASH_TYPE_SHA3_512;
+             break;
+-    #endif /* WOLFSSL_SHA3 */
++    #endif
+         default:
+             break;
+     }
+     return hash_type;
+ }
+-#endif /* !NO_ASN || !NO_DH || HAVE_ECC */
++#endif*/
+ 
+ 
+ 
+diff --git a/wolfcrypt/src/pwdbased.c b/wolfcrypt/src/pwdbased.c
+index e0edf6e3a..16b934e2f 100644
+--- a/wolfcrypt/src/pwdbased.c
++++ b/wolfcrypt/src/pwdbased.c
+@@ -264,7 +264,7 @@ int wc_PBKDF2(byte* output, const byte* passwd, int pLen, const byte* salt,
+ }
+ 
+ /* helper for PKCS12_PBKDF(), does hash operation */
+-static int DoPKCS12Hash(int hashType, byte* buffer, word32 totalLen,
++/*static int DoPKCS12Hash(int hashType, byte* buffer, word32 totalLen,
+                  byte* Ai, word32 u, int iterations)
+ {
+     int i;
+@@ -282,7 +282,7 @@ static int DoPKCS12Hash(int hashType, byte* buffer, word32 totalLen,
+ 
+     hashT = wc_HashTypeConvert(hashType);
+ 
+-    /* initialize hash */
++
+ #ifdef WOLFSSL_SMALL_STACK
+     hash = (wc_HashAlg*)XMALLOC(sizeof(wc_HashAlg), NULL,
+                                 DYNAMIC_TYPE_HASHCTX);
+@@ -329,19 +329,19 @@ int wc_PKCS12_PBKDF(byte* output, const byte* passwd, int passLen,
+ }
+ 
+ 
+-/* extended API that allows a heap hint to be used */
++
+ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
+                        const byte* salt, int saltLen, int iterations, int kLen,
+                        int hashType, int id, void* heap)
+ {
+-    /* all in bytes instead of bits */
++
+     word32 u, v, dLen, pLen, iLen, sLen, totalLen;
+     int    dynamic = 0;
+     int    ret = 0;
+     int    i;
+     byte   *D, *S, *P, *I;
+ #ifdef WOLFSSL_SMALL_STACK
+-    byte   staticBuffer[1]; /* force dynamic usage */
++    byte   staticBuffer[1];
+ #else
+     byte   staticBuffer[1024];
+ #endif
+@@ -465,7 +465,7 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
+                 ret = MP_TO_E;
+             else {
+                 if (outSz > (int)v) {
+-                    /* take off MSB */
++
+                     byte  tmp[129];
+                     ret = mp_to_unsigned_bin(&res, tmp);
+                     XMEMCPY(I + i, tmp + 1, v);
+@@ -498,7 +498,7 @@ int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd, int passLen,
+ #endif
+ 
+     return ret;
+-}
++}*/
+ 
+ #ifdef HAVE_SCRYPT
+ /* Rotate the 32-bit value a by b bits to the left.
+diff --git a/wolfcrypt/src/wc_encrypt.c b/wolfcrypt/src/wc_encrypt.c
+index 929822b8f..44060d402 100644
+--- a/wolfcrypt/src/wc_encrypt.c
++++ b/wolfcrypt/src/wc_encrypt.c
+@@ -365,7 +365,7 @@ int wc_BufferKeyEncrypt(EncryptedInfo* info, byte* der, word32 derSz,
+  *
+  * returns a negative value on fail case
+  */
+-int wc_CryptKey(const char* password, int passwordSz, byte* salt,
++/*int wc_CryptKey(const char* password, int passwordSz, byte* salt,
+                       int saltSz, int iterations, int id, byte* input,
+                       int length, int version, byte* cbcIv, int enc)
+ {
+@@ -389,21 +389,21 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
+         #ifndef NO_MD5
+         case PBE_MD5_DES:
+             typeH = WC_MD5;
+-            derivedLen = 16;           /* may need iv for v1.5 */
++            derivedLen = 16;
+             break;
+         #endif
+         #ifndef NO_SHA
+         case PBE_SHA1_DES:
+             typeH = WC_SHA;
+-            derivedLen = 16;           /* may need iv for v1.5 */
++            derivedLen = 16;
+             break;
+ 
+         case PBE_SHA1_DES3:
+             typeH = WC_SHA;
+-            derivedLen = 32;           /* may need iv for v1.5 */
++            derivedLen = 32;
+             break;
+-        #endif /* !NO_SHA */
+-    #endif /* !NO_DES3 */
++        #endif
++    #endif
+     #if !defined(NO_SHA) && !defined(NO_RC4)
+         case PBE_SHA1_RC4_128:
+             typeH = WC_SHA;
+@@ -450,7 +450,7 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
+             unicodePasswd[idx++] = 0x00;
+             unicodePasswd[idx++] = (byte)password[i];
+         }
+-        /* add trailing NULL */
++
+         unicodePasswd[idx++] = 0x00;
+         unicodePasswd[idx++] = 0x00;
+ 
+@@ -508,7 +508,7 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
+             }
+             break;
+         }
+-    #endif /* !NO_SHA || !NO_MD5 */
++    #endif
+ 
+     #ifndef NO_SHA
+         case PBE_SHA1_DES3:
+@@ -552,7 +552,7 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
+             }
+             break;
+         }
+-    #endif /* !NO_SHA */
++    #endif
+ #endif
+ #if !defined(NO_RC4) && !defined(NO_SHA)
+         case PBE_SHA1_RC4_128:
+@@ -595,8 +595,8 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
+             ForceZero(&aes, sizeof(Aes));
+             break;
+         }
+-    #endif /* WOLFSSL_AES_256 */
+-#endif /* !NO_AES && HAVE_AES_CBC */
++    #endif
++#endif
+ 
+         default:
+ #ifdef WOLFSSL_SMALL_STACK
+@@ -611,6 +611,6 @@ int wc_CryptKey(const char* password, int passwordSz, byte* salt,
+ #endif
+ 
+     return ret;
+-}
++}*/
+ 
+ #endif /* !NO_PWDBASED */
+diff --git a/wolfcrypt/test/test.c b/wolfcrypt/test/test.c
+index 0df7ae611..a89c20103 100644
+--- a/wolfcrypt/test/test.c
++++ b/wolfcrypt/test/test.c
+@@ -15098,7 +15098,7 @@ int scrypt_test(void)
+ 
+ int pkcs12_test(void)
+ {
+-    const byte passwd[] = { 0x00, 0x73, 0x00, 0x6d, 0x00, 0x65, 0x00, 0x67,
++    /*const byte passwd[] = { 0x00, 0x73, 0x00, 0x6d, 0x00, 0x65, 0x00, 0x67,
+                             0x00, 0x00 };
+     const byte salt[] =   { 0x0a, 0x58, 0xCF, 0x64, 0x53, 0x0d, 0x82, 0x3f };
+ 
+@@ -15143,7 +15143,7 @@ int pkcs12_test(void)
+         return -7903;
+ 
+     if ( (ret = XMEMCMP(derived, verify2, 24)) != 0)
+-        return -7904;
++        return -7904;*/
+ 
+     return 0;
+ }
+diff --git a/wolfssl/wolfcrypt/pwdbased.h b/wolfssl/wolfcrypt/pwdbased.h
+index 61de8f124..fb6d6e3c2 100644
+--- a/wolfssl/wolfcrypt/pwdbased.h
++++ b/wolfssl/wolfcrypt/pwdbased.h
+@@ -49,12 +49,12 @@ WOLFSSL_API int wc_PBKDF1(byte* output, const byte* passwd, int pLen,
+ WOLFSSL_API int wc_PBKDF2(byte* output, const byte* passwd, int pLen,
+                       const byte* salt, int sLen, int iterations, int kLen,
+                       int typeH);
+-WOLFSSL_API int wc_PKCS12_PBKDF(byte* output, const byte* passwd, int pLen,
++/*WOLFSSL_API int wc_PKCS12_PBKDF(byte* output, const byte* passwd, int pLen,
+                             const byte* salt, int sLen, int iterations,
+                             int kLen, int typeH, int purpose);
+ WOLFSSL_API int wc_PKCS12_PBKDF_ex(byte* output, const byte* passwd,int passLen,
+                        const byte* salt, int saltLen, int iterations, int kLen,
+-                       int hashType, int id, void* heap);
++                       int hashType, int id, void* heap);*/
+ 
+ #ifdef HAVE_SCRYPT
+ WOLFSSL_API int wc_scrypt(byte* output, const byte* passwd, int passLen,
+-- 
+2.11.0
+

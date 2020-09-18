@@ -1,0 +1,15 @@
+enclave {
+	include "stddef.h"
+	#define ENABLE_PRINT_STDOUT
+	trusted {
+		void host_alloc([user_check] void **out, size_t s);
+	};
+
+	untrusted {
+		void ocall_host_alloc([out, size=8, count=1] void **out, size_t s);
+		void host_free([user_check] void *in);
+		#ifdef ENABLE_PRINT_STDOUT
+		void ocall_stdout([in, string] const char* format_str, [in, string] const char* str);
+		#endif
+	};
+};
