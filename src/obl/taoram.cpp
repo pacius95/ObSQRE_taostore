@@ -12,7 +12,16 @@
 
 namespace obl
 {
-
+	struct processing_thread_args
+	{
+		taostore_request_t *request;
+		block_id *bid;
+	};
+	struct processing_thread_args_wrap
+	{
+		taostore_oram *arg1;
+		processing_thread_args *arg2;
+	};
 	struct taostore_block_t
 	{
 		block_id bid;
@@ -29,13 +38,6 @@ namespace obl
 		uint8_t payload[];
 	};
 
-	struct taostore_subtree_bucket_t
-	{
-		bool reach_l, reach_r;
-		obl_aes_gcm_128bit_tag_t mac;
-		uint8_t payload[];
-	};
-
 	struct taostore_request_t
 	{
 		std::uint8_t *data_in;
@@ -48,16 +50,6 @@ namespace obl
 		pthread_t *thread_id;
 		pthread_mutex_t *cond_mutex;
 		pthread_cond_t *serializer_res_ready;
-	};
-	struct processing_thread_args
-	{
-		taostore_request_t *request;
-		block_id *bid;
-	};
-	struct processing_thread_args_wrap
-	{
-		taostore_oram *arg1;
-		processing_thread_args *arg2;
 	};
 
 	taostore_oram::taostore_oram(std::size_t N, std::size_t B, unsigned int Z, unsigned int S) : tree_oram(N, B, Z)
@@ -85,7 +77,8 @@ namespace obl
 
 		// SUBTREE allocation
 		local_subtree.set_entry_size(bucket_size);
-		//local_subtree.reserve()
+
+		subtree_lock = new pthread_spinlock_t[L + 1];
 
 		// allocate data struct for integrity checking
 		adata = new auth_data_t[L + 1];
@@ -113,6 +106,8 @@ namespace obl
 	{
 		obl_aes_gcm_128bit_key_t master_key;
 		obl_aes_gcm_128bit_iv_t iv;
+
+		obl_aes_gcm_128bit_tag_t merkle_root;
 		auth_data_t empty_auth;
 		std::uint8_t empty_bucket[Z * block_size];
 
@@ -146,6 +141,8 @@ namespace obl
 		std::memcpy(tree[0].iv, iv, sizeof(obl_aes_gcm_128bit_iv_t));
 		tree[0].reach_l = false;
 		tree[0].reach_r = false;
+
+		local_subtree = new taostore_subtree((size_t)Z * block_size, merkle_root, empty_bucket);
 	}
 
 	void *taostore_oram::serializer_wrap(void *object)
@@ -527,6 +524,7 @@ namespace obl
 	}
 	bool taostore_oram::read_path(request_t *req, block_id *_bid)
 	{
+
 		bool t = true;
 		pthread_mutex_lock(&serializer_lck);
 		for (it = request_structure.begin(); it < request_structure.end(); it++)
@@ -541,14 +539,139 @@ namespace obl
 		replace(req->fake, (std::uint8_t *)&bid, (std::uint8_t *)_bid, sizeof(block_id));
 
 		leaf_id ev_lid;
-		leaf_id lid = pos_map->access(bid, req->fake, &ev_lid);
+		leaf_id path = pos_map->access(bid, req->fake, &ev_lid);
 
-		flexible_array<block_t> fetched_path;
-		fetched_path.set_entry_size(block_size);
-		fetched_path.reserve((L + 1) * this->Z);
-		auth_data_t adata;
+		// auth_data_t *adata = new auth_data_t[L+1];
+		;
 
-		std::int64_t leaf_idx = fetch_path(lid, &fetched_path, &adata);
+		// always start from root
+		std::int64_t l_index = 0;
+		int i;
+		obl_aes_gcm_128bit_tag_t reference_mac;
+
+		std::uint8_t _fetched[block_size];
+		block_t *fetched = (block_t *)_fetched;
+
+		fetched->bid = DUMMY;
+
+		bool reachable = true;
+		bool valid = true std::memcpy(reference_mac, reference_node->mac, sizeof(obl_aes_gcm_128bit_tag_t)); // drop the & since not needed
+
+		//root mac is not verified, it is kept in sgx memory all the time
+		node *reference_node, *old_ref_node;
+		int i = 0;
+		local_subtree->read_lock();
+		reference_node = local_subtree->root;
+		while (i <= L && reachable)
+		{
+			reference_node->lock();
+
+			for (unsigned int j = 0; j < Z; j++)
+			{
+				block_id fpbid = reference_node->payload[j].bid;
+				swap(fpbid == bid, _fetched, (std::uint8_t *)&freference_node->payload[j], block_size);
+			}
+
+			old_ref_node = reference_node;
+			reference_node = (path >> i) & 1 ? old_ref_node.child_r : old_ref_node.child_l;
+
+			if (reference_node == nullptr)
+			{
+				reachable = false;
+				reference_node = new node(block_size);
+				reference_node->parent = old_ref_node;
+				//set mac
+
+				valid = (path >> i) & 1 ? tree[l_index].valid_r : tree[l_index].valid_l;
+				// evaluate the next encrypted bucket index in the binary heap
+
+				if (valid)
+				{
+					//sibling mac to add maybe
+					std::memcpy(reference_node->mac, ((path >> i) & 1) ? tree[l_index].right_mac : tree[l_index].left_mac, sizeof(obl_aes_gcm_128bit_tag_t));
+				}
+				l_index = (l_index << 1) + 1 + ((path >> i) & 1);
+			}
+			else
+			{
+			}
+			i++;
+		}
+
+		for (i <= L && valid; i++)
+		{
+			reference_node->lock();
+			old_ref_node.unlock
+			std::int64_t leftch = get_left(l_index);
+			std::int64_t rightch = get_right(l_index);
+
+			// this data will be authenticated data in the GCM mode
+			// dump from encrypted bucket header
+			adata[i].valid_l = tree[l_index].reach_l;
+			adata[i].valid_r = tree[l_index].reach_r;
+
+			// dump left and right child mac if valid, otherwise pad with 0s
+			if (adata[i].valid_l)
+				std::memcpy(adata[i].left_mac, tree[leftch].mac, sizeof(obl_aes_gcm_128bit_tag_t));
+
+			if (adata[i].valid_r)
+				std::memcpy(adata[i].right_mac, tree[rightch].mac, sizeof(obl_aes_gcm_128bit_tag_t));
+
+			// if they are not valid, authentication data for the corresponding mac would be 0x00..0
+			// however this was already covered by the memset before the loop
+
+			// decrypt using the IV
+			int dec = wc_AesGcmDecrypt(crypt_handle,
+									   (std::uint8_t *)&fetched_path[Z * i],
+									   tree[l_index].payload,
+									   Z * block_size,
+									   tree[l_index].iv,
+									   OBL_AESGCM_IV_SIZE,
+									   reference_mac,
+									   OBL_AESGCM_MAC_SIZE,
+									   (std::uint8_t *)&adata[i],
+									   sizeof(auth_data_t));
+
+			// MAC mismatch is a critical error
+			//assert(dec != AES_GCM_AUTH_E);
+			assert(dec == 0);
+
+			/*
+				NB: this doesn't need to be oblivious since an attacker might always see
+				the sequences of accesses to the buckets and understand whether or not a
+				bucket has already been accessed
+				NB 2: fetch this from data which was dumped and authenticated, and taken
+				from PROTECTED MEMORY. This should avoid some kind of attacks
+			*/
+			reachable = (path >> i) & 1 ? adata[i].valid_r : adata[i].valid_l;
+			// evaluate the next encrypted bucket index in the binary heap
+			l_index = (l_index << 1) + 1 + ((path >> i) & 1);
+
+			if (reachable)
+			{
+				/*
+					NB: this isn't oblivious as well since you are just publicly traversing
+					the ORAM tree
+				*/
+				std::uint8_t *src = ((path >> i) & 1) ? adata[i].right_mac : adata[i].left_mac;
+				std::memcpy(reference_mac, src, sizeof(obl_aes_gcm_128bit_tag_t));
+			}
+		}
+
+		// fill the other buckets with "empty" blocks
+		while (i <= L)
+		{
+			int base = Z * i;
+
+			for (unsigned int j = 0; j < Z; j++)
+				fetched_path[base + j].bid = DUMMY;
+
+			// evaluate the next encrypted bucket index in the binary heap
+			l_index = (l_index << 1) + 1 + ((path >> i) & 1);
+			++i;
+		}
+
+		return get_parent(l_index);
 
 		std::uint8_t _fetched[block_size];
 		block_t *fetched = (block_t *)_fetched;
@@ -567,18 +690,13 @@ namespace obl
 		for (int i = 0; i <= L; i++)
 			//lock livello i + 1 (root)
 			//unlock livello i
-			for (unsigned int j = 0; j < Z; j++)
-			{
-				block_id fpbid = fetched_path[Z * i + j].bid;
-				swap(fpbid == bid, _fetched, (std::uint8_t *)&fetched_path[Z * i + j], block_size);
-			}
 			//getpathdirection(i);
 			//subtree.getchild(direction);
 			//if null, set child = fetched[i];
-		//unlock livello L + 1
-		//sgx_read_unlock tree (eviction and wb take writelock here)
+			//unlock livello L + 1
+			//sgx_read_unlock tree (eviction and wb take writelock here)
 
-		std::memcpy(data_out, fetched->payload, B);
+			std::memcpy(data_out, fetched->payload, B);
 	}
 
 	void taostore_oram::access(block_id bid, std::uint8_t *data_in, std::uint8_t *data_out)
@@ -604,71 +722,6 @@ namespace obl
 		delete[] & _req;
 		pthread_cond_destroy(&_serializer_res_ready);
 		pthread_mutex_destroy(&_cond_mutex);
-	}
-
-	void taostore_oram::access_r(block_id bid, leaf_id lif, std::uint8_t *data_out)
-	{
-		std::uint8_t _fetched[block_size];
-		block_t *fetched = (block_t *)_fetched;
-
-		leaf_idx_split = fetch_path(lif);
-
-		fetched->bid = DUMMY;
-
-		// search for the requested block by traversing the bucket sequence from root to leaf
-		for (int i = 0; i <= L; i++)
-			// lock livello i
-			for (unsigned int j = 0; j < Z; j++)
-			{
-				block_id fpbid = fetched_path[Z * i + j].bid;
-				swap(fpbid == bid, _fetched, (std::uint8_t *)&fetched_path[Z * i + j], block_size);
-			}
-		//lock livello i+1
-		//unlock livello i
-
-		// search for the requested element by traversing the buckets in the stash
-		// -- all of them, in order to avoid leakage in the number of entries in the stash
-		for (unsigned int i = 0; i < S; i++)
-		{
-			block_id sbid = stash[i].bid;
-			swap(bid == sbid, _fetched, (std::uint8_t *)&stash[i], block_size);
-		}
-		//unlock livello i+1
-		std::memcpy(data_out, fetched->payload, B);
-	}
-
-	void taostore_oram::access_w(block_id bid, leaf_id lif, std::uint8_t *data_in, leaf_id next_lif)
-	{
-		std::uint8_t _fetched[block_size];
-		block_t *fetched = (block_t *)_fetched;
-
-		// build the block to write!
-		fetched->bid = bid;
-		fetched->lid = next_lif;
-		std::memcpy(fetched->payload, data_in, B);
-
-		// evict the created block to the stash
-		bool already_evicted = false;
-		for (unsigned int i = 0; i < S; i++)
-		{
-			block_id sbid = stash[i].bid;
-			swap(!already_evicted & (sbid == DUMMY), _fetched, (std::uint8_t *)&stash[i], block_size);
-			already_evicted = already_evicted | (sbid == DUMMY);
-		}
-
-		// if this fails, it means that the stash overflowed and you cannot insert any new element!
-		assert(already_evicted);
-
-		wb_path(lif, leaf_idx_split);
-
-		/*
-			CIRCUIT ORAM DETERMINISTIC EVICTION
-		*/
-		evict(2 * access_counter);
-		evict(2 * access_counter + 1);
-
-		// increment the access counter
-		++access_counter;
 	}
 
 	void taostore_oram::write(block_id bid, std::uint8_t *data_in, leaf_id next_lif)

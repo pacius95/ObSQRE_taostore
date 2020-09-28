@@ -5,6 +5,7 @@
 #include "obl/oram.h"
 #include "obl/flexible_array.hpp"
 #include "obl/taostore_pos_map.h"
+#include "obl/taostore_subtree.hpp"
 
 #include <cstdint>
 #include <cstddef>
@@ -27,13 +28,13 @@
 
 namespace obl
 {
+	struct processing_thread_args;
+	struct processing_thread_args_wrap;
 	// forward declarations
 	struct taostore_block_t;
 	struct taostore_bucket_t;
 	struct taostore_request_t;
 	struct taostore_subtree_bucket_t;
-	struct processing_thread_args;
-	struct processing_thread_args_wrap;
 
 	class taostore_oram : public tree_oram
 	{
@@ -45,13 +46,14 @@ namespace obl
 
 		std::size_t block_size;	 //aligned block size
 		std::size_t bucket_size; //aligned/padded encrypted bucket size
+		std::size_t subtree_bucket_size;
 
 		// stash
 		flexible_array<block_t> stash;
 		unsigned int S; // stash size
 
 		// content of the local subtree
-		flexible_array<bucket_t> local_subtree;
+		taostore_subtree *local_subtree;
 
 // content of the ORAM
 #ifdef SGX_ENCLAVE_ENABLED
@@ -59,11 +61,16 @@ namespace obl
 #else
 		flexible_array<bucket_t> tree;
 #endif
+		//serialier data
 		pthread_t serializer_id;
 		pthread_mutex_t serializer_lck = PTHREAD_MUTEX_INITIALIZER;
 		pthread_cond_t serializer_cond = PTHREAD_COND_INITIALIZER;
 		std::deque<request_t *> request_structure;
 		std::deque<request_t *>::iterator it;
+
+		//subtree and stash locks
+		pthread_spinlock_t *subtree_lock;
+		pthread_rwlock_t subtree_rwlock = PTHREAD_RWLOCK_INITIALIZER;
 
 		taostore_position_map *pos_map;
 		// crypto stuff
