@@ -65,12 +65,12 @@ namespace obl
 		pthread_t serializer_id;
 		pthread_mutex_t serializer_lck = PTHREAD_MUTEX_INITIALIZER;
 		pthread_cond_t serializer_cond = PTHREAD_COND_INITIALIZER;
-		std::deque<request_t *> request_structure;
+
+		std::deque<request_t *>request_structure;
 		std::deque<request_t *>::iterator it;
 
-		//subtree and stash locks
-		pthread_spinlock_t *subtree_lock;
-		pthread_rwlock_t subtree_rwlock = PTHREAD_RWLOCK_INITIALIZER;
+		//stash locks
+		pthread_spinlock_t stash_lock;
 
 		taostore_position_map *pos_map;
 		// crypto stuff
@@ -80,13 +80,11 @@ namespace obl
 
 		// this is used to authenticate and rebuild the merkle tree
 
-
 		bool oram_alive;
+		std::atomic_llong evict_path;
+		std::atomic_llong paths;
 		// private methods
 		void init();
-
-		std::int64_t fetch_path(leaf_id path, flexible_array<block_t> * fetched_path, auth_data_t * _adata);
-		void wb_path(obl::leaf_id path, std::int64_t leaf);
 
 		// circuit ORAM eviction preprocessing
 		void evict(leaf_id path); // wrapper
@@ -99,7 +97,8 @@ namespace obl
 
 		static void *processing_thread_wrap(void *object);
 		void *processing_thread(void *_request);
-		bool read_path(request_t *req, block_id *bid);
+		void read_path(request_t *req, std::uint8_t* _fetched);
+		void answer_request (request_t *req, std::uint8_t* _fetched);
 
 		// helper methods
 		bool has_free_block(block_t *bl, int len);

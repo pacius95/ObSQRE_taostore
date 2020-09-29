@@ -27,7 +27,7 @@ namespace obl
         pthread_spinlock_t lk;
         obl_aes_gcm_128bit_tag_t mac;
         obl_aes_gcm_128bit_tag_t sibling_mac;
-        taostore_block_t payload[];
+        taostore_block_t  *payload;
 
         node()
         {
@@ -35,19 +35,21 @@ namespace obl
             child_r = nullptr;
             parent = nullptr;
             lvl = 0;
+            memcpy(mac, 0x00, sizeof(obl_aes_gcm_128bit_tag_t));
+            memcpy(sibling_mac, 0x00, sizeof(obl_aes_gcm_128bit_tag_t));
         }
-        node(size_t size)
+        node(size_t size):node()
         {
-            payload = malloc(sizeof(uint8_t) * size);
+            payload = (taostore_block_t*) malloc(sizeof(uint8_t) * size);
         }
 
-        lock()
+        int lock()
         {
-            pthread_spin_lock(lk);
+            return pthread_spin_lock(&lk);
         }
-        unlock()
+        int unlock()
         {
-            pthread_spin_unlock(lk);
+            return pthread_spin_unlock(&lk);
         }
     };
 
@@ -62,16 +64,16 @@ namespace obl
         //write_queue
         //hashmap dei nodi leaf
 
-        taostore_subtree(size_t _node_size, obl_aes_gcm_128bit_tag_t merkle_root, uint8_t* _data)
+        taostore_subtree(size_t _node_size, uint8_t*_merkle_root, uint8_t* _data)
         {
             node_size = _node_size;
-            init(merkle_root, _data);
+            init(_merkle_root, _data);
         }
 
-        init(obl_aes_gcm_128bit_tag_t merkle_root, uint8_t* _data)
+        void init(uint8_t *_merkle_root, uint8_t* _data)
         {
             root = new node(node_size);
-            root->mac = merkle_root;
+            memcpy (root->mac, _merkle_root, (size_t) OBL_AESGCM_MAC_SIZE);
             root->lvl = 0;
             root->parent = nullptr;
             root->child_r = nullptr;
@@ -79,19 +81,19 @@ namespace obl
             memcpy (root->payload, _data, node_size);
         }
 
-        obl_aes_gcm_128bit_tag_t get_merkle_root() { return root->mac; }
+        uint8_t* get_merkle_root() { return root->mac; }
 
-        read_lock()
+        int read_lock()
         {
-            pthread_rwlock_rdlock(&tree_rw_lock);
+            return pthread_rwlock_rdlock(&tree_rw_lock);
         }
-        write_lock()
+        int write_lock()
         {
-            pthread_rwlock_wrlock(&tree_rw_lock);
+            return pthread_rwlock_wrlock(&tree_rw_lock);
         }
-        unlock()
+        int unlock()
         {
-            pthread_rwlock_unlock(&tree_rw_lock);
+            return pthread_rwlock_unlock(&tree_rw_lock);
         }
     };
 } // namespace obl
