@@ -66,7 +66,7 @@ namespace obl
 		pthread_mutex_t serializer_lck = PTHREAD_MUTEX_INITIALIZER;
 		pthread_cond_t serializer_cond = PTHREAD_COND_INITIALIZER;
 
-		std::deque<request_t *>request_structure;
+		std::deque<request_t *> request_structure;
 		std::deque<request_t *>::iterator it;
 
 		//stash locks
@@ -87,9 +87,6 @@ namespace obl
 		void init();
 
 		// circuit ORAM eviction preprocessing
-		void evict(leaf_id path); // wrapper
-		void deepest(leaf_id path);
-		void target(); // leaf idx in the binary heap
 		void eviction(leaf_id path);
 
 		static void *serializer_wrap(void *object);
@@ -97,8 +94,9 @@ namespace obl
 
 		static void *processing_thread_wrap(void *object);
 		void *processing_thread(void *_request);
-		void read_path(request_t *req, std::uint8_t* _fetched);
-		void answer_request (request_t *req, std::uint8_t* _fetched);
+		void read_path(request_t *req, std::uint8_t *_fetched);
+		void fetch_path(std::uint8_t *_fetched, block_id bid, leaf_id new_lid, leaf_id path);
+		void answer_request(request_t *req, std::uint8_t *_fetched);
 
 		// helper methods
 		bool has_free_block(block_t *bl, int len);
