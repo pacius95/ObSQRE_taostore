@@ -1,3 +1,5 @@
+/*
+
 #include "obl/rec_taostore.h"
 #include "obl/primitives.h"
 
@@ -34,3 +36,6 @@ namespace obl
 		toram->access(bid, data_in, data_out);
 	}
 } // namespace obl
+
+
+*/

@@ -2,14 +2,14 @@ CC = gcc
 CXX = g++
 
 # release flags
-CFLAGS = -Wall $(INC) -march=native -mrdrnd -mrdseed -mpopcnt -O2
+#CFLAGS = -Wall $(INC) -march=native -mrdrnd -mrdseed -mpopcnt -O2
 # debug flags
-#CFLAGS = -Wall $(INC) -march=sandybridge -mrdrnd -mrdseed -mpopcnt -mavx2 -O0 -g
+CFLAGS = -Wall $(INC) -march=sandybridge -mrdrnd -mrdseed -mpopcnt -mavx2 -g -O0 
 CXXFLAGS = -std=c++11
 
-LDFLAGS = ../../libs/libwolfssl.a -L$(SGX_SDK)/lib64 -lsgx_tcrypto
+LDFLAGS = ../../libs/libwolfssl.a -L$(SGX_SDK)/lib64 -lsgx_tcrypto -lpthread 
 
-INCDIR = ../../ ../../includes $(SGX_SDK)/include
+INCDIR = ../../ ../../includes /usr/include $(SGX_SDK)/include
 INC = $(addprefix -I, $(INCDIR))
 
 FILESRCS = $(wildcard ./*.c*)
@@ -31,6 +31,9 @@ STATICLIB = ../../libs/libobl.a
 all: $(TEST) $(BENCH)
 	@cp $(TEST) $(BENCH) ../../
 
+test: $(TEST) 
+	@cp $(TEST) ../../
+	
 benchmarks: $(BENCH)
 	@cp $(BENCH) ../../
 

@@ -95,7 +95,7 @@ namespace obl
 
             leef = ternary_op(i == idx, tmp, leef);
             tmp = ternary_op(to_init, DUMMY_LEAF, tmp);
-            map[i] = ternary_op(i == idx & !fake, replacement, tmp);
+            map[i] = ternary_op((i == idx) & !fake, replacement, tmp);
         }
 
         return leef;

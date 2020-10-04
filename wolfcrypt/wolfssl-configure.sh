@@ -1,5 +1,5 @@
-./configure --enable-cryptonly \
-	--enable-static --enable-harden \
+./configure  --enable-cryptonly \
+	--enable-static --enable-harden --disable-crypttests --disable-examples \
 	--enable-singlethreaded --disable-asyncthreads \
 	--enable-pwdbased --enable-aesctr --disable-aescbc \
 	--enable-aesni --enable-intelasm --enable-intelrand \
@@ -12,4 +12,5 @@
 	--disable-filesystem --disable-rng --disable-memory \
 	--disable-hashdrbg --disable-coding \
 	--disable-extended-master \
-	--disable-asn --disable-errorstrings --disable-oldnames
+	--disable-asn --disable-errorstrings --disable-oldnames --disable-errorqueue \
+	--disable-pkcs12 --disable-asyncthreads

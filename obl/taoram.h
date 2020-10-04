@@ -13,13 +13,13 @@
 #include <deque>
 
 //threading libs
+#include <iostream>
 #include <atomic>
+#include <vector>
 #include <mutex>
 #include <thread>
-#include <vector>
 #include <pthread.h>
-#include <sgx_spinlock.h>
-
+//#include <sgx_spinlock.h>
 #include <wolfcrypt/aes.h>
 
 #ifdef SGX_ENCLAVE_ENABLED
@@ -28,22 +28,13 @@
 
 namespace obl
 {
+
 	struct processing_thread_args;
 	struct processing_thread_args_wrap;
-	// forward declarations
-	struct taostore_block_t;
-	struct taostore_bucket_t;
-	struct taostore_request_t;
-	struct taostore_subtree_bucket_t;
 
 	class taostore_oram : public tree_oram
 	{
 	private:
-		typedef taostore_block_t block_t;
-		typedef taostore_bucket_t bucket_t;
-		typedef taostore_subtree_bucket_t subtree_bucket_t;
-		typedef taostore_request_t request_t;
-
 		std::size_t block_size;	 //aligned block size
 		std::size_t bucket_size; //aligned/padded encrypted bucket size
 		std::size_t subtree_bucket_size;
@@ -70,9 +61,11 @@ namespace obl
 		std::deque<request_t *>::iterator it;
 
 		//stash locks
-		pthread_spinlock_t stash_lock;
+		//TODO spinlock
+		pthread_mutex_t stash_lock = PTHREAD_MUTEX_INITIALIZER ;
 
 		taostore_position_map *pos_map;
+
 		// crypto stuff
 		void *_crypt_buffer;
 		Aes *crypt_handle;
@@ -99,6 +92,7 @@ namespace obl
 		void answer_request(request_t *req, std::uint8_t *_fetched);
 
 		// helper methods
+		void printrec(node* t, int L);
 		bool has_free_block(block_t *bl, int len);
 		std::int64_t get_max_depth_bucket(block_t *bl, int len, leaf_id path);
 
@@ -109,14 +103,17 @@ namespace obl
 		taostore_oram(std::size_t N, std::size_t B, unsigned int Z, unsigned int S);
 		~taostore_oram();
 
+		//debug
+		void printstash();
+		void printsubtree();
 		void set_pos_map(taostore_position_map *pos_map);
-
+		
 		void access(block_id bid, std::uint8_t *data_in, std::uint8_t *data_out);
 		void access(block_id bid, leaf_id lif, std::uint8_t *data_in, std::uint8_t *data_out, leaf_id next_lif){};
 
 		// split fetch and eviction phases of the access method
-		void access_r(block_id bid, leaf_id lif, std::uint8_t *data_out);
-		void access_w(block_id bid, leaf_id lif, std::uint8_t *data_in, leaf_id next_lif);
+		void access_r(block_id bid, leaf_id lif, std::uint8_t *data_out){};
+		void access_w(block_id bid, leaf_id lif, std::uint8_t *data_in, leaf_id next_lif){};
 
 		// only write block into the stash and perfom evictions
 		void write(block_id bid, std::uint8_t *data_in, leaf_id next_lif);

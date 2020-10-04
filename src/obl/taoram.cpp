@@ -5,58 +5,29 @@
 #include "obl/oassert.h"
 
 #include <cstdlib>
+#include <iostream>
 #include <cstring>
-#include "sgx_trts.h"
+
+//#include "sgx_trts.h"
 #define DUMMY -1
 #define BOTTOM -2
 
 namespace obl
 {
+
 	struct processing_thread_args
 	{
 		taostore_request_t *request;
 		block_id bid;
 	};
-
 	struct processing_thread_args_wrap
 	{
 		taostore_oram *arg1;
 		processing_thread_args *arg2;
 	};
 
-	struct taostore_block_t
-	{
-		block_id bid;
-		leaf_id lid;
-		std::uint8_t payload[];
-	};
-
-	struct taostore_bucket_t
-	{
-		obl_aes_gcm_128bit_iv_t iv;
-		bool reach_l, reach_r;
-		obl_aes_gcm_128bit_tag_t mac __attribute__((aligned(8)));
-		// since payload is going to be a multiple of 16 bytes, the struct will be memory aligned!
-		uint8_t payload[];
-	};
-
-	struct taostore_request_t
-	{
-		std::uint8_t *data_in;
-		block_id bid;
-		bool fake;
-		bool handled;
-		std::uint8_t *data_out;
-		bool res_ready;
-		bool data_ready;
-		pthread_t thread_id;
-		pthread_mutex_t *cond_mutex;
-		pthread_cond_t *serializer_res_ready;
-	};
-
 	taostore_oram::taostore_oram(std::size_t N, std::size_t B, unsigned int Z, unsigned int S) : tree_oram(N, B, Z)
 	{
-
 		// align structs to 8-bytes
 		/*
 			Since AES-GCM is basically an AES-CTR mode, and AES-CTR mode is a "stream-cipher",
@@ -78,6 +49,7 @@ namespace obl
 		tree.reserve(capacity);
 
 		init();
+		oram_alive = true;
 		pthread_create(&serializer_id, nullptr, serializer_wrap, (void *)this);
 	}
 
@@ -91,8 +63,8 @@ namespace obl
 		free(_crypt_buffer);
 
 		//todo:
-		//set oram_alive = 0
-		//wait serializer to die.
+		oram_alive = false;
+		pthread_join(serializer_id, nullptr);
 	}
 
 	void taostore_oram::init()
@@ -148,38 +120,23 @@ namespace obl
 
 	void *taostore_oram::serializer()
 	{
-		while (oram_alive && request_structure.size() != 0)
+		while (oram_alive || request_structure.size() != 0)
 		{
 			pthread_mutex_lock(&serializer_lck);
-			if (request_structure.size() == 0)
+			while (request_structure.size() == 0 || !request_structure.front()->handled || !request_structure.front()->data_ready)
 				pthread_cond_wait(&serializer_cond, &serializer_lck);
-			//condition is false
-			while (!request_structure.front()->handled || !request_structure.front()->data_ready)
+
+			while (request_structure.size() != 0 && request_structure.front()->handled && request_structure.front()->data_ready)
 			{
-				pthread_cond_wait(&serializer_cond, &serializer_lck);
-				//if condition true
-				if (request_structure.front()->handled && request_structure.front()->data_ready)
-				{
-					pthread_mutex_lock(request_structure.front()->cond_mutex);
-					request_structure.front()->res_ready = true;
-					pthread_cond_signal(request_structure.front()->serializer_res_ready);
-					pthread_mutex_unlock(request_structure.front()->cond_mutex);
-					request_structure.pop_front();
-				}
-			}
-			if (request_structure.size() != 0)
-			{
-				if (request_structure.front()->handled && request_structure.front()->data_ready)
-				{
-					pthread_mutex_lock(request_structure.front()->cond_mutex);
-					request_structure.front()->res_ready = true;
-					pthread_cond_signal(request_structure.front()->serializer_res_ready);
-					pthread_mutex_unlock(request_structure.front()->cond_mutex);
-					request_structure.pop_front();
-				}
+				pthread_mutex_lock(request_structure.front()->cond_mutex);
+				request_structure.front()->res_ready = true;
+				pthread_cond_broadcast(request_structure.front()->serializer_res_ready);
+				pthread_mutex_unlock(request_structure.front()->cond_mutex);
+				request_structure.pop_front();
 			}
 			pthread_mutex_unlock(&serializer_lck);
 		}
+		return 0;
 	}
 
 	void taostore_oram::set_pos_map(taostore_position_map *pos_map)
@@ -230,7 +187,6 @@ namespace obl
 		bool reachable = true;
 		bool valid = true;
 
-
 		//evict array helper
 		std::int64_t longest_jump_down[L + 2]; // counting root = 0 and stash = -1 and L additional levels
 		std::int64_t closest_src_bucket[L + 2];
@@ -273,9 +229,11 @@ namespace obl
 			}
 		}
 
+		//TODO test the valid case (after writeBack)
 		while (i <= L && valid)
 		{
-			reference_node = new node(block_size);
+			(path >> (i - 1)) & 1 ? old_ref_node->child_r = new node(block_size * Z) : old_ref_node->child_l = new node(block_size * Z);
+			reference_node = (path >> (i - 1)) & 1 ? old_ref_node->child_r : old_ref_node->child_l;
 			reference_node->parent = old_ref_node;
 
 			std::memcpy(reference_node->mac, tree[l_index].mac, sizeof(obl_aes_gcm_128bit_tag_t));
@@ -300,7 +258,7 @@ namespace obl
 
 			// decrypt using the IV
 			int dec = wc_AesGcmDecrypt(crypt_handle,
-									   (std::uint8_t *)&reference_node->payload,
+									   (std::uint8_t *)reference_node->payload,
 									   tree[l_index].payload,
 									   Z * block_size,
 									   tree[l_index].iv,
@@ -321,10 +279,8 @@ namespace obl
 			goal = ternary_op(jump >= goal, jump, goal);
 
 			old_ref_node = reference_node;
-			reference_node = (path >> i) & 1 ? old_ref_node->child_r : old_ref_node->child_l;
 
 			valid = (path >> i) & 1 ? adata.valid_r : adata.valid_l;
-
 			l_index = (l_index << 1) + 1 + ((path >> i) & 1);
 			i++;
 		}
@@ -332,11 +288,13 @@ namespace obl
 		// fill the other buckets with "empty" blocks
 		while (i <= L)
 		{
-			reference_node = new node(block_size);
+			(path >> (i - 1)) & 1 ? old_ref_node->child_r = new node(block_size * Z) : old_ref_node->child_l = new node(block_size * Z);
+			reference_node = (path >> (i - 1)) & 1 ? old_ref_node->child_r : old_ref_node->child_l;
+
 			reference_node->parent = old_ref_node;
 
 			for (unsigned int j = 0; j < Z; j++)
-				reference_node->payload[j].bid = DUMMY;
+				((block_t *)((std::uint8_t *)reference_node->payload + block_size * j))->bid = DUMMY;
 
 			csb[i] = ternary_op(goal >= i, _closest_src_bucket, BOTTOM);
 			std::int64_t jump = get_max_depth_bucket(reference_node->payload, Z, path);
@@ -345,7 +303,6 @@ namespace obl
 			goal = ternary_op(jump >= goal, jump, goal);
 
 			old_ref_node = reference_node;
-			reference_node = (path >> i) & 1 ? old_ref_node->child_r : old_ref_node->child_l;
 
 			// evaluate the next encrypted bucket index in the binary heap
 			l_index = (l_index << 1) + 1 + ((path >> i) & 1);
@@ -385,8 +342,8 @@ namespace obl
 
 			dst = ternary_op(new_dst, i, dst);
 			src = ternary_op(new_dst, closest_src, src);
-			
-			reference_node = i ? reference_node->parent: reference_node; //non farlo quando si è al root
+
+			reference_node = i ? reference_node->parent : reference_node; //non farlo quando si è al root
 		}
 
 		// now the stash
@@ -398,20 +355,20 @@ namespace obl
 		//START EVICTION
 
 		std::uint8_t _hold[block_size];
-		block_t *hold = (block_t*) _hold;
+		block_t *hold = (block_t *)_hold;
 		hold->bid = DUMMY;
 
 		bool fill_hold = ndb[-1] != BOTTOM;
 
-		for(unsigned int i = 0; i < S; i++)
+		for (unsigned int i = 0; i < S; i++)
 		{
 			bool deepest_block = (get_max_depth(stash[i].lid, path, L) == ljd[-1]) & fill_hold & (stash[i].bid != DUMMY);
-			swap(deepest_block, _hold, (std::uint8_t*) &stash[i], block_size);
+			swap(deepest_block, _hold, (std::uint8_t *)&stash[i], block_size);
 		}
 
 		dst = ndb[-1];
 
-		for(int i = 0; i <= L; i++)
+		for (int i = 0; i <= L; i++)
 		{
 			std::int64_t next_dst = ndb[i];
 
@@ -421,23 +378,24 @@ namespace obl
 
 			bool swap_hold_with_valid = next_dst != BOTTOM;
 			dst = ternary_op(swap_hold_with_valid, next_dst, dst);
-
+			block_t *bl = reference_node->payload;
 			//bool already_swapped = false;
-			for(unsigned int j = 0; j < Z; j++)
+			for (unsigned int j = 0; j < Z; j++)
 			{
-				bool deepest_block = (get_max_depth(reference_node->payload[j].lid, path, L) == ljd[i]) & (reference_node->payload[j].bid != DUMMY);
+				bool deepest_block = (get_max_depth(bl->lid, path, L) == ljd[i]) & (bl->bid != DUMMY);
 
 				swap(
-					(!swap_hold_with_valid & necessary_eviction & (reference_node->payload[j].bid == DUMMY)) | (swap_hold_with_valid & deepest_block),
-					_hold, (std::uint8_t*) &reference_node->payload[j], block_size);
-			}
-			reference_node = i!=L ? (path >> i) & 1 ? reference_node->child_r : reference_node->child_l : reference_node;
+					(!swap_hold_with_valid & necessary_eviction & (bl->bid == DUMMY)) | (swap_hold_with_valid & deepest_block),
+					_hold, (std::uint8_t *)bl, block_size);
 
+				bl = (block_t *)((std::uint8_t *)bl + block_size);
+			}
+			reference_node = i != L ? (path >> i) & 1 ? reference_node->child_r : reference_node->child_l : reference_node;
 		}
 
 		local_subtree->unlock();
 		//END EVICTION
-		
+
 		//TODO writeback
 		//wb_path(path, leaf);
 	}
@@ -452,10 +410,12 @@ namespace obl
 		processing_thread_args *object = (processing_thread_args *)_object;
 		request_t *request = object->request;
 		std::uint8_t _fetched[block_size];
+		block_t* fetched = (block_t*) _fetched;
 		read_path(request, _fetched);
+		
 		answer_request(request, _fetched);
 
-		std::uint64_t evict_leaf = (std::uint64_t)std::atomic_fetch_add(&evict_path, 2);
+		std::uint64_t evict_leaf = (std::uint64_t)std::atomic_fetch_add(&evict_path, 1);
 
 		eviction(2 * evict_leaf);
 		eviction(2 * evict_leaf + 1);
@@ -463,6 +423,7 @@ namespace obl
 		paths++;
 		//push lid and 2*evicts and 2*evict_leaf+1 in write queue
 		//TODO here on after fetch over for lid and eviction for evict
+		return 0;
 	}
 
 	void taostore_oram::read_path(request_t *req, std::uint8_t *_fetched)
@@ -480,8 +441,9 @@ namespace obl
 		request_structure.push_back(req);
 		pthread_mutex_unlock(&serializer_lck);
 
-		sgx_read_rand((unsigned char *)&bid, sizeof(block_id));
-		replace(!req->fake, (std::uint8_t *)&bid, (std::uint8_t *)req->bid, sizeof(block_id));
+		gen_rand((std::uint8_t *)&bid, sizeof(block_id));
+		replace(!req->fake, (std::uint8_t *)&bid, (std::uint8_t *)&(req->bid), sizeof(block_id));
+
 
 		leaf_id ev_lid;
 		leaf_id path = pos_map->access(bid, req->fake, &ev_lid);
@@ -493,7 +455,7 @@ namespace obl
 	{
 		// always start from root
 		std::int64_t l_index = 0;
-		int i;
+		int i = 0;
 		obl_aes_gcm_128bit_tag_t reference_mac;
 
 		block_t *fetched = (block_t *)_fetched;
@@ -505,20 +467,27 @@ namespace obl
 		std::memset(&adata, 0x00, sizeof(auth_data_t));
 		//TODO implement PATHREQUESTMULTISET
 		//TODO COUNTER ON THE BUCKETS (?)
-		node *reference_node, *old_ref_node;
+		node *reference_node;
+		node *old_ref_node;
+
 		local_subtree->read_lock();
 		reference_node = local_subtree->root;
 
-		for (int i = 0; i <= L && reachable; i++)
+		block_t * bl;
+
+		for (i = 0; i <= L && reachable; i++)
 		{
 			reference_node->lock();
 			if (i != 0)
 				old_ref_node->unlock();
 
+			bl = reference_node->payload;
 			for (unsigned int j = 0; j < Z; j++)
 			{
-				block_id fpbid = reference_node->payload[j].bid;
-				swap(fpbid == bid, _fetched, (std::uint8_t *)&reference_node->payload[j], block_size);
+				block_id fpbid = bl->bid;
+				swap(fpbid == bid, _fetched, (std::uint8_t *)bl, block_size);
+				bl = ((block_t *)((std::uint8_t *)bl + block_size));
+			
 			}
 
 			old_ref_node = reference_node;
@@ -532,9 +501,13 @@ namespace obl
 			}
 		}
 
+
+		//TODO check if aesgcm works
 		while (i <= L && valid)
 		{
-			reference_node = new node(block_size);
+			(path >> (i - 1)) & 1 ? old_ref_node->child_r = new node(block_size * Z) : old_ref_node->child_l = new node(block_size * Z);
+			reference_node = (path >> (i - 1)) & 1 ? old_ref_node->child_r : old_ref_node->child_l;
+
 			reference_node->parent = old_ref_node;
 			reference_node->lock();
 			old_ref_node->unlock();
@@ -561,7 +534,7 @@ namespace obl
 
 			// decrypt using the IV
 			int dec = wc_AesGcmDecrypt(crypt_handle,
-									   (std::uint8_t *)&reference_node->payload,
+									   (std::uint8_t *)reference_node->payload,
 									   tree[l_index].payload,
 									   Z * block_size,
 									   tree[l_index].iv,
@@ -573,16 +546,17 @@ namespace obl
 
 			assert(dec == 0);
 
+			bl = reference_node->payload;
 			for (unsigned int j = 0; j < Z; j++)
 			{
-				block_id fpbid = reference_node->payload[j].bid;
-				swap(fpbid == bid, _fetched, (std::uint8_t *)&reference_node->payload[j], block_size);
+				block_id fpbid = bl->bid;
+				swap(fpbid == bid, _fetched, (std::uint8_t *)bl, block_size);
+				bl = ((block_t *)((std::uint8_t *)bl + block_size ));
+			
 			}
 
 			old_ref_node = reference_node;
-			reference_node = (path >> i) & 1 ? old_ref_node->child_r : old_ref_node->child_l;
-
-			valid = (path >> i) & 1 ? adata.valid_r : adata.valid_l;
+						valid = (path >> i) & 1 ? adata.valid_r : adata.valid_l;
 
 			l_index = (l_index << 1) + 1 + ((path >> i) & 1);
 			i++;
@@ -591,17 +565,21 @@ namespace obl
 		// fill the other buckets with "empty" blocks
 		while (i <= L)
 		{
-			reference_node = new node(block_size);
+			(path >> (i - 1)) & 1 ? old_ref_node->child_r = new node(block_size * Z) : old_ref_node->child_l = new node(block_size * Z);
+			reference_node = (path >> (i - 1)) & 1 ? old_ref_node->child_r : old_ref_node->child_l;
 			reference_node->parent = old_ref_node;
 
 			reference_node->lock();
 			old_ref_node->unlock();
 
-			for (unsigned int j = 0; j < Z; j++)
-				reference_node->payload[j].bid = DUMMY;
+			bl = reference_node->payload;
+				
+			for (unsigned int j = 0; j < Z; j++) {
+				bl->bid = DUMMY;
+				bl = ((block_t *)((std::uint8_t *)bl + block_size ));
+			}
 
 			old_ref_node = reference_node;
-			reference_node = (path >> i) & 1 ? old_ref_node->child_r : old_ref_node->child_l;
 
 			// evaluate the next encrypted bucket index in the binary heap
 			l_index = (l_index << 1) + 1 + ((path >> i) & 1);
@@ -609,34 +587,38 @@ namespace obl
 		}
 		//TODO add leaf POINTER to hashmap in subtree
 
-		pthread_spin_lock(&stash_lock);
-		reference_node->unlock();
+
+		pthread_mutex_lock(&stash_lock);
+		old_ref_node->unlock();
 		for (unsigned int i = 0; i < S; i++)
 		{
 			block_id sbid = stash[i].bid;
 			swap(bid == sbid, _fetched, (std::uint8_t *)&stash[i], block_size);
 		}
 
-		pthread_spin_unlock(&stash_lock);
-		fetched->lid = new_lid;
+		fetched->lid = new_lid;		pthread_mutex_unlock(&stash_lock);
+		local_subtree->unlock();
 	}
 
 	void taostore_oram::answer_request(request_t *req, std::uint8_t *_fetched)
 	{
 		block_t *fetched = (block_t *)_fetched;
-
+		bool t = true;
 		pthread_mutex_lock(&serializer_lck);
+		pthread_t i = pthread_self();
 		for (it = request_structure.begin(); it < request_structure.end(); it++)
 		{
-			//TODO test this true replace
-			replace((*it)->thread_id == pthread_self(), (std::uint8_t *)&((*it)->handled), (std::uint8_t *)true, sizeof(bool));
-			replace(req->fake && (*it)->bid == req->bid, (*it)->data_out, (std::uint8_t *)fetched->payload, B);
-			replace(req->fake && (*it)->bid == req->bid && (*it)->data_in != nullptr, (std::uint8_t *)fetched->payload, (*it)->data_in, B);
-			replace(req->fake && (*it)->bid == req->bid, (std::uint8_t *)&((*it)->data_ready), (std::uint8_t *)true, sizeof(bool));
+			replace(*(*it)->thread_id == pthread_self(), (std::uint8_t *)&((*it)->handled), (std::uint8_t *)&t, sizeof(bool));
+			replace(!req->fake && (*it)->bid == req->bid, (*it)->data_out, (std::uint8_t *)fetched->payload, B);
+			//NON VA BENE PERCHÈ DATA_IN È NULLPTR
+			replace(!req->fake && (*it)->bid == req->bid, (std::uint8_t *)&((*it)->data_ready), (std::uint8_t *)&t, sizeof(bool));
+			if ((*it)->data_in != nullptr)
+				replace(!req->fake && (*it)->bid == req->bid && (*it)->data_in != nullptr, (std::uint8_t *)fetched->payload, (*it)->data_in, B);
 		}
 		//TODO lock stash ( so read lock tree.....)
 		local_subtree->read_lock();
-		pthread_spin_lock(&stash_lock);
+		//TODO rimettere spinlock
+		pthread_mutex_lock(&stash_lock);
 		bool already_evicted = false;
 		for (unsigned int i = 0; i < S; i++)
 		{
@@ -644,7 +626,7 @@ namespace obl
 			swap(!already_evicted & (sbid == DUMMY), _fetched, (std::uint8_t *)&stash[i], block_size);
 			already_evicted = already_evicted | (sbid == DUMMY);
 		}
-		pthread_spin_unlock(&stash_lock);
+		pthread_mutex_unlock(&stash_lock);
 		local_subtree->unlock();
 		pthread_cond_broadcast(&serializer_cond);
 		pthread_mutex_unlock(&serializer_lck);
@@ -656,10 +638,10 @@ namespace obl
 		pthread_cond_t _serializer_res_ready = PTHREAD_COND_INITIALIZER;
 		pthread_t proces;
 		std::uint8_t _data_out[B];
-		request_t _req = {data_in, bid, false, false, _data_out, false, false, proces, &_cond_mutex, &_serializer_res_ready};
+		request_t _req = {data_in, bid, false, false, (std::uint8_t *)_data_out, false, false, &proces, &_cond_mutex, &_serializer_res_ready};
 		struct processing_thread_args obj = {&_req, bid};
 		struct processing_thread_args_wrap obj_wrap = {this, &obj};
-		pthread_create(&proces, nullptr, processing_thread_wrap, (void *)&obj);
+		pthread_create(&proces, nullptr, processing_thread_wrap, (void *)&obj_wrap);
 		//wait on the conditional var
 		pthread_mutex_lock(&_cond_mutex);
 		while (!_req.res_ready)
@@ -668,11 +650,7 @@ namespace obl
 		}
 		pthread_mutex_unlock(&_cond_mutex);
 
-		std::memcpy(data_out, _data_out, B);
-
-		delete[] & _req;
-		pthread_cond_destroy(&_serializer_res_ready);
-		pthread_mutex_destroy(&_cond_mutex);
+		std::memcpy(data_out, (std::uint8_t *)_data_out, B);
 	}
 
 	void taostore_oram::write(block_id bid, std::uint8_t *data_in, leaf_id next_lif)
@@ -696,10 +674,38 @@ namespace obl
 
 		assert(already_evicted);
 
-		eviction(2 * access_counter);
-		eviction(2 * access_counter + 1);
+		leaf_id evict_leaf = (leaf_id)std::atomic_fetch_add(&evict_path, 1);
 
+		eviction(2 * evict_leaf);
+		eviction(2 * evict_leaf + 1);
+		//DBUG
 		paths++;
+	}
+
+	void taostore_oram::printstash()
+	{
+		for (unsigned int i = 0; i < S; i++)
+			std::cerr << "stash " << i << "bid: " << (block_id)stash[i].bid << "lid :" << (leaf_id)stash[i].lid << " data: " << (std::uint64_t) * ((std::uint64_t *)stash[i].payload) << std::endl;
+	}
+	void taostore_oram::printsubtree()
+	{
+		printrec(local_subtree->root, L);
+	}
+	void taostore_oram::printrec(node *t, int l)
+	{
+		block_t *bl = t->payload;
+		for (int i = 0; i < Z; i++) {
+			std::cerr << "node lvl:" << L-l << "bid: " << bl->bid << "lid :" << bl->lid << " data: " << (std::uint64_t) * ((std::uint64_t *)bl->payload) << std::endl;
+			bl = (block_t *)((std::uint8_t *)bl + block_size);
+		}
+			
+		if (l == 0)
+			return;
+		else
+		{
+			printrec(t->child_l, l-1);
+			printrec(t->child_r, l-1);
+		}
 	}
 
 } // namespace obl

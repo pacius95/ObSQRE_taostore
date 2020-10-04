@@ -4,7 +4,7 @@
 #include "obl/oram.h"
 #include "obl/rec.h"
 #include <pthread.h>
-#include <sgx_spinlock.h>
+//#include <sgx_spinlock.h>
 
 #include <cstddef>
 
