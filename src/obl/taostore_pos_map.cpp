@@ -42,7 +42,9 @@ namespace obl
         /*if(rmap_levs == 1)
 			rmap_bits = rmap_opt;*/
 
-        rmap_locks = new pthread_mutex_t *[rmap_levs+1];
+        rmap_locks = new pthread_mutex_t[rmap_levs + 1];
+        for (int i = 0; i < rmap_levs + 1; i++)
+            rmap_locks[i] = PTHREAD_MUTEX_INITIALIZER;
         if (rmap_levs > 0)
         {
             rmap = new tree_oram *[rmap_levs];
@@ -65,7 +67,7 @@ namespace obl
                 rmap[i] = allocator->spawn_oram(rec_N, sizeof(leaf_id) * (1 << tmp_rmap));
             }
         }
-        else 
+        else
             rmap = nullptr;
 
         pos_map = new leaf_id[rmap_csize];
@@ -76,6 +78,8 @@ namespace obl
     taostore_position_map::~taostore_position_map()
     {
         delete[] pos_map;
+        if (rmap_locks != nullptr)
+            delete[] rmap_locks;
         if (rmap != nullptr)
         {
             for (int i = 0; i < rmap_levs; i++)
@@ -107,7 +111,7 @@ namespace obl
 
         leaf_id tmp_pos_map[rmap_csize];
         leaf_id leef, dummy_leef;
-        leaf_id ev_leef = *_ev_leef;
+        leaf_id ev_leef;
 
         // length of the current chunk of position map you are considering
         int ch_len;
@@ -136,7 +140,7 @@ namespace obl
         rem_bid = bid;
         n_bid = rem_bid >> __builtin_ctzll(ch_len);
 
-        pthread_mutex_lock(rmap_locks[0]);
+        pthread_mutex_lock(&rmap_locks[0]);
         leef = scan_map(pos_map, n_bid, ev_leef, to_initialize, fake);
 
         to_initialize |= leef == DUMMY_LEAF;
@@ -180,13 +184,14 @@ namespace obl
             // evict
             rmap[i]->access_w(rec_bid, leef, (std::uint8_t *)tmp_pos_map, ev_leef);
 
-            pthread_mutex_lock(rmap_locks[i + 1]);
-            pthread_mutex_unlock(rmap_locks[i]);
+            pthread_mutex_lock(&rmap_locks[i + 1]);
+            pthread_mutex_unlock(&rmap_locks[i]);
             ev_leef = ev_leef_p;
             leef = leef_p;
         }
-        pthread_mutex_unlock(rmap_locks[rmap_levs]);
         ev_leef = ternary_op(fake, leef, ev_leef);
+        *_ev_leef = ev_leef;
+        pthread_mutex_unlock(&rmap_locks[rmap_levs]);
 
         return leef;
     }

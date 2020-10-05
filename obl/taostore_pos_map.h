@@ -26,7 +26,7 @@ namespace obl
 		int rmap_opt;
 
 		tree_oram **rmap;
-		pthread_mutex_t **rmap_locks;
+		pthread_mutex_t *rmap_locks;
 
 		leaf_id *pos_map;
 
