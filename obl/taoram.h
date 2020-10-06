@@ -75,7 +75,7 @@ namespace obl
 
 		bool oram_alive;
 		std::atomic_llong evict_path;
-		std::atomic_llong paths;
+		std::atomic_llong path_counter;
 		// private methods
 		void init();
 
@@ -90,7 +90,8 @@ namespace obl
 		void read_path(request_t *req, std::uint8_t *_fetched);
 		void fetch_path(std::uint8_t *_fetched, block_id bid, leaf_id new_lid, leaf_id path);
 		void answer_request(request_t *req, std::uint8_t *_fetched);
-
+		void write_back (std::uint32_t c);
+		
 		// helper methods
 		void printrec(node* t, int L);
 		bool has_free_block(block_t *bl, int len);
