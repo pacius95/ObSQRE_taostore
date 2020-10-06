@@ -1,4 +1,4 @@
-#include "obl/taoram.h"
+#include "obl/taostore.h"
 #include "obl/primitives.h"
 #include "obl/taostore_pos_map.h"
 #include "obl/circuit.h"
@@ -13,7 +13,7 @@
 #define RUN 10
 
 #define C 5
-#define S 50
+#define S 8
 #define Z 3
 
 using namespace std;
@@ -40,29 +40,24 @@ void *work(void* T)
 
 int main()
 {
-    obl::circuit_taostore_factory *allocator = new obl::circuit_taostore_factory(Z, S);
-    obl::taostore_position_map position_map(N, sizeof(int64_t), 5, allocator);
 
     vector<int64_t> mirror_data;
 
     obl::taostore_oram rram(N, sizeof(int64_t), Z, S);
-    int64_t value;
+    int64_t value, value_out;
 
     mirror_data.reserve(N);
-    rram.set_pos_map(&position_map);
 
     pthread_t workers[RUN];
 
     for (unsigned int i = 0; i < N; i++)
     {
-        obl::leaf_id next_leef;
-        position_map.access(i, false, &next_leef);
+		obl::gen_rand((std::uint8_t*) &value, sizeof(int64_t));
 
-        obl::gen_rand((std::uint8_t *)&value, sizeof(int64_t));
-
-        rram.write(i, (std::uint8_t *)&value, next_leef);
-        mirror_data[i] = value;
+		rram.access(i, (std::uint8_t*) &value, (std::uint8_t*) &value_out);
+		mirror_data[i] = value;
     }
+
     work_args args[RUN];
     for (int i = 0; i < RUN; i++)
     {
@@ -74,7 +69,6 @@ int main()
     {
         pthread_join(workers[i], nullptr);
     }
-    delete &rram;
     return 0;
 };
 

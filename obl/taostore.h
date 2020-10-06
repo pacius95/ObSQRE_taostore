@@ -3,6 +3,7 @@
 
 #include "obl/types.h"
 #include "obl/oram.h"
+#include "obl/taostore_types.hpp"
 #include "obl/flexible_array.hpp"
 #include "obl/taostore_pos_map.h"
 #include "obl/taostore_subtree.hpp"
@@ -37,8 +38,7 @@ namespace obl
 	private:
 		std::size_t block_size;	 //aligned block size
 		std::size_t bucket_size; //aligned/padded encrypted bucket size
-		std::size_t subtree_bucket_size;
-
+		
 		// stash
 		flexible_array<block_t> stash;
 		unsigned int S; // stash size
@@ -52,63 +52,55 @@ namespace obl
 #else
 		flexible_array<bucket_t> tree;
 #endif
-		//serialier data
-		pthread_t serializer_id;
-		pthread_mutex_t serializer_lck = PTHREAD_MUTEX_INITIALIZER;
-		pthread_cond_t serializer_cond = PTHREAD_COND_INITIALIZER;
+		//serialier
+		pthread_t serializer_id;									//serializer thread id
+		pthread_mutex_t serializer_lck = PTHREAD_MUTEX_INITIALIZER; //lock della variabile cond
+		pthread_cond_t serializer_cond = PTHREAD_COND_INITIALIZER;	//cond associata al serializer
+		pthread_mutex_t stash_lock = PTHREAD_MUTEX_INITIALIZER;		//lock dello stash
 
 		std::deque<request_t *> request_structure;
 		std::deque<request_t *>::iterator it;
 
-		//stash locks
-		//TODO spinlock
-		pthread_mutex_t stash_lock = PTHREAD_MUTEX_INITIALIZER ;
-
-		taostore_position_map *pos_map;
+		circuit_fake_factory *allocator;
+		taostore_position_map *position_map;
 
 		// crypto stuff
 		void *_crypt_buffer;
 		Aes *crypt_handle;
 		obl_aes_gcm_128bit_tag_t merkle_root;
 
-		// this is used to authenticate and rebuild the merkle tree
-
 		bool oram_alive;
 		std::atomic_llong evict_path;
 		std::atomic_llong path_counter;
+		std::atomic_llong pthread_alive;
+
 		// private methods
 		void init();
 
-		// circuit ORAM eviction preprocessing
-		void eviction(leaf_id path);
-
 		static void *serializer_wrap(void *object);
 		void *serializer();
-
 		static void *processing_thread_wrap(void *object);
 		void *processing_thread(void *_request);
+
 		void read_path(request_t *req, std::uint8_t *_fetched);
 		void fetch_path(std::uint8_t *_fetched, block_id bid, leaf_id new_lid, leaf_id path);
 		void answer_request(request_t *req, std::uint8_t *_fetched);
-		void write_back (std::uint32_t c);
-		
+		void eviction(leaf_id path);
+		void write_back(std::uint32_t c);
+
 		// helper methods
-		void printrec(node* t, int L);
 		bool has_free_block(block_t *bl, int len);
 		std::int64_t get_max_depth_bucket(block_t *bl, int len, leaf_id path);
-
-		// split operation variables
-		std::int64_t leaf_idx_split;
 
 	public:
 		taostore_oram(std::size_t N, std::size_t B, unsigned int Z, unsigned int S);
 		~taostore_oram();
 
 		//debug
+		void printrec(node *t, int L);
 		void printstash();
 		void printsubtree();
-		void set_pos_map(taostore_position_map *pos_map);
-		
+
 		void access(block_id bid, std::uint8_t *data_in, std::uint8_t *data_out);
 		void access(block_id bid, leaf_id lif, std::uint8_t *data_in, std::uint8_t *data_out, leaf_id next_lif){};
 

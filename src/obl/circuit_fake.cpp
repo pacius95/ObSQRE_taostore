@@ -1,4 +1,4 @@
-#include "obl/circuit_taostore_map.h"
+#include "obl/circuit_fake.h"
 #include "obl/utils.h"
 #include "obl/primitives.h"
 
@@ -26,7 +26,7 @@ namespace obl {
 		// since payload is going to be a multiple of 16 bytes, the struct will be memory aligned!
 		uint8_t payload[];
 	};
-	circuit_taostore_map::circuit_taostore_map(std::size_t N, std::size_t B, unsigned int Z, unsigned int S): tree_oram(N, B, Z)
+	circuit_fake::circuit_fake(std::size_t N, std::size_t B, unsigned int Z, unsigned int S): tree_oram(N, B, Z)
 	{
 		// align structs to 8-bytes
 		/*
@@ -63,7 +63,7 @@ namespace obl {
 		init();
 	}
 
-	circuit_taostore_map::~circuit_taostore_map()
+	circuit_fake::~circuit_fake()
 	{
 		std::memset(_crypt_buffer, 0x00, sizeof(Aes) + 16);
 
@@ -77,7 +77,7 @@ namespace obl {
 		delete[] next_dst_bucket;
 	}
 
-	void circuit_taostore_map::init()
+	void circuit_fake::init()
 	{
 		obl_aes_gcm_128bit_key_t master_key;
 		obl_aes_gcm_128bit_iv_t iv;
@@ -117,7 +117,7 @@ namespace obl {
 		tree[0].reach_r = false;
 	}
 
-	std::int64_t circuit_taostore_map::fetch_path(leaf_id path)
+	std::int64_t circuit_fake::fetch_path(leaf_id path)
 	{
 		// always start from root
 		std::int64_t l_index = 0;
@@ -211,7 +211,7 @@ namespace obl {
 		return get_parent(l_index);
 	}
 
-	void circuit_taostore_map::wb_path(leaf_id path, std::int64_t leaf)
+	void circuit_fake::wb_path(leaf_id path, std::int64_t leaf)
 	{
 		obl_aes_gcm_128bit_iv_t iv;
 		obl_aes_gcm_128bit_tag_t mac;
@@ -280,7 +280,7 @@ namespace obl {
 		std::memcpy(merkle_root, mac, sizeof(obl_aes_gcm_128bit_tag_t));
 	}
 
-	bool circuit_taostore_map::has_free_block(block_t *bl, int len)
+	bool circuit_fake::has_free_block(block_t *bl, int len)
 	{
 		bool free_block = false;
 
@@ -293,7 +293,7 @@ namespace obl {
 		return free_block;
 	}
 
-	std::int64_t circuit_taostore_map::get_max_depth_bucket(block_t *bl, int len, leaf_id path)
+	std::int64_t circuit_fake::get_max_depth_bucket(block_t *bl, int len, leaf_id path)
 	{
 		std::int64_t max_d = -1;
 
@@ -308,7 +308,7 @@ namespace obl {
 		return max_d;
 	}
 
-	void circuit_taostore_map::deepest(leaf_id path)
+	void circuit_fake::deepest(leaf_id path)
 	{
 		// allow -1 indexing for stash
 		std::int64_t *ljd = longest_jump_down + 1;
@@ -333,7 +333,7 @@ namespace obl {
 		}
 	}
 
-	void circuit_taostore_map::target()
+	void circuit_fake::target()
 	{
 		std::int64_t *ndb = next_dst_bucket + 1;
 		std::int64_t *csb = closest_src_bucket + 1;
@@ -369,7 +369,7 @@ namespace obl {
 		ndb[-1] = ternary_op(stash_reached_bucket, dst, BOTTOM);
 	}
 
-	void circuit_taostore_map::eviction(leaf_id path)
+	void circuit_fake::eviction(leaf_id path)
 	{
 		std::int64_t dst;
 
@@ -413,7 +413,7 @@ namespace obl {
 		}
 	}
 
-	void circuit_taostore_map::evict(leaf_id path)
+	void circuit_fake::evict(leaf_id path)
 	{
 		std::int64_t leaf = fetch_path(path);
 
@@ -424,7 +424,7 @@ namespace obl {
 		wb_path(path, leaf);
 	}
 
-	void circuit_taostore_map::access(block_id bid, leaf_id lif, std::uint8_t *data_in, std::uint8_t *data_out, leaf_id next_lif)
+	void circuit_fake::access(block_id bid, leaf_id lif, std::uint8_t *data_in, std::uint8_t *data_out, leaf_id next_lif)
 	{
 		std::uint8_t _fetched[block_size];
 		block_t *fetched = (block_t*) _fetched;
@@ -483,7 +483,7 @@ namespace obl {
 		++access_counter;
 	}
 
-	void circuit_taostore_map::access_r(block_id bid, leaf_id lif, std::uint8_t *data_out, bool fake)
+	void circuit_fake::access_r(block_id bid, leaf_id lif, std::uint8_t *data_out, bool fake)
 	{
 		std::uint8_t _fetched[block_size];
 		block_t *fetched = (block_t*) _fetched;
@@ -497,7 +497,7 @@ namespace obl {
 			for(unsigned int j = 0; j < Z; j++)
 			{
 				block_id fpbid = fetched_path[Z*i + j].bid;
-				swap(fpbid == bid & !fake, _fetched, (std::uint8_t*) &fetched_path[Z*i + j], block_size);
+				swap((fpbid == bid) & !fake, _fetched, (std::uint8_t*) &fetched_path[Z*i + j], block_size);
 			}
 
 		// search for the requested element by traversing the buckets in the stash
@@ -505,13 +505,13 @@ namespace obl {
 		for(unsigned int i = 0; i < S; i++)
 		{
 			block_id sbid = stash[i].bid;
-			swap(bid == sbid & !fake, _fetched, (std::uint8_t*) &stash[i], block_size);
+			swap((bid == sbid) & !fake, _fetched, (std::uint8_t*) &stash[i], block_size);
 		}
 
 		std::memcpy(data_out, fetched->payload, B);
 	}
 
-	void circuit_taostore_map::access_w(block_id bid, leaf_id lif, std::uint8_t *data_in, leaf_id next_lif, bool fake)
+	void circuit_fake::access_w(block_id bid, leaf_id lif, std::uint8_t *data_in, leaf_id next_lif, bool fake)
 	{
 		std::uint8_t _fetched[block_size];
 		block_t *fetched = (block_t*) _fetched;
@@ -544,7 +544,7 @@ namespace obl {
 		++access_counter;
 	}
 
-	void circuit_taostore_map::write(block_id bid, std::uint8_t *data_in, leaf_id next_lif)
+	void circuit_fake::write(block_id bid, std::uint8_t *data_in, leaf_id next_lif)
 	{
 		std::uint8_t _fetched[block_size];
 		block_t *fetched = (block_t*) _fetched;
@@ -569,10 +569,5 @@ namespace obl {
 		evict(2*access_counter + 1);
 
 		++access_counter;
-	}
-	void circuit_taostore_map::printstash()
-	{
-		for (unsigned int i = 0; i < S; i++)
-			std::cerr << "stash " << i << "bid: " << (block_id)stash[i].bid << "lid :" << (leaf_id)stash[i].lid << " data: " << (std::uint64_t) * ((std::uint64_t *)stash[i].payload) << std::endl;
 	}
 }

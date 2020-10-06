@@ -1,5 +1,5 @@
-#ifndef CIRCUIT_MAP_ORAM_H
-#define CIRCUIT_MAP_ORAM_H
+#ifndef CIRCUIT_FAKE_H
+#define CIRCUIT_FAKE_H
 
 #include "obl/types.h"
 #include "obl/oram.h"
@@ -20,7 +20,7 @@ namespace obl
 	struct circuit_block_t;
 	struct circuit_bucket_t;
 
-	class circuit_taostore_map: public tree_oram
+	class circuit_fake: public tree_oram
 	{
 	private:
 		typedef circuit_block_t block_t;
@@ -71,11 +71,10 @@ namespace obl
 
 		// split operation variables
 		std::int64_t leaf_idx_split;
-		void printstash();
 
 	public:
-		circuit_taostore_map(std::size_t N, std::size_t B, unsigned int Z, unsigned int S);
-		~circuit_taostore_map();
+		circuit_fake(std::size_t N, std::size_t B, unsigned int Z, unsigned int S);
+		~circuit_fake();
 
 		void access(block_id bid, leaf_id lif, std::uint8_t *data_in, std::uint8_t *data_out, leaf_id next_lif);
 
@@ -90,20 +89,20 @@ namespace obl
 		void write(block_id bid, std::uint8_t *data_in, leaf_id next_lif);
 	};
 
-	class circuit_taostore_factory: public oram_factory {
+	class circuit_fake_factory: public oram_factory {
 	private:
 		unsigned int Z, S;
 	public:
-		circuit_taostore_factory(unsigned int Z, unsigned int S) {
+		circuit_fake_factory(unsigned int Z, unsigned int S) {
 			this->Z = Z;
 			this->S = S;
 		}
 
-		circuit_taostore_map* spawn_oram(std::size_t N, std::size_t B) {
-			return new circuit_taostore_map(N, B, Z, S);
+		circuit_fake* spawn_oram(std::size_t N, std::size_t B) {
+			return new circuit_fake(N, B, Z, S);
 		}
 	};
 
 }
 
-#endif // CIRCUIT_MAP_ORAM_H
+#endif // CIRCUIT_FAKE_H

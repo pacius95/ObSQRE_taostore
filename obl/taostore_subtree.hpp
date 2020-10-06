@@ -3,8 +3,6 @@
 
 #include "obl/types.h"
 #include "obl/taostore_types.hpp"
-#include "obl/oram.h"
-#include "obl/taoram.h"
 
 #include <queue>
 #include <unordered_map>
@@ -79,8 +77,8 @@ namespace obl
         void init(std::uint8_t *_merkle_root, std::uint8_t* _data)
         {
             root = new node(node_size, 0, 0);
-            memcpy (root->mac, _merkle_root, sizeof(obl_aes_gcm_128bit_tag_t));
             root->parent = nullptr;
+            memcpy (root->mac, _merkle_root, sizeof(obl_aes_gcm_128bit_tag_t));
             memcpy (root->payload, _data, node_size);
             // K leaf_map.reserve(K)
         }

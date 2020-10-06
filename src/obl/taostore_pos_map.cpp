@@ -17,7 +17,7 @@ namespace obl
         return x & sign_bit;
     }
 
-    taostore_position_map::taostore_position_map(std::size_t N, std::size_t B, unsigned int csize, circuit_taostore_factory *allocator)
+    taostore_position_map::taostore_position_map(std::size_t N, std::size_t B, unsigned int csize, circuit_fake_factory *allocator)
     {
         this->N = N;
         this->C = next_two_power(this->N);
@@ -49,7 +49,7 @@ namespace obl
             rmap_locks[i] = PTHREAD_MUTEX_INITIALIZER;
         if (rmap_levs > 0)
         {
-            rmap = new circuit_taostore_map *[rmap_levs];
+            rmap = new circuit_fake *[rmap_levs];
             std::size_t rec_N = 1;
 
             for (int i = 0; i < rmap_levs; i++)

@@ -2,9 +2,9 @@
 #define TAOSTORE_TYPES_H
 
 #include "obl/oram.h"
-#include "obl/taoram.h"
 #include "obl/types.h"
 
+#include <pthread.h>
 #include <cstdint>
 
 namespace obl

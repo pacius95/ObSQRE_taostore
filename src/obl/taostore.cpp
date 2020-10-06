@@ -1,5 +1,5 @@
-#include "obl/taoram.h"
 #include "obl/utils.h"
+#include "obl/taostore.h"
 #include "obl/primitives.h"
 
 #include "obl/oassert.h"
@@ -82,6 +82,7 @@ namespace obl
 
 		std::atomic_init(&evict_path, 0);
 		std::atomic_init(&path_counter, 0);
+		std::atomic_init(&pthread_alive, 0);
 
 		// generate random master key
 		gen_rand(master_key, OBL_AESGCM_KEY_SIZE);
@@ -114,6 +115,9 @@ namespace obl
 		tree[0].reach_l = false;
 		tree[0].reach_r = false;
 
+		allocator = new circuit_fake_factory(Z, S);
+    	position_map = new taostore_position_map(N, sizeof(int64_t), 5, allocator);
+
 		local_subtree = new taostore_subtree((size_t)Z * block_size, (uint8_t *)merkle_root, empty_bucket);
 	}
 
@@ -141,11 +145,6 @@ namespace obl
 			pthread_mutex_unlock(&serializer_lck);
 		}
 		return 0;
-	}
-
-	void taostore_oram::set_pos_map(taostore_position_map *pos_map)
-	{
-		this->pos_map = pos_map;
 	}
 
 	bool taostore_oram::has_free_block(block_t *bl, int len)
@@ -408,10 +407,11 @@ namespace obl
 
 	void *taostore_oram::processing_thread(void *_object)
 	{
+		pthread_alive++;
 		processing_thread_args *object = (processing_thread_args *)_object;
 		request_t *request = object->request;
 		std::uint8_t _fetched[block_size];
-		block_t *fetched = (block_t *)_fetched;
+
 		read_path(request, _fetched);
 		answer_request(request, _fetched);
 
@@ -426,9 +426,11 @@ namespace obl
 		std::uint64_t paths = (std::uint64_t)std::atomic_fetch_add(&path_counter, 1);
 		
 		if (paths % K)
-			write_back();
+			write_back(paths / K);
 
+		pthread_alive--;
 		return 0;
+
 	}
 
 	void taostore_oram::read_path(request_t *req, std::uint8_t *_fetched)
@@ -450,7 +452,7 @@ namespace obl
 		replace(!req->fake, (std::uint8_t *)&bid, (std::uint8_t *)&(req->bid), sizeof(block_id));
 
 		leaf_id ev_lid;
-		leaf_id path = pos_map->access(bid, req->fake, &ev_lid);
+		leaf_id path = position_map->access(bid, req->fake, &ev_lid);
 
 		fetch_path(_fetched, bid, ev_lid, path);
 	}
@@ -598,6 +600,8 @@ namespace obl
 		}
 
 		fetched->lid = new_lid;
+		fetched->bid = bid;
+
 		pthread_mutex_unlock(&stash_lock);
 		local_subtree->unlock();
 		local_subtree->insert_write_queue(path);
@@ -608,7 +612,6 @@ namespace obl
 		block_t *fetched = (block_t *)_fetched;
 		bool t = true;
 		pthread_mutex_lock(&serializer_lck);
-		pthread_t i = pthread_self();
 		for (it = request_structure.begin(); it < request_structure.end(); it++)
 		{
 			replace(*(*it)->thread_id == pthread_self(), (std::uint8_t *)&((*it)->handled), (std::uint8_t *)&t, sizeof(bool));
@@ -616,8 +619,9 @@ namespace obl
 			//NON VA BENE PERCHÈ DATA_IN È NULLPTR
 			replace(!req->fake && (*it)->bid == req->bid, (std::uint8_t *)&((*it)->data_ready), (std::uint8_t *)&t, sizeof(bool));
 			if ((*it)->data_in != nullptr)
-				replace(!req->fake && (*it)->bid == req->bid && (*it)->data_in != nullptr, (std::uint8_t *)fetched->payload, (*it)->data_in, B);
+				replace(!req->fake && (*it)->bid == req->bid, (std::uint8_t *)fetched->payload, (*it)->data_in, B);
 		}
+
 		//TODO per adesso faccio cosi, poi dopo quando modifico w/r lock cambio
 		local_subtree->read_lock();
 		pthread_mutex_lock(&stash_lock);
@@ -629,6 +633,11 @@ namespace obl
 			swap(!already_evicted & (sbid == DUMMY), _fetched, (std::uint8_t *)&stash[i], block_size);
 			already_evicted = already_evicted | (sbid == DUMMY);
 		}
+
+		if (!already_evicted)
+			printstash();
+
+		assert(already_evicted);
 		pthread_mutex_unlock(&stash_lock);
 		local_subtree->unlock();
 		pthread_cond_broadcast(&serializer_cond);
@@ -641,10 +650,12 @@ namespace obl
 		pthread_cond_t _serializer_res_ready = PTHREAD_COND_INITIALIZER;
 		pthread_t proces;
 		std::uint8_t _data_out[B];
-		request_t _req = {data_in, bid, false, false, (std::uint8_t *)_data_out, false, false, &proces, &_cond_mutex, &_serializer_res_ready};
+			
+		request_t _req = {data_in, bid, false, false, _data_out, false, false, &proces, &_cond_mutex, &_serializer_res_ready};
 		struct processing_thread_args obj = {&_req, bid};
 		struct processing_thread_args_wrap obj_wrap = {this, &obj};
 		pthread_create(&proces, nullptr, processing_thread_wrap, (void *)&obj_wrap);
+		pthread_detach(proces);
 		//wait on the conditional var
 		pthread_mutex_lock(&_cond_mutex);
 		while (!_req.res_ready)
@@ -690,12 +701,9 @@ namespace obl
 		return;
 	}
 
-	void write_back (std::uint32_t c) {
-
+	void taostore_oram::write_back (std::uint32_t c) {
+		return;
 	}
-
-
-
 
 	void taostore_oram::printstash()
 	{
