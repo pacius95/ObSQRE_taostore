@@ -4,6 +4,7 @@
 
 #include "obl/oassert.h"
 
+#include <map>
 #include <cstdlib>
 #include <iostream>
 #include <cstring>
@@ -25,7 +26,7 @@ namespace obl
 		taostore_oram *arg1;
 		processing_thread_args *arg2;
 	};
-	
+
 	taostore_oram::taostore_oram(std::size_t N, std::size_t B, unsigned int Z, unsigned int S) : tree_oram(N, B, Z)
 	{
 		// align structs to 8-bytes
@@ -116,9 +117,8 @@ namespace obl
 		tree[0].reach_r = false;
 
 		allocator = new circuit_fake_factory(Z, S);
-    	position_map = new taostore_position_map(N, sizeof(int64_t), 5, allocator);
-
-		local_subtree = new taostore_subtree((size_t)Z * block_size, (uint8_t *)merkle_root, empty_bucket);
+		position_map = new taostore_position_map(N, sizeof(int64_t), 5, allocator);
+		local_subtree = new taostore_subtree((size_t)Z * block_size, merkle_root, empty_bucket, L);
 	}
 
 	void *taostore_oram::serializer_wrap(void *object)
@@ -181,11 +181,10 @@ namespace obl
 		//TODO implement PATHREQUESTMULTISET
 		std::int64_t l_index = 0;
 		obl_aes_gcm_128bit_tag_t reference_mac;
-		auth_data_t adata;
-		std::memset(&adata, 0x00, sizeof(auth_data_t));
-		int i;
-		bool reachable = true;
+		auth_data_t *adata;
+		bool in_subtree = true;
 		bool valid = true;
+		int i = 0;
 
 		//evict array helper
 		std::int64_t longest_jump_down[L + 2]; // counting root = 0 and stash = -1 and L additional levels
@@ -210,7 +209,7 @@ namespace obl
 		csb[-1] = BOTTOM;
 
 		//START DEEPEST
-		for (i = 0; i <= L && reachable; i++)
+		for (i = 0; i <= L && in_subtree; i++)
 		{
 			csb[i] = ternary_op(goal >= i, _closest_src_bucket, BOTTOM);
 			std::int64_t jump = get_max_depth_bucket(reference_node->payload, Z, path);
@@ -223,9 +222,15 @@ namespace obl
 
 			if (reference_node == nullptr)
 			{
-				reachable = false;
+				in_subtree = false;
 				valid = (path >> i) & 1 ? tree[l_index].reach_r : tree[l_index].reach_l;
 				l_index = (l_index << 1) + 1 + ((path >> i) & 1);
+
+				if (valid)
+				{
+					std::uint8_t *src = tree[l_index].mac;
+					std::memcpy(reference_mac, src, sizeof(obl_aes_gcm_128bit_tag_t));
+				}
 			}
 		}
 
@@ -236,22 +241,22 @@ namespace obl
 			reference_node = (path >> (i - 1)) & 1 ? old_ref_node->child_r : old_ref_node->child_l;
 			reference_node->parent = old_ref_node;
 
-			std::memcpy(reference_node->mac, tree[l_index].mac, sizeof(obl_aes_gcm_128bit_tag_t));
+			adata = reference_node->adata;
 
 			std::int64_t leftch = get_left(l_index);
 			std::int64_t rightch = get_right(l_index);
 
 			// this data will be authenticated data in the GCM mode
 			// dump from encrypted bucket header
-			adata.valid_l = tree[l_index].reach_l;
-			adata.valid_r = tree[l_index].reach_r;
+			adata->valid_l = tree[l_index].reach_l;
+			adata->valid_r = tree[l_index].reach_r;
 
 			// dump left and right child mac if valid, otherwise pad with 0s
-			if (adata.valid_l)
-				std::memcpy(adata.left_mac, tree[leftch].mac, sizeof(obl_aes_gcm_128bit_tag_t));
+			if (adata->valid_l)
+				std::memcpy(adata->left_mac, tree[leftch].mac, sizeof(obl_aes_gcm_128bit_tag_t));
 
-			if (adata.valid_r)
-				std::memcpy(adata.right_mac, tree[rightch].mac, sizeof(obl_aes_gcm_128bit_tag_t));
+			if (adata->valid_r)
+				std::memcpy(adata->right_mac, tree[rightch].mac, sizeof(obl_aes_gcm_128bit_tag_t));
 
 			// if they are not valid, authentication data for the corresponding mac would be 0x00..0
 			// however this was already covered by the memset before the loop
@@ -265,7 +270,7 @@ namespace obl
 									   OBL_AESGCM_IV_SIZE,
 									   reference_mac,
 									   OBL_AESGCM_MAC_SIZE,
-									   (std::uint8_t *)&adata,
+									   (std::uint8_t *)adata,
 									   sizeof(auth_data_t));
 
 			// MAC mismatch is a critical error
@@ -280,8 +285,13 @@ namespace obl
 
 			old_ref_node = reference_node;
 
-			valid = (path >> i) & 1 ? adata.valid_r : adata.valid_l;
+			valid = (path >> i) & 1 ? adata->valid_r : adata->valid_l;
 			l_index = (l_index << 1) + 1 + ((path >> i) & 1);
+			if (valid)
+			{
+				std::uint8_t *src = ((path >> i) & 1) ? adata->right_mac : adata->left_mac;
+				std::memcpy(reference_mac, src, sizeof(obl_aes_gcm_128bit_tag_t));
+			}
 			i++;
 		}
 
@@ -290,7 +300,6 @@ namespace obl
 		{
 			(path >> (i - 1)) & 1 ? old_ref_node->child_r = new node(block_size * Z, path_counter, l_index) : old_ref_node->child_l = new node(block_size * Z, path_counter, l_index);
 			reference_node = (path >> (i - 1)) & 1 ? old_ref_node->child_r : old_ref_node->child_l;
-
 			reference_node->parent = old_ref_node;
 
 			for (unsigned int j = 0; j < Z; j++)
@@ -386,14 +395,14 @@ namespace obl
 				swap(
 					(!swap_hold_with_valid & necessary_eviction & (bl->bid == DUMMY)) | (swap_hold_with_valid & deepest_block),
 					_hold, (std::uint8_t *)bl, block_size);
-				
+
 				bl = (block_t *)((std::uint8_t *)bl + block_size);
 			}
 			reference_node->local_timestamp = path_counter;
 			reference_node = i != L ? (path >> i) & 1 ? reference_node->child_r : reference_node->child_l : reference_node;
 		}
 
-		//puntatore alle foglie 
+		//puntatore alle foglie
 		local_subtree->insert_leaf_pointer(access_counter, reference_node);
 
 		local_subtree->unlock();
@@ -422,15 +431,14 @@ namespace obl
 
 		local_subtree->insert_write_queue(2 * evict_leaf);
 		local_subtree->insert_write_queue(2 * evict_leaf + 1);
-			
+
 		std::uint64_t paths = (std::uint64_t)std::atomic_fetch_add(&path_counter, 1);
-		
+
 		if (paths % K)
 			write_back(paths / K);
 
 		pthread_alive--;
 		return 0;
-
 	}
 
 	void taostore_oram::read_path(request_t *req, std::uint8_t *_fetched)
@@ -461,16 +469,14 @@ namespace obl
 	{
 		// always start from root
 		std::int64_t l_index = 0;
-		int i = 0;
 		obl_aes_gcm_128bit_tag_t reference_mac;
+		auth_data_t *adata;
+		bool in_subtree = true;
+		bool valid = true;
+		int i = 0;
 
 		block_t *fetched = (block_t *)_fetched;
 		fetched->bid = DUMMY;
-
-		bool reachable = true;
-		bool valid = true;
-		auth_data_t adata;
-		std::memset(&adata, 0x00, sizeof(auth_data_t));
 
 		//TODO implement PATHREQUESTMULTISET
 		node *reference_node;
@@ -481,7 +487,7 @@ namespace obl
 
 		block_t *bl;
 
-		for (i = 0; i <= L && reachable; i++)
+		for (i = 0; i <= L && in_subtree; i++)
 		{
 			reference_node->lock();
 			if (i != 0)
@@ -494,15 +500,22 @@ namespace obl
 				swap(fpbid == bid, _fetched, (std::uint8_t *)bl, block_size);
 				bl = ((block_t *)((std::uint8_t *)bl + block_size));
 			}
-			reference_node->local_timestamp = path_counter,
+			reference_node->local_timestamp = path_counter;
+
 			old_ref_node = reference_node;
 			reference_node = (path >> i) & 1 ? old_ref_node->child_r : old_ref_node->child_l;
 
 			if (reference_node == nullptr)
 			{
-				reachable = false;
+				in_subtree = false;
 				valid = (path >> i) & 1 ? tree[l_index].reach_r : tree[l_index].reach_l;
 				l_index = (l_index << 1) + 1 + ((path >> i) & 1);
+
+				if (valid)
+				{
+					std::uint8_t *src = tree[l_index].mac;
+					std::memcpy(reference_mac, src, sizeof(obl_aes_gcm_128bit_tag_t));
+				}
 			}
 		}
 
@@ -511,27 +524,27 @@ namespace obl
 		{
 			(path >> (i - 1)) & 1 ? old_ref_node->child_r = new node(block_size * Z, path_counter, l_index) : old_ref_node->child_l = new node(block_size * Z, path_counter, l_index);
 			reference_node = (path >> (i - 1)) & 1 ? old_ref_node->child_r : old_ref_node->child_l;
-
 			reference_node->parent = old_ref_node;
+
 			reference_node->lock();
 			old_ref_node->unlock();
 
-			std::memcpy(reference_node->mac, tree[l_index].mac, sizeof(obl_aes_gcm_128bit_tag_t));
+			adata = reference_node->adata;
 
 			std::int64_t leftch = get_left(l_index);
 			std::int64_t rightch = get_right(l_index);
 
 			// this data will be authenticated data in the GCM mode
 			// dump from encrypted bucket header
-			adata.valid_l = tree[l_index].reach_l;
-			adata.valid_r = tree[l_index].reach_r;
+			adata->valid_l = tree[l_index].reach_l;
+			adata->valid_r = tree[l_index].reach_r;
 
 			// dump left and right child mac if valid, otherwise pad with 0s
-			if (adata.valid_l)
-				std::memcpy(adata.left_mac, tree[leftch].mac, sizeof(obl_aes_gcm_128bit_tag_t));
+			if (adata->valid_l)
+				std::memcpy(adata->left_mac, tree[leftch].mac, sizeof(obl_aes_gcm_128bit_tag_t));
 
-			if (adata.valid_r)
-				std::memcpy(adata.right_mac, tree[rightch].mac, sizeof(obl_aes_gcm_128bit_tag_t));
+			if (adata->valid_r)
+				std::memcpy(adata->right_mac, tree[rightch].mac, sizeof(obl_aes_gcm_128bit_tag_t));
 
 			// if they are not valid, authentication data for the corresponding mac would be 0x00..0
 			// however this was already covered by the memset before the loop
@@ -545,7 +558,7 @@ namespace obl
 									   OBL_AESGCM_IV_SIZE,
 									   reference_mac,
 									   OBL_AESGCM_MAC_SIZE,
-									   (std::uint8_t *)&adata,
+									   (std::uint8_t *)adata,
 									   sizeof(auth_data_t));
 
 			assert(dec == 0);
@@ -557,10 +570,16 @@ namespace obl
 				swap(fpbid == bid, _fetched, (std::uint8_t *)bl, block_size);
 				bl = ((block_t *)((std::uint8_t *)bl + block_size));
 			}
-			old_ref_node = reference_node;
-			valid = (path >> i) & 1 ? adata.valid_r : adata.valid_l;
 
+			old_ref_node = reference_node;
+
+			valid = (path >> i) & 1 ? adata->valid_r : adata->valid_l;
 			l_index = (l_index << 1) + 1 + ((path >> i) & 1);
+			if (valid)
+			{
+				std::uint8_t *src = ((path >> i) & 1) ? adata->right_mac : adata->left_mac;
+				std::memcpy(reference_mac, src, sizeof(obl_aes_gcm_128bit_tag_t));
+			}
 			i++;
 		}
 
@@ -650,7 +669,7 @@ namespace obl
 		pthread_cond_t _serializer_res_ready = PTHREAD_COND_INITIALIZER;
 		pthread_t proces;
 		std::uint8_t _data_out[B];
-			
+
 		request_t _req = {data_in, bid, false, false, _data_out, false, false, &proces, &_cond_mutex, &_serializer_res_ready};
 		struct processing_thread_args obj = {&_req, bid};
 		struct processing_thread_args_wrap obj_wrap = {this, &obj};
@@ -694,16 +713,84 @@ namespace obl
 
 		local_subtree->insert_write_queue(2 * evict_leaf);
 		local_subtree->insert_write_queue(2 * evict_leaf + 1);
-					
+
 		if (evict_path % K)
 			write_back(evict_path / K);
 
 		return;
 	}
 
-	void taostore_oram::write_back (std::uint32_t c) {
-		return;
+	void taostore_oram::write_back(std::uint32_t c)
+	{
+		leaf_id paths[3 * K];
+		for (int i = 0; i < K; i++)
+			paths[i] = local_subtree->get_pop_queue(); //fetch and pop
+
+		//writelock subtree
+		local_subtree->write_lock();
+
+		taostore_subtree tmp_tree((size_t)Z * block_size, local_subtree->merkle_root, (uint8_t *)local_subtree->root->payload, L);
+
+		tmp_tree.copy_path(paths, 3*K, local_subtree);
+		
+		//use the leaf
+		local_subtree->unlock();
+		
+		tmp_tree.update_valid(paths, 3*K); 
+
+		leaf_id path;
+		std::int64_t leaf;
+		obl_aes_gcm_128bit_iv_t iv;
+		obl_aes_gcm_128bit_tag_t mac;
+		bool reachable = true;
+
+		std::map<leaf_id, node *> nodes_level_i[L + 1];
+		std::map<leaf_id, node *>::iterator itx;
+		nodes_level_i[L] = tmp_tree.leaf_map;
+
+		for (int i = L; i >= 0; i--)
+		{
+			for (itx = nodes_level_i[i].begin(); itx != nodes_level_i[i].end(); itx++)
+			{
+				// generate a new random IV
+				gen_rand(iv, OBL_AESGCM_IV_SIZE);
+
+				// save encrypted payload
+				wc_AesGcmEncrypt(crypt_handle,
+								 tree[leaf].payload,
+								 (std::uint8_t *)itx->second->payload,
+								 Z * block_size,
+								 iv,
+								 OBL_AESGCM_IV_SIZE,
+								 mac,
+								 OBL_AESGCM_MAC_SIZE,
+								 (std::uint8_t *)itx->second->adata,
+								 sizeof(auth_data_t));
+
+				// save "mac" + iv + reachability flags
+				std::memcpy(tree[leaf].mac, mac, sizeof(obl_aes_gcm_128bit_tag_t));
+				std::memcpy(tree[leaf].iv, iv, sizeof(obl_aes_gcm_128bit_iv_t));
+				tree[leaf].reach_l = itx->second->adata->valid_l;
+				tree[leaf].reach_r = itx->second->adata->valid_r;
+				if (i > 0)
+				{
+
+					node *n = itx->second->parent;
+					// update the mac for the parent for the evaluation of its mac
+					std::uint8_t *target_mac = ((itx->first >> (i - 1)) & 1) ? n->adata->right_mac : n->adata->left_mac;
+					std::memcpy(target_mac, mac, sizeof(obl_aes_gcm_128bit_tag_t));
+
+					nodes_level_i[i - 1][get_parent(itx->first)] = n;
+					// move to the bucket in the upper level
+				}
+			}
+		}
+		// now dump the last mac to the merkle_root!
+		std::memcpy(merkle_root, mac, sizeof(obl_aes_gcm_128bit_tag_t));
+		//TODO(with server timestamp c)
+		//TODO delete from subtree the buckets no more necessary
 	}
+
 
 	void taostore_oram::printstash()
 	{

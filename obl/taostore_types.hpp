@@ -23,7 +23,7 @@ namespace obl
 		bool reach_l, reach_r;
 		obl_aes_gcm_128bit_tag_t mac __attribute__((aligned(8)));
 		// since payload is going to be a multiple of 16 bytes, the struct will be memory aligned!
-		uint8_t payload[];
+		std::uint8_t payload[];
 	};
 
 	struct taostore_request_t
