@@ -13,7 +13,7 @@
 #define RUN 10
 
 #define C 5
-#define S 8
+#define S 20
 #define Z 3
 
 using namespace std;

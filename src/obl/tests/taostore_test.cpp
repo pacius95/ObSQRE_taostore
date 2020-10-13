@@ -8,9 +8,9 @@
 #include <vector>
 #include <cassert>
 
-#define P 12
+#define P 9
 #define N (1 << P)
-#define RUN 10
+#define RUN 400
 
 #define C 5
 #define S 8
@@ -27,18 +27,18 @@ int main()
 
 	mirror_data.reserve(N);
 
-	for(unsigned int i = 0; i < N; i++)
+	for (unsigned int i = 0; i < N; i++)
 	{
-		obl::gen_rand((std::uint8_t*) &value, sizeof(int64_t));
+		obl::gen_rand((std::uint8_t *)&value, sizeof(int64_t));
 
-		rram.access(i, (std::uint8_t*) &value, (std::uint8_t*) &value_out);
+		rram.access(i, (std::uint8_t *)&value, (std::uint8_t *)&value_out);
 		mirror_data[i] = value;
 	}
-	for(int i = 0; i < RUN; i++)
+	for (int i = 0; i < RUN; i++)
 	{
-		for(int j = 0; j < N; j++)
+		for (int j = 0; j < N; j++)
 		{
-			rram.access(j, nullptr, (std::uint8_t*) &value_out);
+			rram.access(j, nullptr, (std::uint8_t *)&value_out);
 
 			assert(value_out == mirror_data[j]);
 		}
@@ -46,3 +46,32 @@ int main()
 	}
 	return 0;
 }
+
+// int main()
+// {
+// 	vector<int64_t> mirror_data;
+
+// 	obl::taostore_oram rram(N, sizeof(int64_t), Z, S);
+// 	int64_t value, value_out;
+
+// 	mirror_data.reserve(N);
+
+// 	for(unsigned int i = 0; i < N; i++)
+// 	{
+// 		obl::gen_rand((std::uint8_t*) &value, sizeof(int64_t));
+
+// 		rram.access(i, (std::uint8_t*) &value, (std::uint8_t*) &value_out);
+// 		mirror_data[i] = value;
+// 	}
+// 	for(int i = 0; i < RUN; i++)
+// 	{
+// 		for(int j = 0; j < N; j++)
+// 		{
+// 			rram.access(j, nullptr, (std::uint8_t*) &value_out);
+
+// 			assert(value_out == mirror_data[j]);
+// 		}
+// 	cerr << "Run " << i << " finished" << endl;
+// 	}
+// 	return 0;
+// }

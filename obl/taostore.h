@@ -12,6 +12,7 @@
 #include <cstddef>
 
 #include <deque>
+#include <set>
 
 //threading libs
 #include <iostream>
@@ -54,25 +55,27 @@ namespace obl
 #endif
 		//serialier
 		pthread_t serializer_id;									//serializer thread id
-		pthread_mutex_t serializer_lck = PTHREAD_MUTEX_INITIALIZER; //lock della variabile cond
+		pthread_mutex_t serializer_lck = PTHREAD_MUTEX_INITIALIZER; //lock della request structure
 		pthread_cond_t serializer_cond = PTHREAD_COND_INITIALIZER;	//cond associata al serializer
 		pthread_mutex_t stash_lock = PTHREAD_MUTEX_INITIALIZER;		//lock dello stash
+		pthread_mutex_t write_back_lock = PTHREAD_MUTEX_INITIALIZER; //for debugging (1 WB at time)
+		pthread_spinlock_t multi_set_lock; 
 
 		std::deque<request_t *> request_structure;
 		std::deque<request_t *>::iterator it;
 
+		std::multiset<leaf_id> path_req_multi_set;
+		
 		circuit_fake_factory *allocator;
 		taostore_position_map *position_map;
 
 		// crypto stuff
 		void *_crypt_buffer;
 		Aes *crypt_handle;
-		obl_aes_gcm_128bit_tag_t merkle_root;
 
 		bool oram_alive;
 		std::atomic_llong evict_path;
 		std::atomic_llong path_counter;
-		std::atomic_llong pthread_alive;
 
 		// private methods
 		void init();
@@ -97,9 +100,10 @@ namespace obl
 		~taostore_oram();
 
 		//debug
-		void printrec(node *t, int L);
+		void printrec(node *t, int L, int l_index);
 		void printstash();
 		void printsubtree();
+		void print_tree();
 
 		void access(block_id bid, std::uint8_t *data_in, std::uint8_t *data_out);
 		void access(block_id bid, leaf_id lif, std::uint8_t *data_in, std::uint8_t *data_out, leaf_id next_lif){};
