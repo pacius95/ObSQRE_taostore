@@ -8,8 +8,9 @@
 #include <cstdint>
 #include <vector>
 #include <cassert>
+#include <ctime>
 
-#define P 12
+#define P 16
 #define N (1 << P)
 #define RUN 4
 
@@ -20,6 +21,8 @@ int main()
 	vector<int64_t> mirror_data;
 
 	int64_t value, value_out;
+	std::clock_t start;
+	double duration;
 
 	//obl::path_factory of(4, 48);
 	obl::coram_factory of(3, 8);
@@ -27,23 +30,28 @@ int main()
 
 	mirror_data.reserve(N);
 
-	for(unsigned int i = 0; i < N; i++)
+	for (unsigned int i = 0; i < N; i++)
 	{
-		obl::gen_rand((std::uint8_t*) &value, sizeof(int64_t));
+		obl::gen_rand((std::uint8_t *)&value, sizeof(int64_t));
 
-		rram.access(i, (std::uint8_t*) &value, (std::uint8_t*) &value_out);
+		rram.access(i, (std::uint8_t *)&value, (std::uint8_t *)&value_out);
 		mirror_data[i] = value;
 	}
 
 	cerr << "finished init" << endl;
-
-	for(int i = 0; i < RUN; i++)
-		for(int j = 0; j < N; j++)
+	start = std::clock();
+	for (int i = 0; i < RUN; i++)
+	{
+		for (int j = 0; j < N; j++)
 		{
-			rram.access(j, nullptr, (std::uint8_t*) &value_out);
+			rram.access(j, nullptr, (std::uint8_t *)&value_out);
 
 			assert(value_out == mirror_data[j]);
 		}
 
+		cerr << "Run " << i << " finished" << endl;
+	}
+	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+	std::cout << "printf: " << duration << '\n';
 	return 0;
 }

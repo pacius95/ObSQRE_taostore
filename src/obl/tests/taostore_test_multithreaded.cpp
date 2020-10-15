@@ -8,12 +8,12 @@
 #include <vector>
 #include <cassert>
 
-#define P 10
+#define P 16
 #define N (1 << P)
-#define RUN 10
+#define RUN 4
 
 #define C 5
-#define S 20
+#define S 8
 #define Z 3
 
 using namespace std;
@@ -45,7 +45,8 @@ int main()
 
     obl::taostore_oram rram(N, sizeof(int64_t), Z, S);
     int64_t value, value_out;
-
+    std::clock_t start;
+    double duration;
     mirror_data.reserve(N);
 
     pthread_t workers[RUN];
@@ -58,7 +59,11 @@ int main()
 		mirror_data[i] = value;
     }
 
+	cerr << "finished init" << endl;
+
     work_args args[RUN];
+
+	start = std::clock();
     for (int i = 0; i < RUN; i++)
     {
         args[i] = {&rram, &mirror_data,i};
@@ -69,6 +74,8 @@ int main()
     {
         pthread_join(workers[i], nullptr);
     }
+    duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
+    std::cout<<"printf: "<< duration <<'\n';
     return 0;
 };
 

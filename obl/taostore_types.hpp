@@ -35,7 +35,7 @@ namespace obl
 		std::uint8_t *data_out;
 		bool res_ready;
 		bool data_ready;
-		pthread_t *thread_id;
+		std::int32_t id;
 		pthread_mutex_t *cond_mutex;
 		pthread_cond_t *serializer_res_ready;
 	};

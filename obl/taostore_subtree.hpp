@@ -27,7 +27,6 @@ namespace obl
         node *child_l;
         node *child_r;
         node *parent;
-        //TODO bench with spinlock
 //        pthread_mutex_t lk = PTHREAD_MUTEX_INITIALIZER;
         pthread_spinlock_t lk;
         std::uint64_t local_timestamp;
@@ -110,8 +109,6 @@ namespace obl
 
     public:
         std::queue<write_queue_t> write_queue; //paths and leaf pointers
-
-//        std::map<leaf_id, node *> leaf_map; //l_indexes and leaf pointers
         obl_aes_gcm_128bit_tag_t merkle_root;
         node *root;
         pthread_rwlock_t tree_rw_lock = PTHREAD_RWLOCK_INITIALIZER;
@@ -135,7 +132,6 @@ namespace obl
 
             pthread_spin_init(&write_q_lk, PTHREAD_PROCESS_SHARED);
             pthread_spin_init(&leaf_pointer_lk, PTHREAD_PROCESS_SHARED);
-            // K leaf_map.reserve(K)
         }
 
  /*
@@ -192,13 +188,16 @@ namespace obl
             write_queue.push(T);
             pthread_spin_unlock(&write_q_lk);
         }
-        write_queue_t get_pop_queue()
+        write_queue_t* get_pop_queue(size_t K)
         {
-            //pthread_spin_lock(&write_q_lk);
-            write_queue_t T = write_queue.front();
-            write_queue.pop();
-            //pthread_spin_unlock(&write_q_lk);
-            return T;
+            write_queue_t *temp = new write_queue_t[K];
+            pthread_spin_lock(&write_q_lk);
+            for (int i = 0; i < K; i++) {
+			    temp[i] =  write_queue.front();; //fetch and pop
+                write_queue.pop();
+            }
+            pthread_spin_unlock(&write_q_lk);
+            return temp;
         }
 
         std::map<leaf_id, node *> update_valid(write_queue_t *_paths, int K)

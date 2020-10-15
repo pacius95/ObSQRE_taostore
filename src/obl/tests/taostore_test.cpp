@@ -7,10 +7,11 @@
 #include <cstdint>
 #include <vector>
 #include <cassert>
+#include <ctime>
 
-#define P 9
+#define P 16
 #define N (1 << P)
-#define RUN 400
+#define RUN 4
 
 #define C 5
 #define S 8
@@ -24,6 +25,8 @@ int main()
 
 	obl::taostore_oram rram(N, sizeof(int64_t), Z, S);
 	int64_t value, value_out;
+    std::clock_t start;
+    double duration;
 
 	mirror_data.reserve(N);
 
@@ -34,6 +37,12 @@ int main()
 		rram.access(i, (std::uint8_t *)&value, (std::uint8_t *)&value_out);
 		mirror_data[i] = value;
 	}
+
+	cerr << "finished init" << endl;
+    /* Your algorithm here */
+
+	start = std::clock();
+
 	for (int i = 0; i < RUN; i++)
 	{
 		for (int j = 0; j < N; j++)
@@ -44,6 +53,9 @@ int main()
 		}
 	cerr << "Run " << i << " finished" << endl;
 	}
+    duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
+    std::cout<<"printf: "<< duration <<'\n';
+
 	return 0;
 }
 

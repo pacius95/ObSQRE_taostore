@@ -7,6 +7,7 @@
 #include "obl/flexible_array.hpp"
 #include "obl/taostore_pos_map.h"
 #include "obl/taostore_subtree.hpp"
+#include "obl/threadpool.h"
 
 #include <cstdint>
 #include <cstddef>
@@ -39,13 +40,14 @@ namespace obl
 	private:
 		std::size_t block_size;	 //aligned block size
 		std::size_t bucket_size; //aligned/padded encrypted bucket size
-		
+
 		// stash
 		flexible_array<block_t> stash;
 		unsigned int S; // stash size
 
 		// content of the local subtree
 		taostore_subtree *local_subtree;
+		node *root;
 
 // content of the ORAM
 #ifdef SGX_ENCLAVE_ENABLED
@@ -54,18 +56,25 @@ namespace obl
 		flexible_array<bucket_t> tree;
 #endif
 		//serialier
-		pthread_t serializer_id;									//serializer thread id
-		pthread_mutex_t serializer_lck = PTHREAD_MUTEX_INITIALIZER; //lock della request structure
-		pthread_cond_t serializer_cond = PTHREAD_COND_INITIALIZER;	//cond associata al serializer
-		pthread_mutex_t stash_lock = PTHREAD_MUTEX_INITIALIZER;		//lock dello stash
+		pthread_t serializer_id;									 //serializer thread id
+		pthread_mutex_t serializer_lck = PTHREAD_MUTEX_INITIALIZER;	 //lock della request structure
+		pthread_cond_t serializer_cond = PTHREAD_COND_INITIALIZER;	 //cond associata al serializer
 		pthread_mutex_t write_back_lock = PTHREAD_MUTEX_INITIALIZER; //for debugging (1 WB at time)
-		pthread_spinlock_t multi_set_lock; 
+		pthread_mutex_t stash_lock = PTHREAD_MUTEX_INITIALIZER;
+		//lock dello stash
+		pthread_mutex_t multi_set_lock = PTHREAD_MUTEX_INITIALIZER;
+		// #ifdef MUTEX
+		// 		pthread_mutex_t multi_set_lock = PTHREAD_MUTEX_INITIALIZER;
+		// #else
+		// 		pthread_spinlock_t multi_set_lock;
+		// #endif
+		threadpool_t *thpool;
 
 		std::deque<request_t *> request_structure;
 		std::deque<request_t *>::iterator it;
 
 		std::multiset<leaf_id> path_req_multi_set;
-		
+
 		circuit_fake_factory *allocator;
 		taostore_position_map *position_map;
 
@@ -74,6 +83,7 @@ namespace obl
 		Aes *crypt_handle;
 
 		bool oram_alive;
+		std::atomic_int32_t thread_id;
 		std::atomic_llong evict_path;
 		std::atomic_llong path_counter;
 
@@ -82,8 +92,8 @@ namespace obl
 
 		static void *serializer_wrap(void *object);
 		void *serializer();
-		static void *processing_thread_wrap(void *object);
-		void *processing_thread(void *_request);
+		static void processing_thread_wrap(void *object);
+		void processing_thread(void *_request);
 
 		void read_path(request_t *req, std::uint8_t *_fetched);
 		void fetch_path(std::uint8_t *_fetched, block_id bid, leaf_id new_lid, leaf_id path);
