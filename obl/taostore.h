@@ -45,9 +45,7 @@ namespace obl
 		flexible_array<block_t> stash;
 		unsigned int S; // stash size
 
-		// content of the local subtree
-		taostore_subtree *local_subtree;
-		node *root;
+		taostore_subtree local_subtree;
 
 // content of the ORAM
 #ifdef SGX_ENCLAVE_ENABLED
@@ -60,18 +58,16 @@ namespace obl
 		pthread_mutex_t serializer_lck = PTHREAD_MUTEX_INITIALIZER;	 //lock della request structure
 		pthread_cond_t serializer_cond = PTHREAD_COND_INITIALIZER;	 //cond associata al serializer
 		pthread_mutex_t write_back_lock = PTHREAD_MUTEX_INITIALIZER; //for debugging (1 WB at time)
-		pthread_mutex_t stash_lock = PTHREAD_MUTEX_INITIALIZER;
+		pthread_spinlock_t stash_lock;
 		//lock dello stash
-		pthread_mutex_t multi_set_lock = PTHREAD_MUTEX_INITIALIZER;
-		// #ifdef MUTEX
-		// 		pthread_mutex_t multi_set_lock = PTHREAD_MUTEX_INITIALIZER;
-		// #else
-		// 		pthread_spinlock_t multi_set_lock;
-		// #endif
+		#ifdef MUTEX
+				pthread_mutex_t multi_set_lock = PTHREAD_MUTEX_INITIALIZER;
+		#else
+				pthread_spinlock_t multi_set_lock;
+		#endif
 		threadpool_t *thpool;
 
-		std::deque<request_t *> request_structure;
-		std::deque<request_t *>::iterator it;
+		std::deque<request_t*> request_structure;
 
 		std::multiset<leaf_id> path_req_multi_set;
 
@@ -79,13 +75,14 @@ namespace obl
 		taostore_position_map *position_map;
 
 		// crypto stuff
+        obl_aes_gcm_128bit_tag_t merkle_root;
 		void *_crypt_buffer;
 		Aes *crypt_handle;
 
 		bool oram_alive;
 		std::atomic_int32_t thread_id;
-		std::atomic_llong evict_path;
-		std::atomic_llong path_counter;
+		std::atomic_uint64_t evict_path;
+		std::atomic_uint32_t path_counter;
 
 		// private methods
 		void init();
@@ -95,9 +92,9 @@ namespace obl
 		static void processing_thread_wrap(void *object);
 		void processing_thread(void *_request);
 
-		void read_path(request_t *req, std::uint8_t *_fetched);
+		void read_path(request_t &req, std::uint8_t *_fetched);
 		void fetch_path(std::uint8_t *_fetched, block_id bid, leaf_id new_lid, leaf_id path);
-		void answer_request(request_t *req, std::uint8_t *_fetched);
+		void answer_request(request_t &req, std::uint8_t *fetched);
 		void eviction(leaf_id path);
 		void write_back(std::uint32_t c);
 

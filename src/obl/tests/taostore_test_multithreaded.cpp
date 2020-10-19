@@ -8,7 +8,7 @@
 #include <vector>
 #include <cassert>
 
-#define P 16
+#define P 15
 #define N (1 << P)
 #define RUN 4
 
@@ -17,43 +17,49 @@
 #define Z 3
 
 using namespace std;
-
+struct buffer {
+	std::uint8_t buffer[8];
+};
 struct work_args {
     obl::taostore_oram *rram;
-    vector<int64_t>* _mirror_data;
+    vector<buffer>* _mirror_data;
     int i;
 };
 
 void *work(void* T)
-{
+{   
+    std::clock_t start;
+    double duration;
+	start = std::clock();
     work_args args = *(work_args*) T;
+    buffer value_out;
     for (int j = 0; j < N; j++)
     {    
-        int64_t value_out;
         args.rram->access(j, nullptr, (std::uint8_t *)&value_out);
 
-        assert(value_out == (*args._mirror_data)[j]);
+ //       assert(value_out == (*args._mirror_data)[j]);
     }
     cerr << "Run " << args.i << " finished" << endl;
+    duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
+    std::cout<<"printf: "<< duration <<'\n';
     return nullptr;
 };
 
 int main()
 {
 
-    vector<int64_t> mirror_data;
+    vector<buffer> mirror_data;
 
-    obl::taostore_oram rram(N, sizeof(int64_t), Z, S);
-    int64_t value, value_out;
-    std::clock_t start;
-    double duration;
+    obl::taostore_oram rram(N, sizeof(buffer), Z, S);
+    buffer value, value_out;
+
     mirror_data.reserve(N);
 
     pthread_t workers[RUN];
 
     for (unsigned int i = 0; i < N; i++)
     {
-		obl::gen_rand((std::uint8_t*) &value, sizeof(int64_t));
+		obl::gen_rand((std::uint8_t*) &value, sizeof(buffer));
 
 		rram.access(i, (std::uint8_t*) &value, (std::uint8_t*) &value_out);
 		mirror_data[i] = value;
@@ -63,7 +69,6 @@ int main()
 
     work_args args[RUN];
 
-	start = std::clock();
     for (int i = 0; i < RUN; i++)
     {
         args[i] = {&rram, &mirror_data,i};
@@ -74,8 +79,7 @@ int main()
     {
         pthread_join(workers[i], nullptr);
     }
-    duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
-    std::cout<<"printf: "<< duration <<'\n';
+
     return 0;
 };
 

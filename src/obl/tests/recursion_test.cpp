@@ -10,48 +10,51 @@
 #include <cassert>
 #include <ctime>
 
-#define P 16
+#define P 15
 #define N (1 << P)
 #define RUN 4
 
 using namespace std;
-
+struct buffer {
+	std::uint8_t buffer[8];
+};
 int main()
 {
-	vector<int64_t> mirror_data;
+	vector<buffer> mirror_data;
 
-	int64_t value, value_out;
+	buffer value, value_out;
 	std::clock_t start;
 	double duration;
 
 	//obl::path_factory of(4, 48);
 	obl::coram_factory of(3, 8);
-	obl::recursive_oram rram(N, sizeof(int64_t), 5, &of);
+	obl::recursive_oram rram(N, sizeof(buffer), 5, &of);
 
 	mirror_data.reserve(N);
 
 	for (unsigned int i = 0; i < N; i++)
 	{
-		obl::gen_rand((std::uint8_t *)&value, sizeof(int64_t));
+		obl::gen_rand((std::uint8_t *)&value, sizeof(buffer));
 
 		rram.access(i, (std::uint8_t *)&value, (std::uint8_t *)&value_out);
 		mirror_data[i] = value;
 	}
 
 	cerr << "finished init" << endl;
-	start = std::clock();
 	for (int i = 0; i < RUN; i++)
 	{
+		start = std::clock();
 		for (int j = 0; j < N; j++)
 		{
 			rram.access(j, nullptr, (std::uint8_t *)&value_out);
 
-			assert(value_out == mirror_data[j]);
+//			assert(value_out == mirror_data[j]);
 		}
 
 		cerr << "Run " << i << " finished" << endl;
+		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+		std::cout << "printf: " << duration << '\n';
 	}
-	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-	std::cout << "printf: " << duration << '\n';
+
 	return 0;
 }

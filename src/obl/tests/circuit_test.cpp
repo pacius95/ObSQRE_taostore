@@ -23,8 +23,6 @@ int main()
 
 	obl::circuit_oram rram(N, sizeof(int64_t), Z, S);
 	int64_t value, value_out;
-	std::clock_t start;
-	double duration;
 	position_map.reserve(N);
 	mirror_data.reserve(N);
 
@@ -42,7 +40,6 @@ int main()
 
 	cerr << "finished init" << endl;
 
-	start = std::clock();
 	for (int i = 0; i < RUN; i++)
 	{
 		for (int j = 0; j < N; j++)
@@ -57,7 +54,6 @@ int main()
 		}
 		cerr << "Run " << i << " finished" << endl;
 	}
-	duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-	std::cout << "printf: " << duration << '\n';
+
 	return 0;
 }
