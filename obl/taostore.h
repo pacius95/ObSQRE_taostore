@@ -59,12 +59,12 @@ namespace obl
 		pthread_cond_t serializer_cond = PTHREAD_COND_INITIALIZER;	 //cond associata al serializer
 		pthread_mutex_t write_back_lock = PTHREAD_MUTEX_INITIALIZER; //for debugging (1 WB at time)
 		pthread_spinlock_t stash_lock;
-		//lock dello stash
-		#ifdef MUTEX
-				pthread_mutex_t multi_set_lock = PTHREAD_MUTEX_INITIALIZER;
-		#else
-				pthread_spinlock_t multi_set_lock;
-		#endif
+//lock dello stash
+#ifdef MUTEX
+		pthread_mutex_t multi_set_lock = PTHREAD_MUTEX_INITIALIZER;
+#else
+		pthread_spinlock_t multi_set_lock;
+#endif
 		threadpool_t *thpool;
 
 		std::deque<request_t*> request_structure;
@@ -75,7 +75,7 @@ namespace obl
 		taostore_position_map *position_map;
 
 		// crypto stuff
-        obl_aes_gcm_128bit_tag_t merkle_root;
+		obl_aes_gcm_128bit_tag_t merkle_root;
 		void *_crypt_buffer;
 		Aes *crypt_handle;
 
@@ -87,6 +87,7 @@ namespace obl
 		// private methods
 		void init();
 
+		std::int64_t fetch_path_all(leaf_id path, auth_data_t * adata, flexible_array<block_t> &fetched_path);
 		static void *serializer_wrap(void *object);
 		void *serializer();
 		static void processing_thread_wrap(void *object);
