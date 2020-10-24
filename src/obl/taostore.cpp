@@ -718,8 +718,7 @@ namespace obl
 			swap(!req.fake && !already_evicted & (sbid == DUMMY), _fetched, (std::uint8_t *)&stash[i], block_size);
 			already_evicted = already_evicted | (sbid == DUMMY) | req.fake;
 		}
-		if (already_evicted == false)
-			printstash();
+
 		assert(already_evicted);
 
 		// pthread_spin_unlock(&stash_lock);
@@ -894,6 +893,9 @@ void taostore_oram::write_back(std::uint32_t c)
 
 		_paths = local_subtree.get_pop_queue(3 * K);
 		pthread_mutex_lock(&write_back_lock);
+		// std::cerr << "start-------------------------------------------" << std::endl;
+		// printsubtree();
+		// std::cerr << "end---------------------------------------------" << std::endl;
 		nodes_level_i[L] = local_subtree.update_valid(_paths, 3 * K);
 
 		for (int i = L; i > 0; --i)
@@ -968,7 +970,11 @@ void taostore_oram::write_back(std::uint32_t c)
 		tree[0].reach_r = reference_node->adata.valid_r;
 
 		std::memcpy(merkle_root, mac, sizeof(obl_aes_gcm_128bit_tag_t));
+		// std::cerr << "start-------------------------------------------" << std::endl;
+		// printsubtree();
+		// std::cerr << "end---------------------------------------------" << std::endl;
 		pthread_mutex_unlock(&write_back_lock);
+
 		delete _paths;
 	}
 
@@ -979,10 +985,13 @@ void taostore_oram::write_back(std::uint32_t c)
 	}
 	void taostore_oram::printsubtree()
 	{
-		printrec(local_subtree.root, L, 0);
+		int i;
+		i = printrec(local_subtree.root, L, 0);
+		std::cerr << "-------------" << i << "----------------" << std::endl;
 	}
-	void taostore_oram::printrec(node *t, int l, int l_index)
+	int taostore_oram::printrec(node *t, int l, int l_index)
 	{
+		int i = 0;
 		block_t *bl = (block_t *)t->payload;
 		for (unsigned int i = 0; i < Z; ++i)
 		{
@@ -992,14 +1001,15 @@ void taostore_oram::write_back(std::uint32_t c)
 		std::cerr << "mac destro: " << (std::uint64_t) * ((std::uint64_t *)t->adata.right_mac) << "mac sinistro: " << (std::uint64_t) * ((std::uint64_t *)t->adata.left_mac) << std::endl;
 
 		if (l == 0)
-			return;
+			return 1;
 		else
 		{
 			if (t->child_l != nullptr)
-				printrec(t->child_l, l - 1, get_left(l_index));
+				i += printrec(t->child_l, l - 1, get_left(l_index));
 			if (t->child_r != nullptr)
-				printrec(t->child_r, l - 1, get_right(l_index));
+				i += printrec(t->child_r, l - 1, get_right(l_index));
 		}
+		return i;
 	}
 	void taostore_oram::print_tree()
 	{

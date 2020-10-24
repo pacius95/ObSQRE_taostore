@@ -105,7 +105,7 @@ namespace obl
 		~taostore_oram();
 
 		//debug
-		void printrec(node *t, int L, int l_index);
+		int printrec(node *t, int L, int l_index);
 		void printstash();
 		void printsubtree();
 		void print_tree();
