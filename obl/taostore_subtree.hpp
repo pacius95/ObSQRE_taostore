@@ -81,14 +81,13 @@ namespace obl
     public:
         std::queue<write_queue_t> write_queue; //paths and leaf pointers
         pthread_rwlock_t tree_rw_lock = PTHREAD_RWLOCK_INITIALIZER;
-        pthread_spinlock_t write_q_lk;
+        pthread_mutex_t write_q_lk = PTHREAD_MUTEX_INITIALIZER;
         size_t node_size;
         node *root;
         int L;
 
         taostore_subtree() {
             L = 0;
-            pthread_spin_init(&write_q_lk, PTHREAD_PROCESS_SHARED);
             
         }
         void init(size_t _node_size, std::uint8_t *_data, int _L)
@@ -103,21 +102,21 @@ namespace obl
 
         void insert_write_queue(write_queue_t T)
         {
-            pthread_spin_lock(&write_q_lk);
+            pthread_mutex_lock(&write_q_lk);
             write_queue.push(T);
-            pthread_spin_unlock(&write_q_lk);
+            pthread_mutex_unlock(&write_q_lk);
         }
         write_queue_t *get_pop_queue(int K)
         {
             write_queue_t *temp = new write_queue_t[K];
-            pthread_spin_lock(&write_q_lk);
+            pthread_mutex_lock(&write_q_lk);
             for (int i = 0; i < K; i++)
             {
                 temp[i] = write_queue.front();
-                ; //fetch and pop
+                //fetch and pop
                 write_queue.pop();
             }
-            pthread_spin_unlock(&write_q_lk);
+            pthread_mutex_unlock(&write_q_lk);
             return temp;
         }
 

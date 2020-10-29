@@ -15,8 +15,13 @@
 #define RUN 4
 
 using namespace std;
-struct buffer {
-	std::uint8_t buffer[8];
+struct buffer
+{
+    std::uint8_t _buffer[8];
+    bool operator==(const buffer &rhs) const
+    {
+        return !memcmp(_buffer, rhs._buffer, sizeof(_buffer));
+    }
 };
 int main()
 {
@@ -48,7 +53,7 @@ int main()
 		{
 			rram.access(j, nullptr, (std::uint8_t *)&value_out);
 
-//			assert(value_out == mirror_data[j]);
+			assert(value_out == mirror_data[j]);
 		}
 
 		cerr << "Run " << i << " finished" << endl;

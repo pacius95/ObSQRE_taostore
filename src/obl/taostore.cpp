@@ -11,6 +11,7 @@
 #include <ctime>
 
 //#include "sgx_trts.h"
+
 #define DUMMY -1
 #define BOTTOM -2
 #define QUEUE_SIZE 256
@@ -66,7 +67,7 @@ namespace obl
 		pthread_cond_signal(&serializer_cond);
 		pthread_mutex_unlock(&serializer_lck);
 
-		threadpool_destroy(thpool, 0);
+		threadpool_destroy(thpool, threadpool_graceful);
 
 		std::memset(_crypt_buffer, 0x00, sizeof(Aes) + 16);
 
@@ -200,7 +201,6 @@ namespace obl
 		std::int64_t l_index = 0;
 		obl_aes_gcm_128bit_tag_t reference_mac;
 		auth_data_t *adata;
-		std::uint32_t _path_counter;
 		block_t *bl;
 		bool valid = true;
 		int i = 0;
@@ -232,11 +232,7 @@ namespace obl
 		old_ref_node = local_subtree.root;
 		l_index = 0;
 
-		_path_counter = path_counter;
-
-		// pthread_spin_lock(&stash_lock);
 		pthread_mutex_lock(&stash_lock);
-
 		goal = get_max_depth_bucket(&stash[0], S, path);
 		ljd[-1] = goal;
 		csb[-1] = BOTTOM;
@@ -245,7 +241,7 @@ namespace obl
 		for (i = 0; i <= L && reference_node != nullptr; ++i)
 		{
 			reference_node->lock();
-			reference_node->local_timestamp = _path_counter;
+			reference_node->local_timestamp = path_counter;
 
 			csb[i] = ternary_op(goal >= i, _closest_src_bucket, BOTTOM);
 			std::int64_t jump = get_max_depth_bucket((block_t *)reference_node->payload, Z, path);
@@ -269,12 +265,11 @@ namespace obl
 		}
 		while (i <= L && valid)
 		{
-			(l_index & 1) ? old_ref_node->child_l = new node(block_size * Z, _path_counter) : old_ref_node->child_r = new node(block_size * Z, _path_counter);
+			(l_index & 1) ? old_ref_node->child_l = new node(block_size * Z, path_counter) : old_ref_node->child_r = new node(block_size * Z, path_counter);
 			reference_node = (l_index & 1) ? old_ref_node->child_l : old_ref_node->child_r;
 			reference_node->parent = old_ref_node;
 
 			reference_node->lock();
-			reference_node->local_timestamp = _path_counter;
 			adata = &reference_node->adata;
 
 			std::int64_t leftch = get_left(l_index);
@@ -332,11 +327,10 @@ namespace obl
 		// fill the other buckets with "empty" blocks
 		while (i <= L)
 		{
-			(l_index & 1) ? old_ref_node->child_l = new node(block_size * Z, _path_counter) : old_ref_node->child_r = new node(block_size * Z, _path_counter);
+			(l_index & 1) ? old_ref_node->child_l = new node(block_size * Z, path_counter) : old_ref_node->child_r = new node(block_size * Z, path_counter);
 			reference_node = (l_index & 1) ? old_ref_node->child_l : old_ref_node->child_r;
 			reference_node->parent = old_ref_node;
 			reference_node->lock();
-			reference_node->local_timestamp = _path_counter;
 
 			bl = (block_t *)reference_node->payload;
 			for (unsigned int j = 0; j < Z; ++j)
@@ -413,8 +407,6 @@ namespace obl
 			bool deepest_block = (get_max_depth(stash[i].lid, path, L) == ljd[-1]) & fill_hold & (stash[i].bid != DUMMY);
 			swap(deepest_block, _hold, (std::uint8_t *)&stash[i], block_size);
 		}
-
-		// pthread_spin_unlock(&stash_lock);
 		pthread_mutex_unlock(&stash_lock);
 
 		dst = ndb[-1];
@@ -521,7 +513,6 @@ namespace obl
 		std::int64_t l_index = 0;
 		obl_aes_gcm_128bit_tag_t reference_mac;
 		auth_data_t *adata;
-		std::uint32_t _path_counter;
 		bool valid = false;
 		int i = 0;
 		block_t *bl;
@@ -541,11 +532,9 @@ namespace obl
 		node *reference_node;
 		node *old_ref_node;
 
-		_path_counter = path_counter;
 		reference_node = local_subtree.root;
 		old_ref_node = local_subtree.root;
 
-		// pthread_spin_lock(&stash_lock);
 		pthread_mutex_lock(&stash_lock);
 
 		for (unsigned int i = 0; i < S; ++i)
@@ -569,7 +558,7 @@ namespace obl
 				swap(not_fake && bl->bid == bid, _fetched, (std::uint8_t *)bl, block_size);
 				bl = ((block_t *)((std::uint8_t *)bl + block_size));
 			}
-			reference_node->local_timestamp = _path_counter;
+			reference_node->local_timestamp = path_counter;
 			old_ref_node = reference_node;
 
 			reference_node = (path >> i) & 1 ? old_ref_node->child_r : old_ref_node->child_l;
@@ -587,7 +576,7 @@ namespace obl
 		}
 		while (i <= L && valid)
 		{
-			(l_index & 1) ? old_ref_node->child_l = new node(block_size * Z, _path_counter) : old_ref_node->child_r = new node(block_size * Z, _path_counter);
+			(l_index & 1) ? old_ref_node->child_l = new node(block_size * Z, path_counter) : old_ref_node->child_r = new node(block_size * Z, path_counter);
 			reference_node = (l_index & 1) ? old_ref_node->child_l : old_ref_node->child_r;
 			reference_node->parent = old_ref_node;
 
@@ -634,7 +623,6 @@ namespace obl
 				swap(not_fake && bl->bid == bid, _fetched, (std::uint8_t *)bl, block_size);
 				bl = ((block_t *)((std::uint8_t *)bl + block_size));
 			}
-			reference_node->local_timestamp = _path_counter;
 
 			old_ref_node = reference_node;
 			l_index = (l_index << 1) + 1 + ((path >> i) & 1);
@@ -650,7 +638,7 @@ namespace obl
 		// fill the other buckets with "empty" blocks
 		while (i <= L)
 		{
-			(l_index & 1) ? old_ref_node->child_l = new node(block_size * Z, _path_counter) : old_ref_node->child_r = new node(block_size * Z, _path_counter);
+			(l_index & 1) ? old_ref_node->child_l = new node(block_size * Z, path_counter) : old_ref_node->child_r = new node(block_size * Z, path_counter);
 			reference_node = (l_index & 1) ? old_ref_node->child_l : old_ref_node->child_r;
 			reference_node->parent = old_ref_node;
 
@@ -664,7 +652,6 @@ namespace obl
 				bl->bid = DUMMY;
 				bl = ((block_t *)((std::uint8_t *)bl + block_size));
 			}
-			reference_node->local_timestamp = _path_counter;
 
 			old_ref_node = reference_node;
 			l_index = (l_index << 1) + 1 + ((path >> i) & 1);
@@ -700,10 +687,10 @@ namespace obl
 		for (auto &it : request_structure)
 		{
 			replace(it->id == req.id, (std::uint8_t *)&(it->handled), (std::uint8_t *)&t, sizeof(bool));
-			replace(!req.fake & it->bid == req.bid, it->data_out, (std::uint8_t *)fetched->payload, B);
-			replace(!req.fake & it->bid == req.bid, (std::uint8_t *)&(it->data_ready), (std::uint8_t *)&t, sizeof(bool));
+			replace(!req.fake & (it->bid == req.bid), it->data_out, (std::uint8_t *)fetched->payload, B);
+			replace(!req.fake & (it->bid == req.bid), (std::uint8_t *)&(it->data_ready), (std::uint8_t *)&t, sizeof(bool));
 			if (it->data_in != nullptr)
-				replace(!req.fake & it->bid == req.bid, (std::uint8_t *)fetched->payload, it->data_in, B);
+				replace(!req.fake & (it->bid == req.bid), (std::uint8_t *)fetched->payload, it->data_in, B);
 		}
 
 		// pthread_spin_lock(&stash_lock);
@@ -719,7 +706,6 @@ namespace obl
 			already_evicted = req.fake | already_evicted | (sbid == DUMMY);
 		}
 		assert(already_evicted);
-		// pthread_spin_unlock(&stash_lock);
 		pthread_mutex_unlock(&stash_lock);
 	}
 
@@ -732,8 +718,9 @@ namespace obl
 		struct processing_thread_args obj = {_req, bid};
 		struct processing_thread_args_wrap obj_wrap = {this, &obj};
 
-		threadpool_add(thpool, processing_thread_wrap, (void *)&obj_wrap, 0);
-
+		int err = threadpool_add(thpool, processing_thread_wrap, (void *)&obj_wrap, 0);
+		assert (err == 0);
+		
 		//wait on the conditional var
 		pthread_mutex_lock(&_req.cond_mutex);
 		while (!_req.res_ready)
@@ -940,7 +927,6 @@ void taostore_oram::write_back(std::uint32_t c)
 	// 		}
 	// 	}
 
-
 	// 	pthread_mutex_unlock(&write_back_lock);
 
 	// 	delete _paths;
@@ -1007,10 +993,9 @@ void taostore_oram::write_back(std::uint32_t c)
 					delete reference_node;
 				}
 				pthread_mutex_unlock(&multi_set_lock);
-				// pthread_spin_unlock(&multi_set_lock);
 			}
 		}
-		reference_node = local_subtree.root;
+		/*		reference_node = local_subtree.root;
 		gen_rand(iv, OBL_AESGCM_IV_SIZE);
 
 		// save encrypted payload
@@ -1031,12 +1016,8 @@ void taostore_oram::write_back(std::uint32_t c)
 		tree[0].reach_l = reference_node->adata.valid_l;
 		tree[0].reach_r = reference_node->adata.valid_r;
 
-		std::memcpy(merkle_root, mac, sizeof(obl_aes_gcm_128bit_tag_t));
-		// std::cerr << "start-------------------------------------------" << std::endl;
-		// printsubtree();
-		// std::cerr << "end---------------------------------------------" << std::endl;
+		std::memcpy(merkle_root, mac, sizeof(obl_aes_gcm_128bit_tag_t));*/
 		pthread_mutex_unlock(&write_back_lock);
-
 		delete _paths;
 	}
 

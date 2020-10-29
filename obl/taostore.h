@@ -40,7 +40,8 @@ namespace obl
 	private:
 		std::size_t block_size;	 //aligned block size
 		std::size_t bucket_size; //aligned/padded encrypted bucket size
-
+		std::uint32_t K;
+		unsigned int T_NUM;
 		// stash
 		flexible_array<block_t> stash;
 		unsigned int S; // stash size
@@ -101,7 +102,7 @@ namespace obl
 		std::int64_t get_max_depth_bucket(block_t *bl, int len, leaf_id path);
 
 	public:
-		taostore_oram(std::size_t N, std::size_t B, unsigned int Z, unsigned int S);
+		taostore_oram(std::size_t N, std::size_t B, unsigned int Z, unsigned int S, unsigned int T_NUM);
 		~taostore_oram();
 
 		//debug
@@ -134,7 +135,7 @@ namespace obl
 		}
 		tree_oram *spawn_oram(std::size_t N, std::size_t B)
 		{
-			return new taostore_oram(N, B, Z, S);
+			return new taostore_oram(N, B, Z, S, 4);
 		}
 	};
 } // namespace obl
