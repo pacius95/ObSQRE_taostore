@@ -34,6 +34,8 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <unistd.h>
+#include <iostream>
+#include <ctime>
 
 #include "obl/threadpool.h"
 
@@ -267,7 +269,8 @@ static void *threadpool_thread(void *threadpool)
 {
     threadpool_t *pool = (threadpool_t *)threadpool;
     threadpool_task_t task;
-
+        std::clock_t start;
+		double duration;
     for(;;) {
         /* Lock must be taken to wait on conditional variable */
         pthread_mutex_lock(&(pool->lock));
@@ -293,7 +296,8 @@ static void *threadpool_thread(void *threadpool)
         /* Unlock */
         pthread_mutex_unlock(&(pool->lock));
 
-        /* Get to work */
+        /* Get to work */		
+
         (*(task.function))(task.argument);
     }
 

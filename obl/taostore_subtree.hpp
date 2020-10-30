@@ -28,7 +28,6 @@ namespace obl
         node *child_r;
         node *parent;
         pthread_mutex_t lk = PTHREAD_MUTEX_INITIALIZER;
-        // pthread_spinlock_t lk;
         std::uint32_t local_timestamp;
         auth_data_t adata;
         std::uint8_t *payload;
@@ -40,7 +39,6 @@ namespace obl
             parent = nullptr;
             local_timestamp = 0;
             std::memset(&adata, 0x00, sizeof(auth_data_t));
-            // pthread_spin_init(&lk, PTHREAD_PROCESS_SHARED);
         }
 
         node(size_t size, std::uint64_t timestamp): node()
@@ -52,11 +50,10 @@ namespace obl
         ~node()
         {
             pthread_mutex_destroy(&lk);
-            // pthread_spin_destroy(&lk);
             std::memset(&adata, 0x00, sizeof(auth_data_t));
             delete payload;
         }
-        int lock()
+                int lock()
         {
             return pthread_mutex_lock(&lk);
             // return pthread_spin_lock(&lk);

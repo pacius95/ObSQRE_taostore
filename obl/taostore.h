@@ -61,8 +61,7 @@ namespace obl
 		pthread_mutex_t write_back_lock = PTHREAD_MUTEX_INITIALIZER; //for debugging (1 WB at time)
 		pthread_mutex_t stash_lock = PTHREAD_MUTEX_INITIALIZER;
 		pthread_mutex_t multi_set_lock = PTHREAD_MUTEX_INITIALIZER;
-		//lock dello stash
-		// pthread_spinlock_t multi_set_lock;
+		pthread_mutex_t *mutex_level_i;
 
 		threadpool_t *thpool;
 
@@ -88,8 +87,11 @@ namespace obl
 
 		static void *serializer_wrap(void *object);
 		void *serializer();
-		static void processing_thread_wrap(void *object);
-		void processing_thread(void *_request);
+		static void access_thread_wrap(void *object);
+		void access_thread(void *_request);
+
+		// static void eviction_thread_wrap(void *object);
+		// void eviction_thread(void *_request);
 
 		void read_path(request_t &req, std::uint8_t *_fetched);
 		void fetch_path(std::uint8_t *_fetched, block_id bid, leaf_id new_lid, leaf_id path, bool fake);

@@ -411,7 +411,7 @@ namespace obl
 		}
 		pthread_mutex_unlock(&stash_lock);
 		local_subtree.unlock();
-		
+
 		dst = ndb[-1];
 
 		for (int i = 0; i <= L; ++i)
@@ -455,12 +455,12 @@ namespace obl
 		//END EVICTION
 	}
 
-	void taostore_oram::processing_thread_wrap(void *_object)
+	void taostore_oram::access_thread_wrap(void *_object)
 	{
-		return ((processing_thread_args_wrap *)_object)->arg1->processing_thread((void *)((processing_thread_args_wrap *)_object)->arg2);
+		return ((processing_thread_args_wrap *)_object)->arg1->access_thread((void *)((processing_thread_args_wrap *)_object)->arg2);
 	}
 
-	void taostore_oram::processing_thread(void *_object)
+	void taostore_oram::access_thread(void *_object)
 	{
 		processing_thread_args *object = (processing_thread_args *)_object;
 
@@ -709,7 +709,7 @@ namespace obl
 		struct processing_thread_args obj = {_req, bid};
 		struct processing_thread_args_wrap obj_wrap = {this, &obj};
 
-		int err = threadpool_add(thpool, processing_thread_wrap, (void *)&obj_wrap, 0);
+		int err = threadpool_add(thpool, access_thread_wrap, (void *)&obj_wrap, 0);
 		assert(err == 0);
 
 		//wait on the conditional var

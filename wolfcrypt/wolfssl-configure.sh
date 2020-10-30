@@ -1,6 +1,6 @@
 ./configure  --enable-cryptonly \
 	--enable-static --enable-harden --disable-crypttests --disable-examples \
-	--enable-singlethreaded --disable-asyncthreads \
+	--enable-singlethreaded	--disable-asyncthreads \
 	--enable-pwdbased --enable-aesctr --disable-aescbc \
 	--enable-aesni --enable-intelasm --enable-intelrand \
 	--disable-eccshamir --disable-ecc --disable-supportedcurves --disable-fastmath \
