@@ -21,13 +21,12 @@ using namespace std;
 
 struct buffer
 {
-	std::uint8_t _buffer[8];
+	std::uint8_t _buffer[1000];
 	bool operator==(const buffer &rhs) const
 	{
 		return !memcmp(_buffer, rhs._buffer, sizeof(_buffer));
 	}
 };
-
 
 int main()
 {
@@ -58,10 +57,9 @@ int main()
 		{
 			rram.access(j, nullptr, (std::uint8_t *)&value_out);
 		}
-
 		cerr << "Run " << i << " finished" << endl;
 		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-		std::cout << "printf: " << duration << '\n';
+		std::cerr << "printf: " << duration << '\n';
 	}
 	return 0;
 }

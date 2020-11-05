@@ -7,9 +7,9 @@
 #include <cassert>
 #include <time.h>
 
-#define P 20
+#define P 15
 #define N (1 << P)
-#define RUN 1000
+#define RUN 4
 
 #define S 32
 #define Z 4

@@ -1,5 +1,5 @@
-#ifndef TAOSTORE_ORAM_H
-#define TAOSTORE_ORAM_H
+#ifndef TAOSTORE_PATH_ORAM_H
+#define TAOSTORE_PATH_ORAM_H
 
 #include "obl/types.h"
 #include "obl/oram.h"
@@ -34,7 +34,7 @@ namespace obl
 
 	struct processing_thread_args;
 
-	class taostore_oram : public tree_oram
+	class taostore_path_oram : public tree_oram
 	{
 	private:
 		std::size_t block_size;	 //aligned block size
@@ -44,6 +44,7 @@ namespace obl
 		// stash
 		flexible_array<block_t> stash;
 		unsigned int S; // stash size
+		unsigned int A; // det eviction
 
 		taostore_subtree local_subtree;
 
@@ -60,6 +61,7 @@ namespace obl
 		pthread_mutex_t write_back_lock = PTHREAD_MUTEX_INITIALIZER; //for debugging (1 WB at time)
 		pthread_mutex_t stash_lock = PTHREAD_MUTEX_INITIALIZER;
 		pthread_mutex_t multi_set_lock = PTHREAD_MUTEX_INITIALIZER;
+		pthread_mutex_t *mutex_level_i;
 
 		threadpool_t *thpool;
 
@@ -91,21 +93,22 @@ namespace obl
 		// static void eviction_thread_wrap(void *object);
 		// void eviction_thread(void *_request);
 
-		void read_path(request_t &req, std::uint8_t *_fetched);
-		void fetch_path(std::uint8_t *_fetched, block_id bid, leaf_id new_lid, leaf_id path, bool fake);
-		void answer_request(request_t &req, std::uint8_t *fetched);
+		bool read_path(request_t &req, std::uint8_t *_fetched);
+		bool fetch_path(std::uint8_t *_fetched, block_id bid, leaf_id new_lid, leaf_id path, bool fake);
+		void answer_request(request_t &req, std::uint8_t *fetched, bool found_in_path);
 		void eviction(leaf_id path);
 		void write_back(std::uint32_t c);
 
 		// helper methods
 		bool has_free_block(block_t *bl, int len);
 		std::int64_t get_max_depth_bucket(block_t *bl, int len, leaf_id path);
-
+		
 		void multiset_lock(leaf_id path);
 		void multiset_unlock ( leaf_id path);
+
 	public:
-		taostore_oram(std::size_t N, std::size_t B, unsigned int Z, unsigned int S, unsigned int T_NUM);
-		~taostore_oram();
+		taostore_path_oram(std::size_t N, std::size_t B, unsigned int Z, unsigned int S,unsigned int A, unsigned int T_NUM);
+		~taostore_path_oram();
 
 		//debug
 		int printrec(node *t, int L, int l_index);
@@ -124,22 +127,26 @@ namespace obl
 		void write(block_id bid, std::uint8_t *data_in, leaf_id next_lif);
 	};
 
-	class taostore_factory : public oram_factory
+	class taostore_path_factory : public oram_factory
 	{
 	private:
-		unsigned int Z, S;
+		unsigned int Z, S, A, T_NUM;
 
 	public:
-		taostore_factory(unsigned int Z, unsigned int S)
+		taostore_path_factory(unsigned int Z, unsigned int S, unsigned A, unsigned T_NUM)
 		{
 			this->Z = Z;
 			this->S = S;
+			this->A = A;
+			this->T_NUM = T_NUM;
 		}
 		tree_oram *spawn_oram(std::size_t N, std::size_t B)
-		{
-			return new taostore_oram(N, B, Z, S, 4);
+		{			
+			// since path oram has the largest stash size, improve it
+			unsigned int real_S = N < S ? N : S;
+			return new taostore_path_oram(N, B, Z, real_S, A, T_NUM);
 		}
 	};
 } // namespace obl
 
-#endif // TAOSTORE_ORAM_H
+#endif // TAOSTORE_PATH_ORAM_H
