@@ -22,7 +22,6 @@
 #include <mutex>
 #include <thread>
 #include <pthread.h>
-//#include <sgx_spinlock.h>
 #include <wolfcrypt/aes.h>
 
 #ifdef SGX_ENCLAVE_ENABLED
@@ -33,7 +32,6 @@ namespace obl
 {
 
 	struct processing_thread_args;
-	struct processing_thread_args_wrap;
 
 	class taostore_oram : public tree_oram
 	{
@@ -44,6 +42,8 @@ namespace obl
 		// stash
 		flexible_array<block_t> stash;
 		unsigned int S; // stash size
+		std::uint32_t K;
+		unsigned int T_NUM;
 
 		taostore_subtree local_subtree;
 
@@ -58,13 +58,8 @@ namespace obl
 		pthread_mutex_t serializer_lck = PTHREAD_MUTEX_INITIALIZER;	 //lock della request structure
 		pthread_cond_t serializer_cond = PTHREAD_COND_INITIALIZER;	 //cond associata al serializer
 		pthread_mutex_t write_back_lock = PTHREAD_MUTEX_INITIALIZER; //for debugging (1 WB at time)
-		pthread_spinlock_t stash_lock;
-//lock dello stash
-#ifdef MUTEX
+		pthread_mutex_t stash_lock = PTHREAD_MUTEX_INITIALIZER;
 		pthread_mutex_t multi_set_lock = PTHREAD_MUTEX_INITIALIZER;
-#else
-		pthread_spinlock_t multi_set_lock;
-#endif
 		threadpool_t *thpool;
 
 		std::deque<request_t*> request_structure;
@@ -90,11 +85,14 @@ namespace obl
 		std::int64_t fetch_path_all(leaf_id path, auth_data_t * adata, flexible_array<block_t> &fetched_path);
 		static void *serializer_wrap(void *object);
 		void *serializer();
-		static void processing_thread_wrap(void *object);
-		void processing_thread(void *_request);
+		static void access_thread_wrap(void *object);
+		void access_thread(request_t &_req);
+
+		// static void eviction_thread_wrap(void *object);
+		// void eviction_thread(void *_request);
 
 		void read_path(request_t &req, std::uint8_t *_fetched);
-		void fetch_path(std::uint8_t *_fetched, block_id bid, leaf_id new_lid, leaf_id path);
+		void fetch_path(std::uint8_t *_fetched, block_id bid, leaf_id new_lid, leaf_id path, bool fake);
 		void answer_request(request_t &req, std::uint8_t *fetched);
 		void eviction(leaf_id path);
 		void write_back(std::uint32_t c);
@@ -103,12 +101,14 @@ namespace obl
 		bool has_free_block(block_t *bl, int len);
 		std::int64_t get_max_depth_bucket(block_t *bl, int len, leaf_id path);
 
+		void multiset_lock(leaf_id path);
+		void multiset_unlock ( leaf_id path);
 	public:
-		taostore_oram(std::size_t N, std::size_t B, unsigned int Z, unsigned int S);
+		taostore_oram(std::size_t N, std::size_t B, unsigned int Z, unsigned int S, unsigned int T_NUM);
 		~taostore_oram();
 
 		//debug
-		void printrec(node *t, int L, int l_index);
+		int printrec(node *t, int L, int l_index);
 		void printstash();
 		void printsubtree();
 		void print_tree();
@@ -137,7 +137,7 @@ namespace obl
 		}
 		tree_oram *spawn_oram(std::size_t N, std::size_t B)
 		{
-			return new taostore_oram(N, B, Z, S);
+			return new taostore_oram(N, B, Z, S, 4);
 		}
 	};
 } // namespace obl

@@ -12,11 +12,16 @@
 
 #define P 15
 #define N (1 << P)
-#define RUN 4
+#define RUN 1
 
 using namespace std;
-struct buffer {
-	std::uint8_t buffer[8];
+struct buffer
+{
+    std::uint8_t _buffer[4000];
+    bool operator==(const buffer &rhs) const
+    {
+        return !memcmp(_buffer, rhs._buffer, sizeof(_buffer));
+    }
 };
 int main()
 {
@@ -26,7 +31,6 @@ int main()
 	std::clock_t start;
 	double duration;
 
-	//obl::path_factory of(4, 48);
 	obl::coram_factory of(3, 8);
 	obl::recursive_oram rram(N, sizeof(buffer), 5, &of);
 
@@ -48,7 +52,7 @@ int main()
 		{
 			rram.access(j, nullptr, (std::uint8_t *)&value_out);
 
-//			assert(value_out == mirror_data[j]);
+			assert(value_out == mirror_data[j]);
 		}
 
 		cerr << "Run " << i << " finished" << endl;
