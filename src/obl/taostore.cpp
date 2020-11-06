@@ -689,7 +689,7 @@ namespace obl
 
 	void taostore_oram::access(block_id bid, std::uint8_t *data_in, std::uint8_t *data_out)
 	{
-		std::uint8_t _data_out[block_size];
+		std::uint8_t _data_out[B];
 		std::int32_t _id = std::atomic_fetch_add(&thread_id, 1);
 		request_t _req = {data_in, bid, false, false, _data_out, false, false, _id, PTHREAD_MUTEX_INITIALIZER, PTHREAD_COND_INITIALIZER};
 
