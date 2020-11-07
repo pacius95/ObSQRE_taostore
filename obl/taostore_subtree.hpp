@@ -40,8 +40,11 @@ namespace obl
             local_timestamp = 0;
             std::memset(&adata, 0x00, sizeof(auth_data_t));
         }
-
-        node(size_t size, std::uint64_t timestamp): node()
+        node(size_t size) : node()
+        {
+            payload = new std::uint8_t[size];
+        }
+        node(size_t size, std::uint64_t timestamp) : node()
         {
             local_timestamp = timestamp;
             payload = new std::uint8_t[size];
@@ -53,7 +56,7 @@ namespace obl
             std::memset(&adata, 0x00, sizeof(auth_data_t));
             delete payload;
         }
-                int lock()
+        int lock()
         {
             return pthread_mutex_lock(&lk);
             // return pthread_spin_lock(&lk);
@@ -83,18 +86,17 @@ namespace obl
         node *root;
         int L;
 
-        taostore_subtree() {
+        taostore_subtree()
+        {
             L = 0;
-            
         }
         void init(size_t _node_size, std::uint8_t *_data, int _L)
         {
-            
+
             L = _L;
             node_size = _node_size;
             root = new node(node_size, 0);
             memcpy(root->payload, _data, node_size);
-
         }
 
         void insert_write_queue(write_queue_t T)
@@ -117,7 +119,7 @@ namespace obl
             return temp;
         }
 
-        std::map<leaf_id, node *> update_valid(write_queue_t *_paths, int K)
+        std::map<leaf_id, node *> update_valid(write_queue_t *_paths, int K, flexible_array<bucket_t> &tree)
         {
             node *reference_node, *old_reference_node;
             std::map<leaf_id, node *> nodes_map; //l_index and leaf_pointer
@@ -139,11 +141,13 @@ namespace obl
                         reference_node->adata.valid_r = true; // this marks the path as already fetched, and thus valid
                     }
                     else
-                    {                                                                                 // else
+                    {                                                                               // else
                         reference_node->adata.valid_r = reachable && reference_node->adata.valid_r; // this serves as initialization for initial dummy values
-                        reachable = reachable && reference_node->adata.valid_l;                      // this propagates reachability
+                        reachable = reachable && reference_node->adata.valid_l;                     // this propagates reachability
                         reference_node->adata.valid_l = true;
                     }
+                    tree[l_index].reach_l = reference_node->adata.valid_l;
+                    tree[l_index].reach_r = reference_node->adata.valid_r;
                     old_reference_node = reference_node;
                     reference_node = (paths >> j) & 1 ? old_reference_node->child_r : old_reference_node->child_l;
 

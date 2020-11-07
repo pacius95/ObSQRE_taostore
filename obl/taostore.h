@@ -82,7 +82,7 @@ namespace obl
 		// private methods
 		void init();
 
-		std::int64_t fetch_path_all(leaf_id path, auth_data_t * adata, flexible_array<block_t> &fetched_path);
+		void download_path(leaf_id path,  std::vector<node*> fetched_path);
 		static void *serializer_wrap(void *object);
 		void *serializer();
 		static void access_thread_wrap(void *object);
