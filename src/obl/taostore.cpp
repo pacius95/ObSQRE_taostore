@@ -190,12 +190,12 @@ namespace obl
 		std::int64_t l_index = 0;
 		obl_aes_gcm_128bit_tag_t reference_mac;
 
-		std::vector<node*> fetched_path;
-		fetched_path.reserve(L+1);
+		std::vector<node *> fetched_path;
+		fetched_path.reserve(L + 1);
 
-		for (int i=0; i< L+1; i++)
-			fetched_path.emplace_back(new node(block_size*Z));
-			
+		for (int i = 0; i < L + 1; i++)
+			fetched_path.emplace_back(new node(block_size * Z));
+
 		block_t *bl;
 		bool valid = true;
 		int i = 0;
@@ -215,11 +215,12 @@ namespace obl
 
 		node *reference_node, *old_ref_node;
 		reference_node = local_subtree.root;
+		old_ref_node = local_subtree.root;
 
 		multiset_lock(path);
 
 		download_path(path, fetched_path);
-
+		local_subtree.write_lock();
 		pthread_mutex_lock(&stash_lock);
 		goal = get_max_depth_bucket(&stash[0], S, path);
 		ljd[-1] = goal;
@@ -238,9 +239,9 @@ namespace obl
 			goal = ternary_op(jump >= goal, jump, goal);
 
 			old_ref_node = reference_node;
-			reference_node = (path >> i) & 1 ? old_ref_node->child_r : old_ref_node->child_l;
-
 			l_index = (l_index << 1) + 1 + ((path >> i) & 1);
+			reference_node = (l_index & 1) ? old_ref_node->child_l : old_ref_node->child_r;
+
 			delete fetched_path[i];
 		}
 		while (i <= L)
@@ -323,7 +324,7 @@ namespace obl
 			swap(deepest_block, _hold, (std::uint8_t *)&stash[i], block_size);
 		}
 		pthread_mutex_unlock(&stash_lock);
-
+		local_subtree.unlock();
 		dst = ndb[-1];
 
 		for (int i = 0; i <= L; ++i)
@@ -432,7 +433,7 @@ namespace obl
 		fetch_path(_fetched, bid, ev_lid, path, !req.fake);
 	}
 
-	void taostore_oram::download_path(leaf_id path, std::vector<node*> fetched_path)
+	void taostore_oram::download_path(leaf_id path, std::vector<node *> fetched_path)
 	{
 		// always start from root
 		std::int64_t l_index = 0;
@@ -441,15 +442,22 @@ namespace obl
 
 		// start verifying the mac stored in the root, from the SAFE part of the memory
 		obl_aes_gcm_128bit_tag_t reference_mac;
-		std::memcpy(reference_mac, merkle_root, sizeof(obl_aes_gcm_128bit_tag_t)); // drop the & since not needed
 		/*
 			the additional method init (to be refined in the SGX deployment) actually inits
 			the root node in a proper way, storing the correct "accessed" flags inside
 			the root bucket. So the mac there contained in the root will always be valid
 		*/
-		bool reachable = true;
+		bool reachable = (path & 1) ? tree[l_index].reach_r : tree[l_index].reach_l;
+		// evaluate the next encrypted bucket index in the binary heap
+		l_index = (l_index << 1) + 1 + ((path >> i) & 1);
 
-		for (i = 0; i <= L && reachable; i++)
+		if (reachable)
+		{
+			std::uint8_t *src = tree[l_index].mac;
+			std::memcpy(reference_mac, src, sizeof(obl_aes_gcm_128bit_tag_t));
+		}
+
+		for (i = 1; i <= L && reachable; i++)
 		{
 
 			std::int64_t leftch = get_left(l_index);
@@ -514,8 +522,6 @@ namespace obl
 				bl->bid = DUMMY;
 				bl = (block_t *)((std::uint8_t *)bl + block_size);
 			}
-
-			l_index = (l_index << 1) + 1 + ((path >> i) & 1);
 			++i;
 		}
 	}
@@ -532,13 +538,13 @@ namespace obl
 		double duration;
 		block_t *fetched = (block_t *)_fetched;
 		fetched->bid = DUMMY;
+		fetched->lid = DUMMY;
 
-		std::vector<node*> fetched_path;
-		fetched_path.reserve(L+1);
-
-		for (int i=0; i< L+1; i++)
-			fetched_path.emplace_back(new node(block_size*Z));
-
+		std::vector<node *> fetched_path;
+		fetched_path.reserve(L + 1);
+		fetched_path.emplace_back(nullptr);
+		for (int i = 0; i < L + 1; i++)
+			fetched_path.emplace_back(new node(block_size * Z));
 
 		//fetch_path della circuit.
 		node *reference_node;
@@ -553,7 +559,7 @@ namespace obl
 		download_path(path, fetched_path);
 		// duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 		// std::cerr << "printf: " << duration << '\n';
-
+		local_subtree.read_lock();
 		for (i = 0; i <= L && reference_node != nullptr; ++i)
 		{
 			reference_node->lock();
@@ -592,17 +598,17 @@ namespace obl
 			}
 
 			reference_node->local_timestamp = path_counter;
+			old_ref_node = reference_node;
 
 			l_index = (l_index << 1) + 1 + ((path >> i) & 1);
-			old_ref_node = reference_node;
 			++i;
 		}
 
+		pthread_mutex_lock(&stash_lock);
 		old_ref_node->unlock();
 
 		multiset_unlock(path);
 
-		pthread_mutex_lock(&stash_lock);
 		for (unsigned int i = 0; i < S; ++i)
 		{
 			block_id sbid = stash[i].bid;
@@ -642,6 +648,7 @@ namespace obl
 		}
 		assert(already_evicted);
 		pthread_mutex_unlock(&stash_lock);
+		local_subtree.unlock();
 	}
 
 	void taostore_oram::access(block_id bid, std::uint8_t *data_in, std::uint8_t *data_out)
@@ -739,7 +746,6 @@ namespace obl
 
 				node *parent = reference_node->parent;
 				// update the mac for the parent for the evaluation of its mac
-				nodes_level_i[i - 1][get_parent(l_index)] = parent;
 
 				std::uint8_t *target_mac = (l_index & 1) ? parent->adata.left_mac : parent->adata.right_mac;
 				std::memcpy(target_mac, mac, sizeof(obl_aes_gcm_128bit_tag_t));
@@ -749,6 +755,8 @@ namespace obl
 					reference_node->child_r == nullptr & reference_node->child_l == nullptr &
 					path_req_multi_set.find(l_index) == path_req_multi_set.end())
 				{
+
+					nodes_level_i[i - 1][get_parent(l_index)] = parent;
 					if (l_index & 1)
 						parent->child_l = nullptr;
 					else
@@ -758,29 +766,7 @@ namespace obl
 				pthread_mutex_unlock(&multi_set_lock);
 			}
 		}
-		//root wb
-		l_index = 0;
-		reference_node = local_subtree.root;
-		// generate a new random IV
-		gen_rand(iv, OBL_AESGCM_IV_SIZE);
 
-		// save encrypted payload
-		wc_AesGcmEncrypt(crypt_handle,
-						 tree[l_index].payload,
-						 reference_node->payload,
-						 Z * block_size,
-						 iv,
-						 OBL_AESGCM_IV_SIZE,
-						 mac,
-						 OBL_AESGCM_MAC_SIZE,
-						 (std::uint8_t *)&reference_node->adata,
-						 sizeof(auth_data_t));
-
-		// save "mac" + iv + reachability flags
-		std::memcpy(tree[l_index].mac, mac, sizeof(obl_aes_gcm_128bit_tag_t));
-		std::memcpy(tree[l_index].iv, iv, sizeof(obl_aes_gcm_128bit_iv_t));
-
-		std::memcpy(merkle_root, mac, sizeof(obl_aes_gcm_128bit_tag_t));
 		pthread_mutex_unlock(&write_back_lock);
 
 		delete _paths;

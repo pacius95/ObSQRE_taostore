@@ -32,7 +32,7 @@ int main()
 {
 	vector<buffer> mirror_data;
 
-	obl::taostore_oram rram(N, sizeof(buffer), Z, S, 2);
+	obl::taostore_oram rram(N, sizeof(buffer), Z, S, 3);
 	buffer value, value_out;
 	std::clock_t start;
 	double duration; 
