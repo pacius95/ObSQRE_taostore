@@ -20,7 +20,7 @@ using namespace std;
 
 struct buffer
 {
-    std::uint8_t _buffer[8];
+    std::uint8_t _buffer[4000];
     bool operator==(const buffer &rhs) const
     {
         return !memcmp(_buffer, rhs._buffer, sizeof(_buffer));
@@ -41,11 +41,15 @@ void *work(void *T)
     start = std::clock();
     work_args args = *(work_args *)T;
     buffer value_out;
-    for (int j = 0; j < N; j++)
+	unsigned int rnd_bid;
+
+    for (int j = 0; j < N/5; j++)
     {
-        args.rram->access(j % N, nullptr, (std::uint8_t *)&value_out);
-        assert(value_out == (*args._mirror_data)[j % N]);
-    }
+ 		obl::gen_rand((std::uint8_t *)&rnd_bid, sizeof(obl::block_id));
+		rnd_bid = (rnd_bid >> 1) % N;
+		args.rram->access(rnd_bid, nullptr, (std::uint8_t *)&value_out);
+		assert( value_out == (*args._mirror_data)[rnd_bid] );
+           }
     cerr << "Run " << args.i << " finished" << endl;
     duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
     std::cout << "printf: " << duration << '\n';
@@ -57,7 +61,7 @@ int main()
 
     vector<buffer> mirror_data;
 
-    obl::taostore_oram rram(N, sizeof(buffer), Z, S, 5);
+    obl::taostore_oram rram(N, sizeof(buffer), Z, S, 4);
     buffer value, value_out;
 
     mirror_data.reserve(N);
@@ -73,7 +77,6 @@ int main()
     }
 
     cerr << "finished init" << endl;
-
     work_args args[RUN];
 
     for (int i = 0; i < RUN; i++)
