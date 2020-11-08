@@ -220,7 +220,6 @@ namespace obl
 		multiset_lock(path);
 
 		download_path(path, fetched_path);
-		local_subtree.write_lock();
 		pthread_mutex_lock(&stash_lock);
 		goal = get_max_depth_bucket(&stash[0], S, path);
 		ljd[-1] = goal;
@@ -324,7 +323,6 @@ namespace obl
 			swap(deepest_block, _hold, (std::uint8_t *)&stash[i], block_size);
 		}
 		pthread_mutex_unlock(&stash_lock);
-		local_subtree.unlock();
 		dst = ndb[-1];
 
 		for (int i = 0; i <= L; ++i)
@@ -559,12 +557,19 @@ namespace obl
 		download_path(path, fetched_path);
 		// duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
 		// std::cerr << "printf: " << duration << '\n';
-		local_subtree.read_lock();
+		pthread_mutex_lock(&stash_lock);
+		for (unsigned int i = 0; i < S; ++i)
+		{
+			block_id sbid = stash[i].bid;
+			swap(not_fake && bid == sbid, _fetched, (std::uint8_t *)&stash[i], block_size);
+		}
 		for (i = 0; i <= L && reference_node != nullptr; ++i)
 		{
 			reference_node->lock();
 			if (i != 0)
 				old_ref_node->unlock();
+			else
+				pthread_mutex_unlock(&stash_lock);
 
 			bl = (block_t *)reference_node->payload;
 			for (unsigned int j = 0; j < Z; ++j)
@@ -604,16 +609,10 @@ namespace obl
 			++i;
 		}
 
-		pthread_mutex_lock(&stash_lock);
 		old_ref_node->unlock();
 
 		multiset_unlock(path);
 
-		for (unsigned int i = 0; i < S; ++i)
-		{
-			block_id sbid = stash[i].bid;
-			swap(not_fake && bid == sbid, _fetched, (std::uint8_t *)&stash[i], block_size);
-		}
 		fetched->lid = new_lid;
 		fetched->bid = bid;
 
@@ -625,6 +624,7 @@ namespace obl
 	{
 		block_t *fetched = (block_t *)_fetched;
 		bool hit;
+		pthread_mutex_lock(&stash_lock);
 		pthread_mutex_lock(&serializer_lck);
 		for (auto it : request_structure)
 		{
@@ -648,7 +648,6 @@ namespace obl
 		}
 		assert(already_evicted);
 		pthread_mutex_unlock(&stash_lock);
-		local_subtree.unlock();
 	}
 
 	void taostore_oram::access(block_id bid, std::uint8_t *data_in, std::uint8_t *data_out)

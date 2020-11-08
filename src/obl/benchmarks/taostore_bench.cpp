@@ -5,14 +5,14 @@
 #include <cassert>
 #include <iomanip>
 
-#include "obl/taostore.h"
+#include "obl/taostore_v2.h"
 #include "obl/circuit.h"
 
 #include "obl/primitives.h"
 #include "obl/taostore_pos_map.h"
 
 #define C 5
-#define S 8*(1 + T_NUM/8)
+#define S 8
 #define Z 3
 
 using hres = std::chrono::high_resolution_clock;
@@ -21,11 +21,11 @@ using tt = std::chrono::time_point<hres, nano>;
 
 const int pow_lower = 14;
 const int pow_upper = 20;
-const int bench_size = 1 << 15;
+const int bench_size = 1 << 14;
 
 struct buffer
 {
-	std::uint8_t _buffer[8];
+	std::uint8_t _buffer[1000];
 	bool operator==(const buffer &rhs) const
 	{
 		return !memcmp(_buffer, rhs._buffer, sizeof(_buffer));
@@ -69,7 +69,7 @@ int main()
 
 	for (int p = pow_lower; p < pow_upper; p++)
 	{
-		for (int T_NUM = 1; T_NUM < 10; T_NUM++)
+		for (int T_NUM = 1; T_NUM < 9; T_NUM++)
 		{
 			std::size_t N = 1 << p;
 			pthread_t workers[16];
@@ -164,7 +164,7 @@ int main()
 */
 		
 			{
-				RUN = 16;
+				RUN = 8;
 				std::cout << "start parallel with N:" << N << " T_NUM:" << T_NUM << " RUN: " << RUN << std::endl;
 
 				obl::taostore_oram rram3(N, sizeof(uint64_t), Z, S, T_NUM);
