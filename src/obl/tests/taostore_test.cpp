@@ -9,7 +9,7 @@
 #include <cassert>
 #include <ctime>
 
-#define P 15
+#define P 15 
 #define N (1 << P)
 #define RUN 4
 
@@ -32,10 +32,14 @@ int main()
 {
 	vector<buffer> mirror_data;
 
+<<<<<<< HEAD
 	obl::taostore_oram rram(N, sizeof(buffer), Z, S, 1);
+=======
+	obl::taostore_oram rram(N, sizeof(buffer), Z, S, 3);
+>>>>>>> versione_2
 	buffer value, value_out;
 	std::clock_t start;
-	double duration;
+	double duration; 
 
 	mirror_data.reserve(N);
 
@@ -54,9 +58,18 @@ int main()
 	{
 		start = std::clock();
 		for (int j = 0; j < N; j++)
+<<<<<<< HEAD
 		{
 			rram.access(j, nullptr, (std::uint8_t *)&value_out);
         	assert(value_out == mirror_data[j]);
+=======
+		
+		{	
+			// rram.printsubtree();
+			// rram.printstash();
+			rram.access(j%N, nullptr, (std::uint8_t *)&value_out);
+			assert(value_out == mirror_data[j%N]);
+>>>>>>> versione_2
 		}
 		cerr << "Run " << i << " finished" << endl;
 		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;

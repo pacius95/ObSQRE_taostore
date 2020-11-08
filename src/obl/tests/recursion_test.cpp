@@ -17,7 +17,11 @@
 using namespace std;
 struct buffer
 {
+<<<<<<< HEAD
     std::uint8_t _buffer[4000];
+=======
+    std::uint8_t _buffer[8];
+>>>>>>> versione_2
     bool operator==(const buffer &rhs) const
     {
         return !memcmp(_buffer, rhs._buffer, sizeof(_buffer));

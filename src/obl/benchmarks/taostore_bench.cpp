@@ -5,14 +5,22 @@
 #include <cassert>
 #include <iomanip>
 
+<<<<<<< HEAD
 #include "obl/taostore.h"
+=======
+#include "obl/taostore_v2.h"
+>>>>>>> versione_2
 #include "obl/circuit.h"
 
 #include "obl/primitives.h"
 #include "obl/taostore_pos_map.h"
 
 #define C 5
+<<<<<<< HEAD
 #define S 8*(1 + T_NUM/8)
+=======
+#define S 8
+>>>>>>> versione_2
 #define Z 3
 
 using hres = std::chrono::high_resolution_clock;
@@ -21,11 +29,19 @@ using tt = std::chrono::time_point<hres, nano>;
 
 const int pow_lower = 14;
 const int pow_upper = 20;
+<<<<<<< HEAD
 const int bench_size = 1 << 15;
 
 struct buffer
 {
 	std::uint8_t _buffer[8];
+=======
+const int bench_size = 1 << 14;
+
+struct buffer
+{
+	std::uint8_t _buffer[1000];
+>>>>>>> versione_2
 	bool operator==(const buffer &rhs) const
 	{
 		return !memcmp(_buffer, rhs._buffer, sizeof(_buffer));
@@ -51,6 +67,7 @@ void *work(void *T)
 		obl::gen_rand((std::uint8_t *)&rnd_bid, sizeof(obl::block_id));
 		rnd_bid = (rnd_bid >> 1) % N;
 		args.rram->access(rnd_bid, nullptr, (std::uint8_t *)&value_out);
+<<<<<<< HEAD
 		if (!(value_out == (*args._mirror_data)[rnd_bid]))
 		{
 			if (true){
@@ -61,6 +78,8 @@ void *work(void *T)
 				std::cout << (uint64_t) value_out <<std::endl;
 			}
 		}
+=======
+>>>>>>> versione_2
 		assert( value_out == (*args._mirror_data)[rnd_bid] );
 	}
 	return nullptr;
@@ -79,7 +98,11 @@ int main()
 
 	for (int p = pow_lower; p < pow_upper; p++)
 	{
+<<<<<<< HEAD
 		for (int T_NUM = 1; T_NUM < 10; T_NUM++)
+=======
+		for (int T_NUM = 1; T_NUM < 9; T_NUM++)
+>>>>>>> versione_2
 		{
 			std::size_t N = 1 << p;
 			pthread_t workers[16];
@@ -174,7 +197,11 @@ int main()
 */
 		
 			{
+<<<<<<< HEAD
 				RUN = 16;
+=======
+				RUN = 8;
+>>>>>>> versione_2
 				std::cout << "start parallel with N:" << N << " T_NUM:" << T_NUM << " RUN: " << RUN << std::endl;
 
 				obl::taostore_oram rram3(N, sizeof(uint64_t), Z, S, T_NUM);
