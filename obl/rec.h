@@ -30,7 +30,7 @@ namespace obl
 		leaf_id scan_map(leaf_id *map, int idx, leaf_id replacement, bool to_init);
 
 	public:
-		recursive_oram();
+		recursive_oram() {};
 		recursive_oram(std::size_t N, std::size_t B, unsigned int csize, oram_factory *allocator);
 		~recursive_oram();
 

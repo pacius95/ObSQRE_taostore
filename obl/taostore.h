@@ -22,21 +22,16 @@
 #include <mutex>
 #include <thread>
 #include <pthread.h>
-//#include <sgx_spinlock.h>
 #include <wolfcrypt/aes.h>
 
 #ifdef SGX_ENCLAVE_ENABLED
 #include "obl/sgx_host_allocator.hpp"
 #endif
-
 namespace obl
 {
-
-	struct processing_thread_args;
-
 	class taostore_oram : public tree_oram
 	{
-	private:
+	protected:
 		std::size_t block_size;	 //aligned block size
 		std::size_t bucket_size; //aligned/padded encrypted bucket size
 		std::uint32_t K;
@@ -86,15 +81,12 @@ namespace obl
 		static void *serializer_wrap(void *object);
 		void *serializer();
 		static void access_thread_wrap(void *object);
-		void access_thread(request_t &_req);
+		virtual void access_thread(request_t &_req) = 0;
 
-		// static void eviction_thread_wrap(void *object);
-		// void eviction_thread(void *_request);
-
-		void read_path(request_t &req, std::uint8_t *_fetched);
-		void fetch_path(std::uint8_t *_fetched, block_id bid, leaf_id new_lid, leaf_id path, bool fake);
-		void answer_request(request_t &req, std::uint8_t *fetched);
-		void eviction(leaf_id path);
+		virtual void read_path(request_t &req, std::uint8_t *_fetched) = 0;
+		virtual void fetch_path(std::uint8_t *_fetched, block_id bid, leaf_id new_lid, leaf_id path, bool fake) = 0;
+		virtual void answer_request(request_t &req, std::uint8_t *fetched) = 0;
+		virtual void eviction(leaf_id path) = 0;
 		void write_back(std::uint32_t c);
 
 		// helper methods
@@ -102,10 +94,11 @@ namespace obl
 		std::int64_t get_max_depth_bucket(block_t *bl, int len, leaf_id path);
 
 		void multiset_lock(leaf_id path);
-		void multiset_unlock ( leaf_id path);
+		void multiset_unlock(leaf_id path);
+
 	public:
 		taostore_oram(std::size_t N, std::size_t B, unsigned int Z, unsigned int S, unsigned int T_NUM);
-		~taostore_oram();
+		virtual ~taostore_oram() {};
 
 		//debug
 		int printrec(node *t, int L, int l_index);
@@ -113,7 +106,7 @@ namespace obl
 		void printsubtree();
 		void print_tree();
 
-		void access(block_id bid, std::uint8_t *data_in, std::uint8_t *data_out);
+		virtual void access(block_id bid, std::uint8_t *data_in, std::uint8_t *data_out) = 0;
 		void access(block_id bid, leaf_id lif, std::uint8_t *data_in, std::uint8_t *data_out, leaf_id next_lif){};
 
 		// split fetch and eviction phases of the access method
@@ -121,25 +114,20 @@ namespace obl
 		void access_w(block_id bid, leaf_id lif, std::uint8_t *data_in, leaf_id next_lif){};
 
 		// only write block into the stash and perfom evictions
-		void write(block_id bid, std::uint8_t *data_in, leaf_id next_lif);
+		virtual void write(block_id bid, std::uint8_t *data_in, leaf_id next_lif);
 	};
-
-	class taostore_factory : public oram_factory
+	struct processing_thread_args_wrap
 	{
-	private:
-		unsigned int Z, S;
-
-	public:
-		taostore_factory(unsigned int Z, unsigned int S)
-		{
-			this->Z = Z;
-			this->S = S;
-		}
-		tree_oram *spawn_oram(std::size_t N, std::size_t B)
-		{
-			return new taostore_oram(N, B, Z, S, 4);
-		}
+		taostore_oram *arg1;
+		taostore_request_t &request;
 	};
+	class taostore_factory
+	{
+	public:
+		virtual taostore_oram *spawn_oram(std::size_t N, std::size_t B, size_t T_NUM) = 0;
+		virtual ~taostore_factory(){};
+	};
+
 } // namespace obl
 
 #endif // TAOSTORE_ORAM_H

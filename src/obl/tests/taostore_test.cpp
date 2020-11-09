@@ -1,4 +1,5 @@
 #include "obl/taostore.h"
+#include "obl/taostore_v1.h"
 #include "obl/primitives.h"
 #include "obl/taostore_pos_map.h"
 #include "obl/circuit.h"
@@ -32,11 +33,8 @@ int main()
 {
 	vector<buffer> mirror_data;
 
-<<<<<<< HEAD
-	obl::taostore_oram rram(N, sizeof(buffer), Z, S, 1);
-=======
-	obl::taostore_oram rram(N, sizeof(buffer), Z, S, 3);
->>>>>>> versione_2
+	obl::taostore_oram_v1 rram(N, sizeof(buffer), Z, S, 3);
+
 	buffer value, value_out;
 	std::clock_t start;
 	double duration; 
@@ -58,18 +56,9 @@ int main()
 	{
 		start = std::clock();
 		for (int j = 0; j < N; j++)
-<<<<<<< HEAD
 		{
 			rram.access(j, nullptr, (std::uint8_t *)&value_out);
         	assert(value_out == mirror_data[j]);
-=======
-		
-		{	
-			// rram.printsubtree();
-			// rram.printstash();
-			rram.access(j%N, nullptr, (std::uint8_t *)&value_out);
-			assert(value_out == mirror_data[j%N]);
->>>>>>> versione_2
 		}
 		cerr << "Run " << i << " finished" << endl;
 		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;

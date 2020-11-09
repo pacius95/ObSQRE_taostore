@@ -681,7 +681,7 @@ namespace obl
 
 		_paths = local_subtree.get_pop_queue(K);
 		pthread_mutex_lock(&write_back_lock);
-		nodes_level_i[L] = local_subtree.update_valid(_paths, K);
+		nodes_level_i[L] = local_subtree.update_valid(_paths, K, tree);
 
 		for (int i = L; i > 0; --i)
 		{

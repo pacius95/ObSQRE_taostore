@@ -1,4 +1,6 @@
+
 #include "obl/taostore.h"
+#include "obl/taostore_v1.h"
 #include "obl/primitives.h"
 #include "obl/taostore_pos_map.h"
 #include "obl/circuit.h"
@@ -57,7 +59,7 @@ int main(int argc, char *argv[])
     int RUN = atoi(argv[2]);
     vector<buffer> mirror_data;
 
-    obl::taostore_oram rram(N, sizeof(buffer), Z, S, T_NUM);
+    obl::taostore_oram_v1 rram(N, sizeof(buffer), Z, S, T_NUM);
     buffer value, value_out;
     std::clock_t start;
     double duration;

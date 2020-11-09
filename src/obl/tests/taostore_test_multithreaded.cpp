@@ -1,4 +1,4 @@
-#include "obl/taostore.h"
+#include "obl/taostore_v1.h"
 #include "obl/primitives.h"
 #include "obl/taostore_pos_map.h"
 #include "obl/circuit.h"
@@ -29,7 +29,7 @@ struct buffer
 
 struct work_args
 {
-    obl::taostore_oram *rram;
+    obl::taostore_oram_v1 *rram;
     vector<buffer> *_mirror_data;
     int i;
 };
@@ -61,7 +61,7 @@ int main()
 
     vector<buffer> mirror_data;
 
-    obl::taostore_oram rram(N, sizeof(buffer), Z, S, 4);
+    obl::taostore_oram_v1 rram(N, sizeof(buffer), Z, S, 4);
     buffer value, value_out;
 
     mirror_data.reserve(N);

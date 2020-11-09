@@ -89,10 +89,6 @@ namespace obl
         taostore_subtree()
         {
             L = 0;
-<<<<<<< HEAD
-            
-=======
->>>>>>> versione_2
         }
         void init(size_t _node_size, std::uint8_t *_data, int _L)
         {
