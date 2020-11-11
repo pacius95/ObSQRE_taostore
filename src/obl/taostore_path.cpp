@@ -40,10 +40,7 @@ namespace obl
 		reference_node = local_subtree.root;
 
 		multiset_lock(path);
-		pthread_mutex_lock(&stash_lock);
-		std::cerr << "--------------------------------------------------" << std::endl;
 
-		printstash();
 		for (i = 0; i <= L && reference_node != nullptr; ++i)
 		{
 			reference_node->lock();
@@ -124,7 +121,6 @@ namespace obl
 			reference_node->parent = old_ref_node;
 			reference_node->lock();
 
-
 			bl = (block_t *)reference_node->payload;
 			for (unsigned int j = 0; j < Z; ++j)
 			{
@@ -141,11 +137,13 @@ namespace obl
 		node *iterator;
 		// reference_node = local_subtree.root;
 		reference_node = leaf_pointer->parent;
+		leaf_pointer->unlock();
 		//- fetch del path
 		//- locko dal root alla leaf
 		//- faccio in place eviction rilasciando il lock dal root ala leaf
 		//- prendo il lock dello stash e prendo e rilascio i lock dell'albero
-
+		// std::cerr << "--------------------------------------------------" << std::endl;
+		// printpath(path);
 		for (int i = L - 1; i >= 0; i--) // for every bucket in the fetched path, from leaf to root
 		{
 			bl_ev = (block_t *)reference_node->payload;
@@ -159,6 +157,9 @@ namespace obl
 					bl = (block_t *)iterator->payload;
 					for (unsigned int z2 = 0; z2 < Z; z2++) // for every block in the target bucket
 					{
+						// std::cerr << "offset:" << i*Z+ z1 << "bid: " << bl_ev->bid << "lid :" << bl_ev->lid << " data: " << (std::uint64_t) * ((std::uint64_t *)bl_ev->payload) << std::endl;
+						// std::cerr << "offset:" << j*Z+ z2 << "bid: " << bl->bid << "lid :" << bl->lid << " data: " << (std::uint64_t) * ((std::uint64_t *)bl->payload) << std::endl;
+
 						bool free_slot = bl->bid == DUMMY;
 						swap(can_reside & free_slot, (std::uint8_t *)bl, (std::uint8_t *)bl_ev, block_size);
 						can_reside &= !free_slot;
@@ -167,30 +168,27 @@ namespace obl
 					}
 					iterator = iterator->parent;
 				}
-				bl_ev = (block_t *)((std::uint8_t *)bl + block_size);
+				bl_ev = (block_t *)((std::uint8_t *)bl_ev + block_size);
 			}
-			// reference_node->unlock();
+			reference_node->unlock();
 			// reference_node = ((path >> i) & 1) ? reference_node->child_r : reference_node->child_l;
 			reference_node = reference_node->parent;
 		}
+		// std::cerr << "--------------------------------------------------" << std::endl;
+		// printpath(path);
 		// reference_node->unlock();
-		// reference_node = local_subtree.root;
-		// for (int i = 0; i < L; i++)
-		// {
-		// 	reference_node->unlock();
-		// 	reference_node = ((path >> i) & 1) ? reference_node->child_r : reference_node->child_l;
-		// }
-		// reference_node->unlock();
-		// pthread_mutex_lock(&stash_lock);
 
-		// reference_node = local_subtree.root;
-		// for (int i = 0; i < L; i++)
-		// {
-		// 	reference_node->lock();
-		// 	reference_node = ((path >> i) & 1) ? reference_node->child_r : reference_node->child_l;
-		// }
-		// reference_node->lock();
+		pthread_mutex_lock(&stash_lock);
+		reference_node = local_subtree.root;
+		for (int i = 0; i < L; i++)
+		{
+			reference_node->lock();
+			reference_node = ((path >> i) & 1) ? reference_node->child_r : reference_node->child_l;
+		}
+		reference_node->lock();
 
+		// std::cerr << "--------------------------------------------------" << std::endl;
+		// printstash();
 		for (unsigned int k = 0; k < S; k++) // for every block in the stash
 		{
 			std::int64_t maxd = get_max_depth(stash[k].lid, path, L);
@@ -211,8 +209,8 @@ namespace obl
 				iterator = iterator->parent;
 			}
 		}
-		std::cerr << "--------------------------------------------------" << std::endl;
-		printstash();
+		// std::cerr << "--------------------------------------------------" << std::endl;
+		// printstash();
 		pthread_mutex_unlock(&stash_lock);
 
 		reference_node = local_subtree.root;
@@ -294,7 +292,6 @@ namespace obl
 		old_ref_node = local_subtree.root;
 
 		multiset_lock(path);
-
 		pthread_mutex_lock(&stash_lock);
 		for (unsigned int i = 0; i < S; ++i)
 		{
@@ -429,6 +426,7 @@ namespace obl
 	{
 		block_t *fetched = (block_t *)_fetched;
 		bool hit;
+
 		pthread_mutex_lock(&stash_lock);
 		pthread_mutex_lock(&serializer_lck);
 		for (auto it : request_structure)

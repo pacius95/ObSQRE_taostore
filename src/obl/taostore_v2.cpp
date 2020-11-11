@@ -18,31 +18,6 @@
 
 namespace obl
 {
-	taostore_oram_v2::~taostore_oram_v2()
-	{
-		pthread_mutex_lock(&serializer_lck);
-		oram_alive = false;
-		pthread_cond_signal(&serializer_cond);
-		pthread_mutex_unlock(&serializer_lck);
-
-		threadpool_destroy(thpool, threadpool_graceful);
-
-		std::memset(_crypt_buffer, 0x00, sizeof(Aes) + 16);
-
-		std::memset(&stash[0], 0x00, block_size * S);
-
-		free(_crypt_buffer);
-
-		pthread_join(serializer_id, nullptr);
-
-		pthread_mutex_destroy(&stash_lock);
-		pthread_mutex_destroy(&multi_set_lock);
-		pthread_cond_destroy(&serializer_cond);
-		pthread_mutex_destroy(&serializer_lck);
-		pthread_mutex_destroy(&write_back_lock);
-
-		delete position_map;
-	}
 
 	void taostore_oram_v2::eviction(leaf_id path)
 	{
@@ -254,11 +229,11 @@ namespace obl
 			req.fake = req.fake | cond;
 		}
 		request_structure.push_back(&req);
-
-		bid = ternary_op(req.fake, bid, req.bid);
 		pthread_mutex_unlock(&serializer_lck);
 
+		bid = ternary_op(req.fake, bid, req.bid);
 		leaf_id path = position_map->access(bid, req.fake, &ev_lid);
+		
 		fetch_path(_fetched, bid, ev_lid, path, !req.fake);
 	}
 

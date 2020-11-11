@@ -19,6 +19,11 @@
 #include <iterator>
 #include <pthread.h>
 
+#ifdef SGX_ENCLAVE_ENABLED
+#define flex flexible_array<bucket_t, sgx_host_allocator>
+#else
+#define flex flexible_array<bucket_t> 
+#endif
 namespace obl
 {
     struct node
@@ -119,7 +124,7 @@ namespace obl
             return temp;
         }
 
-        std::map<leaf_id, node *> update_valid(write_queue_t *_paths, int K, flexible_array<bucket_t> &tree)
+        std::map<leaf_id, node *> update_valid(write_queue_t *_paths, int K, flex &tree)
         {
             node *reference_node, *old_reference_node;
             std::map<leaf_id, node *> nodes_map; //l_index and leaf_pointer

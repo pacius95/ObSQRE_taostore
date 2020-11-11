@@ -19,33 +19,6 @@
 namespace obl
 {
 
-	taostore_oram_v1::~taostore_oram_v1()
-	{
-		pthread_mutex_lock(&serializer_lck);
-		oram_alive = false;
-		pthread_cond_signal(&serializer_cond);
-		pthread_mutex_unlock(&serializer_lck);
-
-		threadpool_destroy(thpool, threadpool_graceful);
-
-		std::memset(_crypt_buffer, 0x00, sizeof(Aes) + 16);
-
-		std::memset(&stash[0], 0x00, block_size * S);
-
-		free(_crypt_buffer);
-
-		pthread_join(serializer_id, nullptr);
-
-		pthread_mutex_destroy(&stash_lock);
-		pthread_mutex_destroy(&multi_set_lock);
-		pthread_cond_destroy(&serializer_cond);
-		pthread_mutex_destroy(&serializer_lck);
-		pthread_mutex_destroy(&write_back_lock);
-
-		delete position_map;
-		//TODO cleanup
-	}
-
 	void taostore_oram_v1::eviction(leaf_id path)
 	{
 
@@ -309,8 +282,8 @@ namespace obl
 
 		paths = std::atomic_fetch_add(&path_counter, 1);
 
-		if ((paths % K) == 0)
-			write_back(paths / K);
+		if ((3*paths) % K == 0)
+			write_back((3*evict_path) / K);
 
 		return;
 	}
@@ -348,6 +321,7 @@ namespace obl
 
 		block_t *fetched = (block_t *)_fetched;
 		fetched->bid = DUMMY;
+		fetched->lid = DUMMY;
 
 		node *reference_node;
 		node *old_ref_node;
@@ -377,7 +351,7 @@ namespace obl
 			l_index = (l_index << 1) + 1 + ((path >> i) & 1);
 		}
 
-		if (i <= L && reference_node == nullptr)
+		if (i <= L)
 		{
 			valid = (l_index & 1) ? old_ref_node->adata.valid_l : old_ref_node->adata.valid_r;
 			if (valid)

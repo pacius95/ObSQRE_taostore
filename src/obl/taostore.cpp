@@ -41,7 +41,7 @@ namespace obl
 		tree.reserve(capacity);
 
 		this->T_NUM = T_NUM;
-		this->K = next_two_power((1 << 25) / (bucket_size * L * 3));
+		this->K = next_two_power((1 << 25) / (bucket_size * L));
 
 		init();
 		oram_alive = true;
@@ -208,7 +208,7 @@ namespace obl
 		eviction(2 * evict_leaf);
 		eviction(2 * evict_leaf + 1);
 
-		if (evict_path % K)
+		if ((3 * evict_path) % K)
 			write_back(evict_path / K);
 
 		return;
@@ -224,9 +224,9 @@ namespace obl
 
 		write_queue_t *_paths;
 
-		_paths = local_subtree.get_pop_queue(3 * K);
+		_paths = local_subtree.get_pop_queue(K);
 		pthread_mutex_lock(&write_back_lock);
-		nodes_level_i[L] = local_subtree.update_valid(_paths, 3 * K, tree);
+		nodes_level_i[L] = local_subtree.update_valid(_paths, K, tree);
 
 		for (int i = L; i > 0; --i)
 		{
@@ -372,5 +372,25 @@ namespace obl
 			}
 		}
 	}
+
+	void taostore_oram::printpath(leaf_id path)
+	{
+		int i = 0;
+		std::uint64_t l_index = 0;
+		node *reference_node = local_subtree.root;
+		block_t *bl;
+		for (int i = 0; i <= L; i++)
+		{
+			bl = (block_t *)reference_node->payload;
+			for (unsigned int i = 0; i < Z; ++i)
+			{
+				std::cerr << "node l_index:" << l_index << "bid: " << bl->bid << "lid :" << bl->lid << " data: " << (std::uint64_t) * ((std::uint64_t *)bl->payload) << std::endl;
+				bl = (block_t *)((std::uint8_t *)bl + block_size);
+			}
+
+			reference_node = (path >> i) & 1 ? reference_node->child_r : reference_node->child_l;
+			l_index = (l_index << 1) + 1 + ((path >> i) & 1);
+		}
+	} // namespace obl
 
 } // namespace obl

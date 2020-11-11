@@ -41,15 +41,15 @@ void *work(void *T)
     start = std::clock();
     work_args args = *(work_args *)T;
     buffer value_out;
-	unsigned int rnd_bid;
+    unsigned int rnd_bid;
 
-    for (int j = 0; j < N/5; j++)
+    for (int j = 0; j < N / 5; j++)
     {
- 		obl::gen_rand((std::uint8_t *)&rnd_bid, sizeof(obl::block_id));
-		rnd_bid = (rnd_bid >> 1) % N;
-		args.rram->access(rnd_bid, nullptr, (std::uint8_t *)&value_out);
-		assert( value_out == (*args._mirror_data)[rnd_bid] );
-           }
+        obl::gen_rand((std::uint8_t *)&rnd_bid, sizeof(obl::block_id));
+        rnd_bid = (rnd_bid >> 1) % N;
+        args.rram->access(rnd_bid, nullptr, (std::uint8_t *)&value_out);
+        assert(value_out == (*args._mirror_data)[rnd_bid]);
+    }
     cerr << "Run " << args.i << " finished" << endl;
     duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
     std::cout << "printf: " << duration << '\n';

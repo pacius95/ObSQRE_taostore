@@ -55,6 +55,7 @@ namespace obl
 		pthread_mutex_t write_back_lock = PTHREAD_MUTEX_INITIALIZER; //for debugging (1 WB at time)
 		pthread_mutex_t stash_lock = PTHREAD_MUTEX_INITIALIZER;
 		pthread_mutex_t multi_set_lock = PTHREAD_MUTEX_INITIALIZER;
+		pthread_mutex_t eviction_lock = PTHREAD_MUTEX_INITIALIZER;
 
 		threadpool_t *thpool;
 
@@ -105,6 +106,7 @@ namespace obl
 		void printstash();
 		void printsubtree();
 		void print_tree();
+		void printpath(leaf_id path);
 
 		virtual void access(block_id bid, std::uint8_t *data_in, std::uint8_t *data_out) = 0;
 		void access(block_id bid, leaf_id lif, std::uint8_t *data_in, std::uint8_t *data_out, leaf_id next_lif){};

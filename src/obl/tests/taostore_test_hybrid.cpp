@@ -94,6 +94,7 @@ int main(int argc, char *argv[])
     for (int j = 0; j < N; j++)
     {
         rram.access(j, nullptr, (std::uint8_t *)&value_out);
+        assert(value_out == mirror_data[j]);
     }
     cerr << "Run serial finished" << endl;
     duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;

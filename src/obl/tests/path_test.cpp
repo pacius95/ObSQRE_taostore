@@ -7,7 +7,7 @@
 #include <cassert>
 #include <time.h>
 
-#define P 15
+#define P 7
 #define N (1 << P)
 #define RUN 4
 
