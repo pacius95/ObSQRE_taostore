@@ -12,7 +12,6 @@
 #define N (1 << P)
 #define RUN 4
 
-#define C 5
 #define S 8
 #define Z 3
 
@@ -36,14 +35,14 @@ struct work_args
 
 void *work(void *T)
 {
+    work_args args = *(work_args *)T;
     std::clock_t start;
     double duration;
     start = std::clock();
-    work_args args = *(work_args *)T;
     buffer value_out;
     unsigned int rnd_bid;
 
-    for (int j = 0; j < N / 5; j++)
+    for (int j = 0; j < N; j++)
     {
         obl::gen_rand((std::uint8_t *)&rnd_bid, sizeof(obl::block_id));
         rnd_bid = (rnd_bid >> 1) % N;

@@ -21,7 +21,7 @@ using namespace std;
 
 struct buffer
 {
-	std::uint8_t _buffer[8];
+	std::uint8_t _buffer[1000];
 	bool operator==(const buffer &rhs) const
 	{
 		return !memcmp(_buffer, rhs._buffer, sizeof(_buffer));
@@ -32,7 +32,7 @@ int main()
 {
 	vector<buffer> mirror_data;
 
-	obl::taostore_path_oram rram(N, sizeof(buffer), Z, S, A, 2);
+	obl::taostore_path_oram rram(N, sizeof(buffer), Z, S, A, 1);
 	buffer value, value_out;
 	std::clock_t start;
 	double duration;

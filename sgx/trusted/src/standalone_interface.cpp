@@ -15,6 +15,10 @@
 #include "obl/so_path.h"
 #include "obl/so_ring.h"
 #include "obl/so_circuit.h"
+#include "obl/taostore_v1.h"
+#include "obl/taostore_v2.h"
+#include "obl/taostore_path.h"
+#include "obl/taostore.h"
 #include "obl/rec.h"
 #include "obl/primitives.h"
 

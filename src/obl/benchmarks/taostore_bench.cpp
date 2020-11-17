@@ -33,18 +33,16 @@ struct buffer
 		return !memcmp(_buffer, rhs._buffer, sizeof(_buffer));
 	}
 };
-
-;
 struct work_args
 {
 	obl::taostore_oram *rram;
-	std::vector<uint64_t> *_mirror_data;
+	std::vector<buffer> *_mirror_data;
 };
 
 void *work(void *T)
 {
 	work_args args = *(work_args *)T;
-	uint64_t value_out;
+	buffer value_out;
 	std::size_t N = args.rram->get_N();
 	unsigned int rnd_bid;
 
@@ -64,8 +62,8 @@ int main()
 	tt start, end;
 	nano duration;
 	unsigned int rnd_bid;
-	std::vector<std::uint64_t> mirror_data;
-	std::uint64_t value, value_out;
+	std::vector<buffer> mirror_data;
+	buffer value, value_out;
 	mirror_data.reserve(1 << pow_upper);
 	std::cout << std::setprecision(4);
 
@@ -77,12 +75,11 @@ int main()
 			pthread_t workers[16];
 
 			{
-				obl::taostore_oram_v1 rram_v1(N, sizeof(std::uint64_t), Z, S, T_NUM);
-				N = rram_v1.get_N();
+				obl::taostore_oram_v1 rram_v1(N, sizeof(buffer), Z, S, T_NUM);
 
 				for (unsigned int i = 0; i < N; i++)
 				{
-					obl::gen_rand((std::uint8_t *)&value, sizeof(std::uint64_t));
+					obl::gen_rand((std::uint8_t *)&value, sizeof(buffer));
 					rram_v1.access(i, (std::uint8_t *)&value, (std::uint8_t *)&value_out);
 
 					mirror_data[i] = value;
@@ -108,11 +105,11 @@ int main()
 				RUN = 8;
 				std::cout << "start v1 parallel with N:" << N << " T_NUM:" << T_NUM << " RUN: " << RUN << std::endl;
 
-				obl::taostore_oram_v1 rram3_v1(N, sizeof(uint64_t), Z, S, T_NUM);
+				obl::taostore_oram_v1 rram3_v1(N, sizeof(buffer), Z, S, T_NUM);
 				N = rram3_v1.get_N();
 				for (unsigned int i = 0; i < N; i++)
 				{
-					obl::gen_rand((std::uint8_t *)&value, sizeof(uint64_t));
+					obl::gen_rand((std::uint8_t *)&value, sizeof(buffer));
 					rram3_v1.access(i, (std::uint8_t *)&value, (std::uint8_t *)&value_out);
 
 					mirror_data[i] = value;
@@ -135,12 +132,12 @@ int main()
 			}
 
 			{
-				obl::taostore_oram_v2 rram_v2(N, sizeof(std::uint64_t), Z, S, T_NUM);
+				obl::taostore_oram_v2 rram_v2(N, sizeof(buffer), Z, S, T_NUM);
 				N = rram_v2.get_N();
 
 				for (unsigned int i = 0; i < N; i++)
 				{
-					obl::gen_rand((std::uint8_t *)&value, sizeof(std::uint64_t));
+					obl::gen_rand((std::uint8_t *)&value, sizeof(buffer));
 					rram_v2.access(i, (std::uint8_t *)&value, (std::uint8_t *)&value_out);
 
 					mirror_data[i] = value;
@@ -165,11 +162,11 @@ int main()
 				RUN = 8;
 				std::cout << "start v2 parallel with N:" << N << " T_NUM:" << T_NUM << " RUN: " << RUN << std::endl;
 
-				obl::taostore_oram_v2 rram3_v2(N, sizeof(uint64_t), Z, S, T_NUM);
+				obl::taostore_oram_v2 rram3_v2(N, sizeof(buffer), Z, S, T_NUM);
 				N = rram3_v2.get_N();
 				for (unsigned int i = 0; i < N; i++)
 				{
-					obl::gen_rand((std::uint8_t *)&value, sizeof(uint64_t));
+					obl::gen_rand((std::uint8_t *)&value, sizeof(buffer));
 					rram3_v2.access(i, (std::uint8_t *)&value, (std::uint8_t *)&value_out);
 
 					mirror_data[i] = value;
