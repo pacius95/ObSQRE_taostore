@@ -31,7 +31,7 @@ namespace obl
 			fetched_path.emplace_back(new node(block_size * Z));
 
 		block_t *bl;
-		bool valid = true;
+		bool valid = false;
 		int i = 0;
 
 		//evict array helper
@@ -46,6 +46,7 @@ namespace obl
 
 		std::int64_t _closest_src_bucket = -1;
 		std::int64_t goal = -1;
+		std::int64_t goal_t = -1;
 
 		node *reference_node, *old_ref_node;
 		reference_node = local_subtree.root;
@@ -54,8 +55,17 @@ namespace obl
 		multiset_lock(path);
 
 		download_path(path, fetched_path);
-		pthread_mutex_lock(&stash_lock);
-		goal = get_max_depth_bucket(&stash[0], S, path);
+
+		for (unsigned int i = 0; i < SS - 1; ++i)
+		{
+			pthread_mutex_lock(&stash_locks[i]);
+			goal_t = get_max_depth_bucket(&stash[i * ss], ss, path);
+			goal = ternary_op(goal > goal_t, goal, goal_t);
+		}
+		pthread_mutex_lock(&stash_locks[SS - 1]);
+		goal_t = get_max_depth_bucket(&stash[(SS - 1) * ss], S % ss, path);
+		goal = ternary_op(goal > goal_t, goal, goal_t);
+
 		ljd[-1] = goal;
 		csb[-1] = BOTTOM;
 
@@ -151,12 +161,22 @@ namespace obl
 
 		bool fill_hold = ndb[-1] != BOTTOM;
 
-		for (unsigned int i = 0; i < S; ++i)
+		for (unsigned int i = 0; i < SS - 1; ++i)
 		{
-			bool deepest_block = (get_max_depth(stash[i].lid, path, L) == ljd[-1]) & fill_hold & (stash[i].bid != DUMMY);
-			swap(deepest_block, _hold, (std::uint8_t *)&stash[i], block_size);
+			for (unsigned int j = 0; j < ss; ++j)
+			{
+				bool deepest_block = (get_max_depth(stash[i * ss + j].lid, path, L) == ljd[-1]) & fill_hold & (stash[i * ss + j].bid != DUMMY);
+				swap(deepest_block, _hold, (std::uint8_t *)&stash[i * ss + j], block_size);
+			}
+			pthread_mutex_unlock(&stash_locks[i]);
 		}
-		pthread_mutex_unlock(&stash_lock);
+		for (unsigned int i = 0; i < S % ss; ++i)
+		{
+			bool deepest_block = (get_max_depth(stash[(SS - 1) * ss + i].lid, path, L) == ljd[-1]) & fill_hold & (stash[(SS - 1) * ss + i].bid != DUMMY);
+			swap(deepest_block, _hold, (std::uint8_t *)&stash[(SS - 1) * ss + i], block_size);
+		}
+		pthread_mutex_unlock(&stash_locks[SS - 1]);
+
 		dst = ndb[-1];
 
 		for (int i = 0; i <= L; ++i)
@@ -210,8 +230,8 @@ namespace obl
 		// printsubtree();
 		paths = std::atomic_fetch_add(&path_counter, 1);
 
-		if ((paths % K) == 0)
-			write_back(paths / K);
+		if ((3 * paths) % K == 0)
+			write_back((3 * paths) / K);
 
 		return;
 	}
@@ -233,7 +253,7 @@ namespace obl
 
 		bid = ternary_op(req.fake, bid, req.bid);
 		leaf_id path = position_map->access(bid, req.fake, &ev_lid);
-		
+
 		fetch_path(_fetched, bid, ev_lid, path, !req.fake);
 	}
 
@@ -358,16 +378,23 @@ namespace obl
 
 		multiset_lock(path);
 
-		// start = std::clock();
-
 		download_path(path, fetched_path);
-		// duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-		// std::cerr << "printf: " << duration << '\n';
-		pthread_mutex_lock(&stash_lock);
-		for (unsigned int i = 0; i < S; ++i)
+
+		pthread_mutex_lock(&stash_locks[0]);
+		for (unsigned int i = 0; i < SS - 1; ++i)
 		{
-			block_id sbid = stash[i].bid;
-			swap(not_fake && bid == sbid, _fetched, (std::uint8_t *)&stash[i], block_size);
+			for (unsigned int j = 0; j < ss; ++j)
+			{
+				block_id sbid = stash[i * ss + j].bid;
+				swap(not_fake && bid == sbid, _fetched, (std::uint8_t *)&stash[i * ss + j], block_size);
+			}
+			pthread_mutex_lock(&stash_locks[i + 1]);
+			pthread_mutex_unlock(&stash_locks[i]);
+		}
+		for (unsigned int i = 0; i < S % ss; ++i)
+		{
+			block_id sbid = stash[(SS - 1) * ss + i].bid;
+			swap(not_fake && bid == sbid, _fetched, (std::uint8_t *)&stash[(SS - 1) * ss + i], block_size);
 		}
 		for (i = 0; i <= L && reference_node != nullptr; ++i)
 		{
@@ -375,7 +402,7 @@ namespace obl
 			if (i != 0)
 				old_ref_node->unlock();
 			else
-				pthread_mutex_unlock(&stash_lock);
+				pthread_mutex_unlock(&stash_locks[SS - 1]);
 
 			bl = (block_t *)reference_node->payload;
 			for (unsigned int j = 0; j < Z; ++j)
@@ -430,7 +457,7 @@ namespace obl
 	{
 		block_t *fetched = (block_t *)_fetched;
 		bool hit;
-		pthread_mutex_lock(&stash_lock);
+		pthread_mutex_lock(&stash_locks[0]);
 		pthread_mutex_lock(&serializer_lck);
 		for (auto it : request_structure)
 		{
@@ -442,18 +469,29 @@ namespace obl
 			if (it->data_in != nullptr)
 				replace(hit, fetched->payload, it->data_in, B);
 		}
-		pthread_cond_broadcast(&serializer_cond);
-		pthread_mutex_unlock(&serializer_lck);
 
 		bool already_evicted = false;
-		for (unsigned int i = 0; i < S; ++i)
+		for (unsigned int i = 0; i < SS - 1; ++i)
 		{
-			block_id sbid = stash[i].bid;
-			swap(!req.fake & !already_evicted & (sbid == DUMMY), _fetched, (std::uint8_t *)&stash[i], block_size);
+			for (unsigned int j = 0; j < ss; ++j)
+			{
+				block_id sbid = stash[i * ss + j].bid;
+				swap(!req.fake & !already_evicted & (sbid == DUMMY), _fetched, (std::uint8_t *)&stash[i * ss + j], block_size);
+				already_evicted = req.fake | already_evicted | (sbid == DUMMY);
+			}
+			pthread_mutex_lock(&stash_locks[i + 1]);
+			pthread_mutex_unlock(&stash_locks[i]);
+		}
+		for (unsigned int i = 0; i < S % ss; ++i)
+		{
+			block_id sbid = stash[(SS - 1) * ss + i].bid;
+			swap(!req.fake & !already_evicted & (sbid == DUMMY), _fetched, (std::uint8_t *)&stash[(SS - 1) * ss + i], block_size);
 			already_evicted = req.fake | already_evicted | (sbid == DUMMY);
 		}
+		pthread_cond_broadcast(&serializer_cond);
+		pthread_mutex_unlock(&serializer_lck);
+		pthread_mutex_unlock(&stash_locks[SS - 1]);
 		assert(already_evicted);
-		pthread_mutex_unlock(&stash_lock);
 	}
 
 	void taostore_oram_v2::access(block_id bid, std::uint8_t *data_in, std::uint8_t *data_out)

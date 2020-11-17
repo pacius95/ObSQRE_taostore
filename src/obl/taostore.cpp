@@ -36,6 +36,12 @@ namespace obl
 		for (unsigned int i = 0; i < this->S; ++i)
 			stash[i].bid = DUMMY;
 
+		this->ss = 2;
+		this->SS = (S / ss) + 1;
+		stash_locks = new pthread_mutex_t[SS];
+		for (int i = 0; i < SS; i++)
+			pthread_mutex_init(&stash_locks[i], nullptr);
+
 		// ORAM tree allocation
 		tree.set_entry_size(bucket_size);
 		tree.reserve(capacity);
@@ -47,6 +53,36 @@ namespace obl
 		oram_alive = true;
 		// threadpool_add(thpool, serializer_wrap, (void *)this, 0);
 		pthread_create(&serializer_id, nullptr, serializer_wrap, (void *)this);
+	}
+
+	taostore_oram::~taostore_oram()
+	{
+		pthread_mutex_lock(&serializer_lck);
+		oram_alive = false;
+		pthread_cond_signal(&serializer_cond);
+		pthread_mutex_unlock(&serializer_lck);
+
+		threadpool_destroy(thpool, threadpool_graceful);
+
+		std::memset(_crypt_buffer, 0x00, sizeof(Aes) + 16);
+
+		std::memset(&stash[0], 0x00, block_size * S);
+
+		free(_crypt_buffer);
+
+		pthread_join(serializer_id, nullptr);
+		for (int i = 0; i < SS; i++)
+		{
+			pthread_mutex_destroy(&stash_locks[i]);
+		}
+		pthread_mutex_destroy(&stash_lock);
+		pthread_mutex_destroy(&multi_set_lock);
+		pthread_cond_destroy(&serializer_cond);
+		pthread_mutex_destroy(&serializer_lck);
+		pthread_mutex_destroy(&write_back_lock);
+
+		delete position_map;
+		//TODO cleanup
 	}
 
 	void taostore_oram::init()
@@ -259,7 +295,6 @@ namespace obl
 				std::uint8_t *target_mac = (l_index & 1) ? parent->adata.left_mac : parent->adata.right_mac;
 				std::memcpy(target_mac, mac, sizeof(obl_aes_gcm_128bit_tag_t));
 
-				// pthread_spin_lock(&multi_set_lock);
 				pthread_mutex_lock(&multi_set_lock);
 				if (reference_node->local_timestamp <= c * K &
 					reference_node->child_r == nullptr & reference_node->child_l == nullptr &
@@ -358,12 +393,6 @@ namespace obl
 									   OBL_AESGCM_MAC_SIZE,
 									   (std::uint8_t *)&adata,
 									   sizeof(auth_data_t));
-
-			if (dec != 0)
-			{
-				std::cerr << "mmmmm" << std::endl;
-			}
-
 			bl = payload;
 			for (unsigned int j = 0; j < Z; ++j)
 			{

@@ -39,6 +39,9 @@ namespace obl
 		// stash
 		flexible_array<block_t> stash;
 		unsigned int S; // stash size
+		unsigned int ss;
+		unsigned int SS;
+		pthread_mutex_t *stash_locks;
 
 		taostore_subtree local_subtree;
 
@@ -99,7 +102,7 @@ namespace obl
 
 	public:
 		taostore_oram(std::size_t N, std::size_t B, unsigned int Z, unsigned int S, unsigned int T_NUM);
-		virtual ~taostore_oram() {};
+		~taostore_oram();
 
 		//debug
 		int printrec(node *t, int L, int l_index);
