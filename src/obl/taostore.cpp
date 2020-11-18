@@ -94,7 +94,7 @@ namespace obl
 
 		std::atomic_init(&thread_id, 0);
 		std::atomic_init(&evict_path, 0);
-		std::atomic_init(&path_counter, 1);
+		std::atomic_init(&access_counter, 1);
 
 		// generate random master key
 		gen_rand(master_key, OBL_AESGCM_KEY_SIZE);
@@ -219,6 +219,68 @@ namespace obl
 		return ((processing_thread_args_wrap *)_object)->arg1->access_thread(((processing_thread_args_wrap *)_object)->request);
 	}
 
+	void taostore_oram::read_path(request_t &req, std::uint8_t *_fetched)
+	{
+		block_id bid;
+		leaf_id ev_lid;
+		gen_rand((std::uint8_t *)&bid, sizeof(block_id));
+
+		pthread_mutex_lock(&serializer_lck);
+		for (auto it : request_structure)
+		{
+			bool cond = it->bid == req.bid & it->handled == false & it->fake == false;
+			req.fake = req.fake | cond;
+		}
+		request_structure.push_back(&req);
+
+		bid = ternary_op(req.fake, bid, req.bid);
+		pthread_mutex_unlock(&serializer_lck);
+
+		leaf_id path = position_map->access(bid, req.fake, &ev_lid);
+		fetch_path(_fetched, bid, ev_lid, path, !req.fake);
+	}
+
+	void taostore_oram::answer_request(request_t &req, std::uint8_t *_fetched)
+	{
+		block_t *fetched = (block_t *)_fetched;
+		bool hit;
+
+		pthread_mutex_lock(&stash_locks[0]);
+		pthread_mutex_lock(&serializer_lck);
+		for (auto it : request_structure)
+		{
+			hit = !req.fake & (it->bid == req.bid);
+			//update flags
+			it->handled = it->handled | it->id == req.id;
+			it->data_ready = it->data_ready | hit;
+			replace(hit, it->data_out, fetched->payload, B);
+			if (it->data_in != nullptr)
+				replace(hit, fetched->payload, it->data_in, B);
+		}
+		pthread_cond_broadcast(&serializer_cond);
+		pthread_mutex_unlock(&serializer_lck);
+
+		bool already_evicted = false;
+		for (unsigned int i = 0; i < SS - 1; ++i)
+		{
+			for (unsigned int j = 0; j < ss; ++j)
+			{
+				block_id sbid = stash[i * ss + j].bid;
+				swap(!req.fake & !already_evicted & (sbid == DUMMY), _fetched, (std::uint8_t *)&stash[i * ss + j], block_size);
+				already_evicted = req.fake | already_evicted | (sbid == DUMMY);
+			}
+			pthread_mutex_lock(&stash_locks[i + 1]);
+			pthread_mutex_unlock(&stash_locks[i]);
+		}
+		for (unsigned int i = 0; i < S % ss; ++i)
+		{
+			block_id sbid = stash[(SS - 1) * ss + i].bid;
+			swap(!req.fake & !already_evicted & (sbid == DUMMY), _fetched, (std::uint8_t *)&stash[(SS - 1) * ss + i], block_size);
+			already_evicted = req.fake | already_evicted | (sbid == DUMMY);
+		}
+		pthread_mutex_unlock(&stash_locks[SS - 1]);
+		assert(already_evicted);
+	}
 	void taostore_oram::write(block_id bid, std::uint8_t *data_in, leaf_id next_lif)
 	{
 		std::uint8_t _fetched[block_size];

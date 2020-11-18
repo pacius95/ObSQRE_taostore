@@ -77,7 +77,7 @@ namespace obl
 		bool oram_alive;
 		std::atomic_int32_t thread_id;
 		std::atomic_uint64_t evict_path;
-		std::atomic_uint32_t path_counter;
+		std::atomic_uint32_t access_counter;
 
 		// private methods
 		void init();
@@ -87,9 +87,9 @@ namespace obl
 		static void access_thread_wrap(void *object);
 		virtual void access_thread(request_t &_req) = 0;
 
-		virtual void read_path(request_t &req, std::uint8_t *_fetched) = 0;
+		void read_path(request_t &req, std::uint8_t *_fetched);
+		void answer_request(request_t &req, std::uint8_t *fetched);
 		virtual void fetch_path(std::uint8_t *_fetched, block_id bid, leaf_id new_lid, leaf_id path, bool fake) = 0;
-		virtual void answer_request(request_t &req, std::uint8_t *fetched) = 0;
 		virtual void eviction(leaf_id path) = 0;
 		void write_back(std::uint32_t c);
 

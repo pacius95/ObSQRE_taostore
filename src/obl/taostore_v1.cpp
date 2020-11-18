@@ -66,7 +66,7 @@ namespace obl
 		for (i = 0; i <= L && reference_node != nullptr; ++i)
 		{
 			reference_node->lock();
-			reference_node->local_timestamp = path_counter;
+			reference_node->local_timestamp = access_counter;
 
 			csb[i] = ternary_op(goal >= i, _closest_src_bucket, BOTTOM);
 			std::int64_t jump = get_max_depth_bucket((block_t *)reference_node->payload, Z, path);
@@ -90,7 +90,7 @@ namespace obl
 		}
 		while (i <= L && valid)
 		{
-			(l_index & 1) ? old_ref_node->child_l = new node(block_size * Z, path_counter) : old_ref_node->child_r = new node(block_size * Z, path_counter);
+			(l_index & 1) ? old_ref_node->child_l = new node(block_size * Z, access_counter) : old_ref_node->child_r = new node(block_size * Z, access_counter);
 			reference_node = (l_index & 1) ? old_ref_node->child_l : old_ref_node->child_r;
 			reference_node->parent = old_ref_node;
 
@@ -152,7 +152,7 @@ namespace obl
 		// fill the other buckets with "empty" blocks
 		while (i <= L)
 		{
-			(l_index & 1) ? old_ref_node->child_l = new node(block_size * Z, path_counter) : old_ref_node->child_r = new node(block_size * Z, path_counter);
+			(l_index & 1) ? old_ref_node->child_l = new node(block_size * Z, access_counter) : old_ref_node->child_r = new node(block_size * Z, access_counter);
 			reference_node = (l_index & 1) ? old_ref_node->child_l : old_ref_node->child_r;
 			reference_node->parent = old_ref_node;
 			reference_node->lock();
@@ -294,33 +294,12 @@ namespace obl
 		eviction(2 * evict_leaf);
 		eviction(2 * evict_leaf + 1);
 
-		paths = std::atomic_fetch_add(&path_counter, 1);
+		paths = std::atomic_fetch_add(&access_counter, 1);
 
 		if ((3 * paths) % K == 0)
 			write_back((3 * paths) / K);
 
 		return;
-	}
-
-	void taostore_oram_v1::read_path(request_t &req, std::uint8_t *_fetched)
-	{
-		block_id bid;
-		leaf_id ev_lid;
-		gen_rand((std::uint8_t *)&bid, sizeof(block_id));
-
-		pthread_mutex_lock(&serializer_lck);
-		for (auto it : request_structure)
-		{
-			bool cond = it->bid == req.bid & it->handled == false & it->fake == false;
-			req.fake = req.fake | cond;
-		}
-		request_structure.push_back(&req);
-
-		bid = ternary_op(req.fake, bid, req.bid);
-		pthread_mutex_unlock(&serializer_lck);
-
-		leaf_id path = position_map->access(bid, req.fake, &ev_lid);
-		fetch_path(_fetched, bid, ev_lid, path, !req.fake);
 	}
 
 	void taostore_oram_v1::fetch_path(std::uint8_t *_fetched, block_id bid, leaf_id new_lid, leaf_id path, bool not_fake)
@@ -375,7 +354,7 @@ namespace obl
 				swap(not_fake & bl->bid == bid, _fetched, (std::uint8_t *)bl, block_size);
 				bl = ((block_t *)((std::uint8_t *)bl + block_size));
 			}
-			reference_node->local_timestamp = path_counter;
+			reference_node->local_timestamp = access_counter;
 			old_ref_node = reference_node;
 
 			reference_node = (path >> i) & 1 ? old_ref_node->child_r : old_ref_node->child_l;
@@ -393,7 +372,7 @@ namespace obl
 		}
 		while (i <= L && valid)
 		{
-			(l_index & 1) ? old_ref_node->child_l = new node(block_size * Z, path_counter) : old_ref_node->child_r = new node(block_size * Z, path_counter);
+			(l_index & 1) ? old_ref_node->child_l = new node(block_size * Z, access_counter) : old_ref_node->child_r = new node(block_size * Z, access_counter);
 			reference_node = (l_index & 1) ? old_ref_node->child_l : old_ref_node->child_r;
 			reference_node->parent = old_ref_node;
 
@@ -455,7 +434,7 @@ namespace obl
 		// fill the other buckets with "empty" blocks
 		while (i <= L)
 		{
-			(l_index & 1) ? old_ref_node->child_l = new node(block_size * Z, path_counter) : old_ref_node->child_r = new node(block_size * Z, path_counter);
+			(l_index & 1) ? old_ref_node->child_l = new node(block_size * Z, access_counter) : old_ref_node->child_r = new node(block_size * Z, access_counter);
 			reference_node = (l_index & 1) ? old_ref_node->child_l : old_ref_node->child_r;
 			reference_node->parent = old_ref_node;
 
@@ -483,47 +462,6 @@ namespace obl
 
 		write_queue_t T = {path, old_ref_node};
 		local_subtree.insert_write_queue(T);
-	}
-
-	void taostore_oram_v1::answer_request(request_t &req, std::uint8_t *_fetched)
-	{
-		block_t *fetched = (block_t *)_fetched;
-		bool hit;
-		pthread_mutex_lock(&stash_locks[0]);
-		pthread_mutex_lock(&serializer_lck);
-		for (auto it : request_structure)
-		{
-			hit = !req.fake & (it->bid == req.bid);
-			//update flags
-			it->handled = it->handled | it->id == req.id;
-			it->data_ready = it->data_ready | hit;
-			replace(hit, it->data_out, fetched->payload, B);
-			if (it->data_in != nullptr)
-				replace(hit, fetched->payload, it->data_in, B);
-		}
-
-		bool already_evicted = false;
-		for (unsigned int i = 0; i < SS - 1; ++i)
-		{
-			for (unsigned int j = 0; j < ss; ++j)
-			{
-				block_id sbid = stash[i * ss + j].bid;
-				swap(!req.fake & !already_evicted & (sbid == DUMMY), _fetched, (std::uint8_t *)&stash[i * ss + j], block_size);
-				already_evicted = req.fake | already_evicted | (sbid == DUMMY);
-			}
-			pthread_mutex_lock(&stash_locks[i + 1]);
-			pthread_mutex_unlock(&stash_locks[i]);
-		}
-		for (unsigned int i = 0; i < S % ss; ++i)
-		{
-			block_id sbid = stash[(SS - 1) * ss + i].bid;
-			swap(!req.fake & !already_evicted & (sbid == DUMMY), _fetched, (std::uint8_t *)&stash[(SS - 1) * ss + i], block_size);
-			already_evicted = req.fake | already_evicted | (sbid == DUMMY);
-		}
-		pthread_cond_broadcast(&serializer_cond);
-		pthread_mutex_unlock(&serializer_lck);
-		pthread_mutex_unlock(&stash_locks[SS - 1]);
-		assert(already_evicted);
 	}
 
 	void taostore_oram_v1::access(block_id bid, std::uint8_t *data_in, std::uint8_t *data_out)

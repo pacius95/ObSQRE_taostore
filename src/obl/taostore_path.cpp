@@ -22,13 +22,13 @@ namespace obl
 	taostore_path_oram::taostore_path_oram(std::size_t N, std::size_t B, unsigned int Z, unsigned int S, unsigned int A, unsigned int T_NUM) : taostore_oram(N, B, Z, S, T_NUM)
 	{
 		this->A = A;
+		std::atomic_init(&fetched_path_counter, 1);
 	}
 
 	void taostore_path_oram::eviction(leaf_id path)
 	{
 
 		std::int64_t l_index = 0;
-
 		obl_aes_gcm_128bit_tag_t reference_mac;
 		auth_data_t *adata;
 		block_t *bl, *bl_ev;
@@ -44,7 +44,7 @@ namespace obl
 		for (i = 0; i <= L && reference_node != nullptr; ++i)
 		{
 			reference_node->lock();
-			reference_node->local_timestamp = path_counter;
+			reference_node->local_timestamp = access_counter;
 			old_ref_node = reference_node;
 
 			reference_node = (path >> i) & 1 ? old_ref_node->child_r : old_ref_node->child_l;
@@ -61,7 +61,7 @@ namespace obl
 		}
 		while (i <= L && valid)
 		{
-			(l_index & 1) ? old_ref_node->child_l = new node(block_size * Z, path_counter) : old_ref_node->child_r = new node(block_size * Z, path_counter);
+			(l_index & 1) ? old_ref_node->child_l = new node(block_size * Z, access_counter) : old_ref_node->child_r = new node(block_size * Z, access_counter);
 			reference_node = (l_index & 1) ? old_ref_node->child_l : old_ref_node->child_r;
 			reference_node->parent = old_ref_node;
 			reference_node->lock();
@@ -116,7 +116,7 @@ namespace obl
 		// fill the other buckets with "empty" blocks
 		while (i <= L)
 		{
-			(l_index & 1) ? old_ref_node->child_l = new node(block_size * Z, path_counter) : old_ref_node->child_r = new node(block_size * Z, path_counter);
+			(l_index & 1) ? old_ref_node->child_l = new node(block_size * Z, access_counter) : old_ref_node->child_r = new node(block_size * Z, access_counter);
 			reference_node = (l_index & 1) ? old_ref_node->child_l : old_ref_node->child_r;
 			reference_node->parent = old_ref_node;
 			reference_node->lock();
@@ -136,14 +136,7 @@ namespace obl
 		node *leaf_pointer = old_ref_node;
 		node *iterator;
 		reference_node = local_subtree.root;
-		// reference_node = leaf_pointer->parent;
-		//- fetch del path
-		//- locko dal root alla leaf
-		//- faccio in place eviction rilasciando il lock dal root ala leaf
-		//- prendo il lock dello stash e prendo e rilascio i lock dell'albero
-		// std::cerr << "--------------------------------------------------" << std::endl;
-		// printpath(path);
-		for (int i = 0; i <= L - 1; i++) // for every bucket in the fetched path, from leaf to root
+		for (int i = 0; i <= L - 1; i++) // for every bucket in the fetched path, from root to leaf
 		{
 			bl_ev = (block_t *)reference_node->payload;
 			for (unsigned int z1 = 0; z1 < Z; z1++) // for every block in the source bucket
@@ -156,9 +149,6 @@ namespace obl
 					bl = (block_t *)iterator->payload;
 					for (unsigned int z2 = 0; z2 < Z; z2++) // for every block in the target bucket
 					{
-						// std::cerr << "offset:" << i*Z+ z1 << "bid: " << bl_ev->bid << "lid :" << bl_ev->lid << " data: " << (std::uint64_t) * ((std::uint64_t *)bl_ev->payload) << std::endl;
-						// std::cerr << "offset:" << j*Z+ z2 << "bid: " << bl->bid << "lid :" << bl->lid << " data: " << (std::uint64_t) * ((std::uint64_t *)bl->payload) << std::endl;
-
 						bool free_slot = bl->bid == DUMMY;
 						swap(can_reside & free_slot, (std::uint8_t *)bl, (std::uint8_t *)bl_ev, block_size);
 						can_reside &= !free_slot;
@@ -171,23 +161,8 @@ namespace obl
 			}
 			reference_node->unlock();
 			reference_node = ((path >> i) & 1) ? reference_node->child_r : reference_node->child_l;
-			// reference_node = reference_node->parent;
 		}
-		// std::cerr << "--------------------------------------------------" << std::endl;
-		// printpath(path);
 		reference_node->unlock();
-
-		// pthread_mutex_lock(&stash_lock);
-		// reference_node = local_subtree.root;
-		// for (int i = 0; i < L; i++)
-		// {
-		// 	reference_node->lock();
-		// 	reference_node = ((path >> i) & 1) ? reference_node->child_r : reference_node->child_l;
-		// }
-		// reference_node->lock();
-
-		// std::cerr << "--------------------------------------------------" << std::endl;
-		// printstash();
 
 		for (unsigned int i = 0; i < SS - 1; ++i)
 		{
@@ -199,7 +174,7 @@ namespace obl
 				std::int64_t maxd = get_max_depth(stash[k].lid, path, L);
 				// iterator = leaf_pointer;
 				iterator = local_subtree.root;
-				for (int h = 0; h <= L; h++) // for every bucket in the path (in reverse order)
+				for (int h = 0; h <= L; h++) // for every bucket in the path (in NORMAL order)
 				{
 					iterator->lock();
 					bool can_reside = maxd >= h;
@@ -246,43 +221,6 @@ namespace obl
 		}
 		pthread_mutex_unlock(&stash_locks[SS - 1]);
 
-		// for (unsigned int k = 0; k < S; k++) // for every block in the stash
-		// {
-		// 	pthread_mutex_lock(&stash_lock);
-		// 	std::int64_t maxd = get_max_depth(stash[k].lid, path, L);
-		// 	// iterator = leaf_pointer;
-		// 	iterator = local_subtree.root;
-		// 	for (int i = 0; i <= L; i++) // for every bucket in the path (in reverse order)
-		// 	{
-		// 		iterator->lock();
-		// 		bool can_reside = maxd >= i;
-		// 		bl = (block_t *)iterator->payload;
-
-		// 		for (unsigned int j = 0; j < Z; j++) // for every block in a bucket
-		// 		{
-		// 			bool free_slot = bl->bid == DUMMY;
-		// 			swap(can_reside & free_slot, (std::uint8_t *)&stash[k], (std::uint8_t *)bl, block_size);
-		// 			can_reside &= !free_slot;
-		// 			bl = (block_t *)((std::uint8_t *)bl + block_size);
-		// 		}
-		// 		iterator->unlock();
-		// 		iterator = ((path >> i) & 1) ? iterator->child_r : iterator->child_l;
-		// 	}
-		// 	pthread_mutex_unlock(&stash_lock);
-		// }
-
-		// std::cerr << "--------------------------------------------------" << std::endl;
-		// printstash();
-
-		// pthread_mutex_unlock(&stash_lock);
-		// reference_node = local_subtree.root;
-		// for (int i = 0; i < L; i++)
-		// {
-		// 	reference_node->unlock();
-		// 	reference_node = ((path >> i) & 1) ? reference_node->child_r : reference_node->child_l;
-		// }
-		// reference_node->unlock();
-
 		multiset_unlock(path);
 
 		write_queue_t T = {path, reference_node};
@@ -293,45 +231,26 @@ namespace obl
 	{
 		std::uint8_t _fetched[block_size];
 		leaf_id evict_leaf;
-		leaf_id paths;
+		uint32_t paths;
+		uint32_t fetched_counter;
 
 		read_path(_req, _fetched);
 
 		answer_request(_req, _fetched);
-		paths = std::atomic_fetch_add(&path_counter, 1);
+		paths = std::atomic_fetch_add(&access_counter, 1);
+		fetched_counter = std::atomic_fetch_add(&fetched_path_counter, 1);
 
 		if (paths % A == 0)
 		{
 			evict_leaf = std::atomic_fetch_add(&evict_path, 1);
 			eviction(evict_leaf);
-			paths = std::atomic_fetch_add(&path_counter, 1);
+			fetched_counter = std::atomic_fetch_add(&fetched_path_counter, 1);
 		}
 
-		if (paths % K == 0)
-			write_back(paths / K);
+		if (fetched_counter % K == 0)
+			write_back(fetched_counter / K);
 
 		return;
-	}
-
-	void taostore_path_oram::read_path(request_t &req, std::uint8_t *_fetched)
-	{
-		block_id bid;
-		leaf_id ev_lid;
-		gen_rand((std::uint8_t *)&bid, sizeof(block_id));
-
-		pthread_mutex_lock(&serializer_lck);
-		for (auto it : request_structure)
-		{
-			bool cond = it->bid == req.bid & it->handled == false & it->fake == false;
-			req.fake = req.fake | cond;
-		}
-		request_structure.push_back(&req);
-
-		bid = ternary_op(req.fake, bid, req.bid);
-		pthread_mutex_unlock(&serializer_lck);
-
-		leaf_id path = position_map->access(bid, req.fake, &ev_lid);
-		fetch_path(_fetched, bid, ev_lid, path, !req.fake);
 	}
 
 	void taostore_path_oram::fetch_path(std::uint8_t *_fetched, block_id bid, leaf_id new_lid, leaf_id path, bool not_fake)
@@ -384,7 +303,7 @@ namespace obl
 				swap(not_fake & bl->bid == bid, _fetched, (std::uint8_t *)bl, block_size);
 				bl = ((block_t *)((std::uint8_t *)bl + block_size));
 			}
-			reference_node->local_timestamp = path_counter;
+			reference_node->local_timestamp = access_counter;
 			old_ref_node = reference_node;
 
 			reference_node = (path >> i) & 1 ? old_ref_node->child_r : old_ref_node->child_l;
@@ -402,7 +321,7 @@ namespace obl
 		}
 		while (i <= L && valid)
 		{
-			(l_index & 1) ? old_ref_node->child_l = new node(block_size * Z, path_counter) : old_ref_node->child_r = new node(block_size * Z, path_counter);
+			(l_index & 1) ? old_ref_node->child_l = new node(block_size * Z, access_counter) : old_ref_node->child_r = new node(block_size * Z, access_counter);
 			reference_node = (l_index & 1) ? old_ref_node->child_l : old_ref_node->child_r;
 			reference_node->parent = old_ref_node;
 
@@ -464,7 +383,7 @@ namespace obl
 		// fill the other buckets with "empty" blocks
 		while (i <= L)
 		{
-			(l_index & 1) ? old_ref_node->child_l = new node(block_size * Z, path_counter) : old_ref_node->child_r = new node(block_size * Z, path_counter);
+			(l_index & 1) ? old_ref_node->child_l = new node(block_size * Z, access_counter) : old_ref_node->child_r = new node(block_size * Z, access_counter);
 			reference_node = (l_index & 1) ? old_ref_node->child_l : old_ref_node->child_r;
 			reference_node->parent = old_ref_node;
 
@@ -492,48 +411,6 @@ namespace obl
 
 		write_queue_t T = {path, old_ref_node};
 		local_subtree.insert_write_queue(T);
-	}
-
-	void taostore_path_oram::answer_request(request_t &req, std::uint8_t *_fetched)
-	{
-		block_t *fetched = (block_t *)_fetched;
-		bool hit;
-
-		pthread_mutex_lock(&stash_locks[0]);
-		pthread_mutex_lock(&serializer_lck);
-		for (auto it : request_structure)
-		{
-			hit = !req.fake & (it->bid == req.bid);
-			//update flags
-			it->handled = it->handled | it->id == req.id;
-			it->data_ready = it->data_ready | hit;
-			replace(hit, it->data_out, fetched->payload, B);
-			if (it->data_in != nullptr)
-				replace(hit, fetched->payload, it->data_in, B);
-		}
-
-		bool already_evicted = false;
-		for (unsigned int i = 0; i < SS - 1; ++i)
-		{
-			for (unsigned int j = 0; j < ss; ++j)
-			{
-				block_id sbid = stash[i * ss + j].bid;
-				swap(!req.fake & !already_evicted & (sbid == DUMMY), _fetched, (std::uint8_t *)&stash[i * ss + j], block_size);
-				already_evicted = req.fake | already_evicted | (sbid == DUMMY);
-			}
-			pthread_mutex_lock(&stash_locks[i + 1]);
-			pthread_mutex_unlock(&stash_locks[i]);
-		}
-		for (unsigned int i = 0; i < S % ss; ++i)
-		{
-			block_id sbid = stash[(SS - 1) * ss + i].bid;
-			swap(!req.fake & !already_evicted & (sbid == DUMMY), _fetched, (std::uint8_t *)&stash[(SS - 1) * ss + i], block_size);
-			already_evicted = req.fake | already_evicted | (sbid == DUMMY);
-		}
-		pthread_cond_broadcast(&serializer_cond);
-		pthread_mutex_unlock(&serializer_lck);
-		pthread_mutex_unlock(&stash_locks[SS - 1]);
-		assert(already_evicted);
 	}
 
 	void taostore_path_oram::access(block_id bid, std::uint8_t *data_in, std::uint8_t *data_out)

@@ -19,12 +19,7 @@ namespace obl
 
 		void access_thread(request_t &_req);
 
-		// static void eviction_thread_wrap(void *object);
-		// void eviction_thread(void *_request);
-
-		void read_path(request_t &req, std::uint8_t *_fetched);
 		void fetch_path(std::uint8_t *_fetched, block_id bid, leaf_id new_lid, leaf_id path, bool fake);
-		void answer_request(request_t &req, std::uint8_t *fetched);
 		void eviction(leaf_id path);
 
 	public:
