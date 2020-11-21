@@ -1,6 +1,7 @@
 #include "obl/utils.h"
 #include "obl/taostore.h"
 #include "obl/primitives.h"
+#include "obl/taostore_subtree.h"
 
 #include "obl/oassert.h"
 
@@ -59,7 +60,7 @@ namespace obl
 	{
 		pthread_mutex_lock(&serializer_lck);
 		oram_alive = false;
-		pthread_cond_signal(&serializer_cond);
+		pthread_cond_broadcast(&serializer_cond);
 		pthread_mutex_unlock(&serializer_lck);
 
 		threadpool_destroy(thpool, threadpool_graceful);
@@ -235,8 +236,11 @@ namespace obl
 
 		bid = ternary_op(req.fake, bid, req.bid);
 		pthread_mutex_unlock(&serializer_lck);
-
+		// auto start = std::clock();
 		leaf_id path = position_map->access(bid, req.fake, &ev_lid);
+		// auto duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
+		// std::cerr <<  "thread id:" << pthread_self() << "  posmap duration: " << duration << '\n';
+
 		fetch_path(_fetched, bid, ev_lid, path, !req.fake);
 	}
 

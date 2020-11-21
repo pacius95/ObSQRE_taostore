@@ -6,7 +6,7 @@
 #include "obl/taostore_types.hpp"
 #include "obl/flexible_array.hpp"
 #include "obl/taostore_pos_map.h"
-#include "obl/taostore_subtree.hpp"
+#include "obl/taostore_subtree.h"
 #include "obl/threadpool.h"
 
 #include <cstdint>
@@ -59,6 +59,7 @@ namespace obl
 		pthread_mutex_t stash_lock = PTHREAD_MUTEX_INITIALIZER;
 		pthread_mutex_t multi_set_lock = PTHREAD_MUTEX_INITIALIZER;
 		pthread_mutex_t eviction_lock = PTHREAD_MUTEX_INITIALIZER;
+		pthread_mutex_t pos_map_lock = PTHREAD_MUTEX_INITIALIZER;
 
 		threadpool_t *thpool;
 

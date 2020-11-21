@@ -7,7 +7,6 @@
 #include "obl/taostore_types.hpp"
 #include "obl/flexible_array.hpp"
 #include "obl/taostore_pos_map.h"
-#include "obl/taostore_subtree.hpp"
 #include "obl/threadpool.h"
 
 namespace obl

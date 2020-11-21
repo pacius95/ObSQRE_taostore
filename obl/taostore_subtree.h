@@ -22,7 +22,7 @@
 #ifdef SGX_ENCLAVE_ENABLED
 #define flex flexible_array<bucket_t, sgx_host_allocator>
 #else
-#define flex flexible_array<bucket_t> 
+#define flex flexible_array<bucket_t>
 #endif
 namespace obl
 {
@@ -61,7 +61,7 @@ namespace obl
             std::memset(&adata, 0x00, sizeof(auth_data_t));
             delete payload;
         }
-                int lock()
+        int lock()
         {
             return pthread_mutex_lock(&lk);
             // return pthread_spin_lock(&lk);
