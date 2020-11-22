@@ -22,15 +22,12 @@ namespace obl
 	void taostore_oram_v2::eviction(leaf_id path)
 	{
 		std::int64_t l_index = 0;
-		obl_aes_gcm_128bit_tag_t reference_mac;
 		std::vector<node *> fetched_path;
 		fetched_path.reserve(L + 1);
 
 		for (int i = 0; i < L + 1; i++)
 			fetched_path.emplace_back(new node(block_size * Z));
 
-		block_t *bl;
-		bool valid = false;
 		int i = 0;
 
 		//evict array helper
@@ -215,19 +212,19 @@ namespace obl
 	{
 		std::uint8_t _fetched[block_size];
 		std::uint32_t evict_leaf;
-		std::uint32_t paths;
+		std::uint64_t paths;
 
 		read_path(_req, _fetched);
 
 		answer_request(_req, _fetched);
 
-		evict_leaf = std::atomic_fetch_add(&evict_path, 1);
+		evict_leaf = std::atomic_fetch_add(&evict_path, (std::uint32_t)1);
 
 		eviction(2 * evict_leaf);
 		eviction(2 * evict_leaf + 1);
 
 		// printsubtree();
-		paths = std::atomic_fetch_add(&access_counter, 1);
+		paths = std::atomic_fetch_add(&access_counter, (std::uint64_t)1);
 
 		if ((3 * paths) % K == 0)
 			write_back((3 * paths) / K);
@@ -251,7 +248,7 @@ namespace obl
 		*/
 		bool reachable = (path & 1) ? tree[l_index].reach_r : tree[l_index].reach_l;
 		// evaluate the next encrypted bucket index in the binary heap
-		l_index = (l_index << 1) + 1 + ((path >> i) & 1);
+		l_index = (l_index << 1) + 1 + ((path) & 1);
 
 		if (reachable)
 		{
@@ -281,16 +278,16 @@ namespace obl
 			// however this was already covered by the memset before the loop
 
 			// decrypt using the IV
-			int dec = wc_AesGcmDecrypt(crypt_handle,
-									   fetched_path[i]->payload,
-									   tree[l_index].payload,
-									   Z * block_size,
-									   tree[l_index].iv,
-									   OBL_AESGCM_IV_SIZE,
-									   reference_mac,
-									   OBL_AESGCM_MAC_SIZE,
-									   (std::uint8_t *)&fetched_path[i]->adata,
-									   sizeof(auth_data_t));
+			wc_AesGcmDecrypt(crypt_handle,
+							 fetched_path[i]->payload,
+							 tree[l_index].payload,
+							 Z * block_size,
+							 tree[l_index].iv,
+							 OBL_AESGCM_IV_SIZE,
+							 reference_mac,
+							 OBL_AESGCM_MAC_SIZE,
+							 (std::uint8_t *)&fetched_path[i]->adata,
+							 sizeof(auth_data_t));
 
 			// MAC mismatch is a critical error
 			//assert(dec != AES_GCM_AUTH_E);
@@ -332,12 +329,8 @@ namespace obl
 	{
 		// always start from root
 		std::int64_t l_index = 0;
-		obl_aes_gcm_128bit_tag_t reference_mac;
-		bool valid = false;
 		int i = 0;
 		block_t *bl;
-		std::clock_t start;
-		double duration;
 		block_t *fetched = (block_t *)_fetched;
 		fetched->bid = DUMMY;
 		fetched->lid = DUMMY;
@@ -351,7 +344,7 @@ namespace obl
 		//fetch_path della circuit.
 		node *reference_node;
 		node *old_ref_node;
-
+		old_ref_node = local_subtree.root;
 		reference_node = local_subtree.root;
 
 		multiset_lock(path);
@@ -474,7 +467,7 @@ namespace obl
 
 		assert(already_evicted);
 
-		std::uint64_t evict_leaf = (std::uint64_t)std::atomic_fetch_add(&evict_path, 1);
+		std::uint32_t evict_leaf = std::atomic_fetch_add(&evict_path, (std::uint32_t)1);
 		eviction(2 * evict_leaf);
 		eviction(2 * evict_leaf + 1);
 

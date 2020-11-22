@@ -283,18 +283,18 @@ namespace obl
 
 		std::uint8_t _fetched[block_size];
 		std::uint32_t evict_leaf;
-		std::uint32_t paths;
+		std::uint64_t paths;
 
 		read_path(_req, _fetched);
 
 		answer_request(_req, _fetched);
 
-		evict_leaf = std::atomic_fetch_add(&evict_path, 1);
+		evict_leaf = std::atomic_fetch_add(&evict_path, (std::uint32_t)1);
 
 		eviction(2 * evict_leaf);
 		eviction(2 * evict_leaf + 1);
 
-		paths = std::atomic_fetch_add(&access_counter, 1);
+		paths = std::atomic_fetch_add(&access_counter, (std::uint64_t)1);
 
 		if ((3 * paths) % K == 0)
 			write_back((3 * paths) / K);
@@ -351,7 +351,7 @@ namespace obl
 			bl = (block_t *)reference_node->payload;
 			for (unsigned int j = 0; j < Z; ++j)
 			{
-				swap(not_fake & bl->bid == bid, _fetched, (std::uint8_t *)bl, block_size);
+				swap(not_fake && bl->bid == bid, _fetched, (std::uint8_t *)bl, block_size);
 				bl = ((block_t *)((std::uint8_t *)bl + block_size));
 			}
 			reference_node->local_timestamp = access_counter;
@@ -507,7 +507,7 @@ namespace obl
 
 		assert(already_evicted);
 
-		std::uint64_t evict_leaf = (std::uint64_t)std::atomic_fetch_add(&evict_path, 1);
+		std::uint32_t evict_leaf = std::atomic_fetch_add(&evict_path, (std::uint32_t)1);
 		eviction(2 * evict_leaf);
 		eviction(2 * evict_leaf + 1);
 

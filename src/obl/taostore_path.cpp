@@ -22,7 +22,7 @@ namespace obl
 	taostore_path_oram::taostore_path_oram(std::size_t N, std::size_t B, unsigned int Z, unsigned int S, unsigned int A, unsigned int T_NUM) : taostore_oram(N, B, Z, S, T_NUM)
 	{
 		this->A = A;
-		std::atomic_init(&fetched_path_counter, 1);
+		std::atomic_init(&fetched_path_counter, (std::uint64_t)1);
 	}
 
 	void taostore_path_oram::eviction(leaf_id path)
@@ -36,7 +36,7 @@ namespace obl
 		int i = 0;
 
 		node *reference_node, *old_ref_node;
-
+		old_ref_node = local_subtree.root;
 		reference_node = local_subtree.root;
 
 		multiset_lock(path);
@@ -231,20 +231,20 @@ namespace obl
 	{
 		std::uint8_t _fetched[block_size];
 		leaf_id evict_leaf;
-		uint32_t paths;
-		uint32_t fetched_counter;
+		uint64_t paths;
+		uint64_t fetched_counter;
 
 		read_path(_req, _fetched);
 
 		answer_request(_req, _fetched);
-		paths = std::atomic_fetch_add(&access_counter, 1);
-		fetched_counter = std::atomic_fetch_add(&fetched_path_counter, 1);
+		paths = std::atomic_fetch_add(&access_counter, (std::uint64_t)1);
+		fetched_counter = std::atomic_fetch_add(&fetched_path_counter, (std::uint64_t)1);
 
 		if (paths % A == 0)
 		{
-			evict_leaf = std::atomic_fetch_add(&evict_path, 1);
+			evict_leaf = std::atomic_fetch_add(&evict_path, (std::uint32_t)1);
 			eviction(evict_leaf);
-			fetched_counter = std::atomic_fetch_add(&fetched_path_counter, 1);
+			fetched_counter = std::atomic_fetch_add(&fetched_path_counter, (std::uint64_t)1);
 		}
 
 		if (fetched_counter % K == 0)
@@ -300,7 +300,7 @@ namespace obl
 			bl = (block_t *)reference_node->payload;
 			for (unsigned int j = 0; j < Z; ++j)
 			{
-				swap(not_fake & bl->bid == bid, _fetched, (std::uint8_t *)bl, block_size);
+				swap(not_fake && bl->bid == bid, _fetched, (std::uint8_t *)bl, block_size);
 				bl = ((block_t *)((std::uint8_t *)bl + block_size));
 			}
 			reference_node->local_timestamp = access_counter;
@@ -456,7 +456,7 @@ namespace obl
 
 		assert(already_evicted);
 
-		std::uint64_t evict_leaf = (std::uint64_t)std::atomic_fetch_add(&evict_path, 1);
+		std::uint32_t evict_leaf = std::atomic_fetch_add(&evict_path, (uint32_t)1);
 		eviction(2 * evict_leaf);
 		eviction(2 * evict_leaf + 1);
 

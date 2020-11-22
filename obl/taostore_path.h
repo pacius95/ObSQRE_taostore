@@ -39,7 +39,7 @@ namespace obl
 	private:
 
 		unsigned int A;
-		std::atomic_uint32_t fetched_path_counter;
+		std::atomic_uint64_t fetched_path_counter;
 		// private methods
 		void init();
 

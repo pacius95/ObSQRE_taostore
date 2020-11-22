@@ -33,7 +33,7 @@ namespace obl
         node *child_r;
         node *parent;
         pthread_mutex_t lk = PTHREAD_MUTEX_INITIALIZER;
-        std::uint32_t local_timestamp;
+        std::uint64_t local_timestamp;
         auth_data_t adata;
         std::uint8_t *payload;
 

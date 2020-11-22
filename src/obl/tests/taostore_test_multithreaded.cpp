@@ -19,7 +19,7 @@ using namespace std;
 
 struct buffer
 {
-    std::uint8_t _buffer[4000];
+    std::uint8_t _buffer[8];
     bool operator==(const buffer &rhs) const
     {
         return !memcmp(_buffer, rhs._buffer, sizeof(_buffer));
@@ -60,7 +60,7 @@ int main()
 
     vector<buffer> mirror_data;
 
-    obl::taostore_oram_v1 rram(N, sizeof(buffer), Z, S, 4);
+    obl::taostore_oram_v1 rram(N, sizeof(buffer), Z, S, 2);
     buffer value, value_out;
 
     mirror_data.reserve(N);

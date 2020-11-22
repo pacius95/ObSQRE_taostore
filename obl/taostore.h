@@ -77,8 +77,8 @@ namespace obl
 
 		bool oram_alive;
 		std::atomic_int32_t thread_id;
-		std::atomic_uint64_t evict_path;
-		std::atomic_uint32_t access_counter;
+		std::atomic_uint32_t evict_path;
+		std::atomic_uint64_t access_counter;
 
 		// private methods
 		void init();

@@ -40,7 +40,7 @@ namespace obl
 		this->ss = 2;
 		this->SS = (S / ss) + 1;
 		stash_locks = new pthread_mutex_t[SS];
-		for (int i = 0; i < SS; i++)
+		for (unsigned int i = 0; i < SS; i++)
 			pthread_mutex_init(&stash_locks[i], nullptr);
 
 		// ORAM tree allocation
@@ -72,7 +72,7 @@ namespace obl
 		free(_crypt_buffer);
 
 		pthread_join(serializer_id, nullptr);
-		for (int i = 0; i < SS; i++)
+		for (unsigned int i = 0; i < SS; i++)
 		{
 			pthread_mutex_destroy(&stash_locks[i]);
 		}
@@ -94,8 +94,8 @@ namespace obl
 		std::uint8_t empty_bucket[Z * block_size];
 
 		std::atomic_init(&thread_id, 0);
-		std::atomic_init(&evict_path, 0);
-		std::atomic_init(&access_counter, 1);
+		std::atomic_init(&evict_path, (std::uint32_t)0);
+		std::atomic_init(&access_counter, (std::uint64_t)1);
 
 		// generate random master key
 		gen_rand(master_key, OBL_AESGCM_KEY_SIZE);
@@ -229,18 +229,14 @@ namespace obl
 		pthread_mutex_lock(&serializer_lck);
 		for (auto it : request_structure)
 		{
-			bool cond = it->bid == req.bid & it->handled == false & it->fake == false;
+			bool cond = it->bid == req.bid && it->handled == false && it->fake == false;
 			req.fake = req.fake | cond;
 		}
 		request_structure.push_back(&req);
 
 		bid = ternary_op(req.fake, bid, req.bid);
 		pthread_mutex_unlock(&serializer_lck);
-		// auto start = std::clock();
 		leaf_id path = position_map->access(bid, req.fake, &ev_lid);
-		// auto duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-		// std::cerr <<  "thread id:" << pthread_self() << "  posmap duration: " << duration << '\n';
-
 		fetch_path(_fetched, bid, ev_lid, path, !req.fake);
 	}
 
@@ -255,7 +251,7 @@ namespace obl
 		{
 			hit = !req.fake & (it->bid == req.bid);
 			//update flags
-			it->handled = it->handled | it->id == req.id;
+			it->handled = it->handled || it->id == req.id;
 			it->data_ready = it->data_ready | hit;
 			replace(hit, it->data_out, fetched->payload, B);
 			if (it->data_in != nullptr)
@@ -306,7 +302,7 @@ namespace obl
 
 		assert(already_evicted);
 
-		std::uint64_t evict_leaf = (std::uint64_t)std::atomic_fetch_add(&evict_path, 1);
+		std::uint32_t evict_leaf = std::atomic_fetch_add(&evict_path, (std::uint32_t)1);
 		eviction(2 * evict_leaf);
 		eviction(2 * evict_leaf + 1);
 
@@ -362,8 +358,8 @@ namespace obl
 				std::memcpy(target_mac, mac, sizeof(obl_aes_gcm_128bit_tag_t));
 
 				pthread_mutex_lock(&multi_set_lock);
-				if (reference_node->local_timestamp <= c * K &
-					reference_node->child_r == nullptr & reference_node->child_l == nullptr &
+				if (reference_node->local_timestamp <= c * K &&
+					reference_node->child_r == nullptr && reference_node->child_l == nullptr &&
 					path_req_multi_set.find(l_index) == path_req_multi_set.end())
 				{
 					nodes_level_i[i - 1][get_parent(l_index)] = parent;
@@ -449,16 +445,16 @@ namespace obl
 			// however this was already covered by the memset before the loop
 
 			// decrypt using the IV
-			int dec = wc_AesGcmDecrypt(crypt_handle,
-									   (std::uint8_t *)payload,
-									   tree[l_index].payload,
-									   Z * block_size,
-									   iv,
-									   OBL_AESGCM_IV_SIZE,
-									   mac,
-									   OBL_AESGCM_MAC_SIZE,
-									   (std::uint8_t *)&adata,
-									   sizeof(auth_data_t));
+			wc_AesGcmDecrypt(crypt_handle,
+							 (std::uint8_t *)payload,
+							 tree[l_index].payload,
+							 Z * block_size,
+							 iv,
+							 OBL_AESGCM_IV_SIZE,
+							 mac,
+							 OBL_AESGCM_MAC_SIZE,
+							 (std::uint8_t *)&adata,
+							 sizeof(auth_data_t));
 			bl = payload;
 			for (unsigned int j = 0; j < Z; ++j)
 			{
@@ -470,7 +466,6 @@ namespace obl
 
 	void taostore_oram::printpath(leaf_id path)
 	{
-		int i = 0;
 		std::uint64_t l_index = 0;
 		node *reference_node = local_subtree.root;
 		block_t *bl;
