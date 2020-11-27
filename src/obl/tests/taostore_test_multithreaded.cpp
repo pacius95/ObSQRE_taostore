@@ -8,8 +8,9 @@
 #include <vector>
 #include <cassert>
 
-#define P 15
+#define P 18
 #define N (1 << P)
+#define bench_size (1 << 15)
 #define RUN 4
 
 #define S 8
@@ -40,9 +41,9 @@ void *work(void *T)
     double duration;
     start = std::clock();
     buffer value_out;
-    unsigned int rnd_bid;
+    uint32_t rnd_bid;
 
-    for (int j = 0; j < N; j++)
+    for (int j = 0; j < bench_size; j++)
     {
         obl::gen_rand((std::uint8_t *)&rnd_bid, sizeof(obl::block_id));
         rnd_bid = (rnd_bid >> 1) % N;
@@ -60,7 +61,7 @@ int main()
 
     vector<buffer> mirror_data;
 
-    obl::taostore_oram_v1 rram(N, sizeof(buffer), Z, S, 2);
+    obl::taostore_oram_v1 rram(N, sizeof(buffer), Z, S, 3);
     buffer value, value_out;
 
     mirror_data.reserve(N);

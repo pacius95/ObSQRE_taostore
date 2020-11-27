@@ -17,7 +17,7 @@
 using namespace std;
 struct buffer
 {
-    std::uint8_t _buffer[8];
+    std::uint8_t _buffer[4000];
 
     bool operator==(const buffer &rhs) const
     {

@@ -9,6 +9,7 @@
 #include <unordered_map>
 #include <map>
 
+#include <memory>
 #include <cstdint>
 #include <cstddef>
 #include <cstdint>
@@ -29,9 +30,9 @@ namespace obl
     struct node
     {
     public:
-        node *child_l;
-        node *child_r;
-        node *parent;
+        std::shared_ptr<node> child_l;
+        std::shared_ptr<node> child_r;
+        std::shared_ptr<node> parent;
         pthread_mutex_t lk = PTHREAD_MUTEX_INITIALIZER;
         std::uint64_t local_timestamp;
         auth_data_t adata;
@@ -39,9 +40,6 @@ namespace obl
 
         node()
         {
-            child_l = nullptr;
-            child_r = nullptr;
-            parent = nullptr;
             local_timestamp = 0;
             std::memset(&adata, 0x00, sizeof(auth_data_t));
         }
@@ -76,7 +74,7 @@ namespace obl
     struct taostore_write_queue_element_t
     {
         leaf_id T;
-        node *n;
+        std::shared_ptr<node>n;
     };
     typedef taostore_write_queue_element_t write_queue_t;
 
@@ -84,11 +82,11 @@ namespace obl
     {
 
     public:
-        std::queue<write_queue_t> write_queue; //paths and leaf pointers
+        std::queue<leaf_id> write_queue; //paths and leaf pointers
         pthread_rwlock_t tree_rw_lock = PTHREAD_RWLOCK_INITIALIZER;
         pthread_mutex_t write_q_lk = PTHREAD_MUTEX_INITIALIZER;
         size_t node_size;
-        node *root;
+        std::shared_ptr<node> root;
         int L;
 
         taostore_subtree()
@@ -100,19 +98,19 @@ namespace obl
 
             L = _L;
             node_size = _node_size;
-            root = new node(node_size, 0);
+            root = std::make_unique<node>(node_size, 0);
             memcpy(root->payload, _data, node_size);
         }
 
-        void insert_write_queue(write_queue_t T)
+        void insert_write_queue(leaf_id T)
         {
             pthread_mutex_lock(&write_q_lk);
             write_queue.push(T);
             pthread_mutex_unlock(&write_q_lk);
         }
-        write_queue_t *get_pop_queue(int K)
+        leaf_id *get_pop_queue(int K)
         {
-            write_queue_t *temp = new write_queue_t[K];
+            leaf_id *temp = new leaf_id [K];
             pthread_mutex_lock(&write_q_lk);
             for (int i = 0; i < K; i++)
             {
@@ -124,10 +122,11 @@ namespace obl
             return temp;
         }
 
-        std::map<leaf_id, node *> update_valid(write_queue_t *_paths, int K, flex &tree)
+        std::map<leaf_id, std::shared_ptr<node>> update_valid(leaf_id *_paths, int K, flex &tree)
         {
-            node *reference_node, *old_reference_node;
-            std::map<leaf_id, node *> nodes_map; //l_index and leaf_pointer
+            std::shared_ptr<node> reference_node;
+            std::shared_ptr<node> old_reference_node;
+            std::map<leaf_id, std::shared_ptr<node>> nodes_map; //l_index and leaf_pointer
             bool reachable;
             leaf_id paths;
             leaf_id l_index;
@@ -135,7 +134,7 @@ namespace obl
             { //iterate over paths
                 reachable = true;
                 reference_node = root;
-                paths = _paths[i].T;
+                paths = _paths[i];
                 l_index = 0;
                 for (int j = 0; j < L && reference_node != nullptr; j++)
                 {                         //iterate on levels
@@ -162,6 +161,8 @@ namespace obl
                 {
                     reference_node->adata.valid_l = false;
                     reference_node->adata.valid_r = false;
+                    tree[l_index].reach_l = false;
+                    tree[l_index].reach_r = false;
                     nodes_map[l_index] = reference_node;
                 }
             }

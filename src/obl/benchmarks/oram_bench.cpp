@@ -20,8 +20,8 @@ using hres = std::chrono::high_resolution_clock;
 using nano = std::chrono::nanoseconds;
 using tt = std::chrono::time_point<hres, nano>;
 
-const int pow_lower = 26;
-const int pow_upper = 30;
+const int pow_lower = 20;
+const int pow_upper = 25;
 const int bench_size = 1024;
 
 void test_oram(std::string, obl::tree_oram*, std::vector<std::int64_t>&, std::vector<obl::leaf_id>&);

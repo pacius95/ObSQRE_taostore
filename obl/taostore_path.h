@@ -37,7 +37,6 @@ namespace obl
 	class taostore_path_oram : public taostore_oram
 	{
 	private:
-
 		unsigned int A;
 		std::atomic_uint64_t fetched_path_counter;
 		// private methods
@@ -48,11 +47,11 @@ namespace obl
 		void eviction(leaf_id path);
 
 	public:
-		taostore_path_oram(std::size_t N, std::size_t B, unsigned int Z, unsigned int S,unsigned int A, unsigned int T_NUM);
+		taostore_path_oram(std::size_t N, std::size_t B, unsigned int Z, unsigned int S, unsigned int A, unsigned int T_NUM);
+		~taostore_path_oram();
 
 		void access(block_id bid, std::uint8_t *data_in, std::uint8_t *data_out);
-
-		void write(block_id bid, std::uint8_t *data_in, leaf_id next_lif);
+		void write_back(std::uint32_t c);
 	};
 
 	class taostore_path_factory : public taostore_factory
@@ -69,7 +68,7 @@ namespace obl
 			this->T_NUM = T_NUM;
 		}
 		taostore_oram *spawn_oram(std::size_t N, std::size_t B)
-		{			
+		{
 			// since path oram has the largest stash size, improve it
 			unsigned int real_S = N < S ? N : S;
 			return new taostore_path_oram(N, B, Z, real_S, A, T_NUM);

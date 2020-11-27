@@ -18,15 +18,47 @@
 
 namespace obl
 {
+	taostore_oram_v2::taostore_oram_v2(std::size_t N, std::size_t B, unsigned int Z, unsigned int S, unsigned int T_NUM) : taostore_oram(N, B, Z, S, T_NUM)
+	{
+		this->K = next_two_power((1 << 25) / (bucket_size * L * 3));
+	}
+	taostore_oram_v2::~taostore_oram_v2()
+	{
+		threadpool_destroy(thpool, threadpool_graceful);
+
+		pthread_mutex_lock(&serializer_lck);
+		oram_alive = false;
+		pthread_cond_broadcast(&serializer_cond);
+		pthread_mutex_unlock(&serializer_lck);
+
+		pthread_join(serializer_id, nullptr);
+
+		std::memset(_crypt_buffer, 0x00, sizeof(Aes) + 16);
+
+		std::memset(&stash[0], 0x00, block_size * S);
+
+		free(_crypt_buffer);
+		for (unsigned int i = 0; i < SS; i++)
+		{
+			pthread_mutex_destroy(&stash_locks[i]);
+		}
+		pthread_mutex_destroy(&stash_lock);
+		pthread_mutex_destroy(&multi_set_lock);
+		pthread_cond_destroy(&serializer_cond);
+		pthread_mutex_destroy(&serializer_lck);
+		pthread_mutex_destroy(&write_back_lock);
+
+		delete position_map;
+		//TODO cleanup
+	}
 
 	void taostore_oram_v2::eviction(leaf_id path)
 	{
 		std::int64_t l_index = 0;
-		std::vector<node *> fetched_path;
-		fetched_path.reserve(L + 1);
-
-		for (int i = 0; i < L + 1; i++)
-			fetched_path.emplace_back(new node(block_size * Z));
+		std::vector<std::shared_ptr<node>> fetched_path;
+		fetched_path.emplace_back(nullptr);
+		for (int i = 0; i < L; i++)
+			fetched_path.emplace_back(std::make_shared<node>(block_size * Z));
 
 		int i = 0;
 
@@ -44,7 +76,7 @@ namespace obl
 		std::int64_t goal = -1;
 		std::int64_t goal_t = -1;
 
-		node *reference_node, *old_ref_node;
+		std::shared_ptr<node> reference_node, old_ref_node;
 		reference_node = local_subtree.root;
 		old_ref_node = local_subtree.root;
 
@@ -80,8 +112,6 @@ namespace obl
 			old_ref_node = reference_node;
 			l_index = (l_index << 1) + 1 + ((path >> i) & 1);
 			reference_node = (l_index & 1) ? old_ref_node->child_l : old_ref_node->child_r;
-
-			delete fetched_path[i];
 		}
 		while (i <= L)
 		{
@@ -202,8 +232,7 @@ namespace obl
 		}
 		multiset_unlock(path);
 
-		write_queue_t T = {path, reference_node};
-		local_subtree.insert_write_queue(T);
+		local_subtree.insert_write_queue(path);
 
 		//END EVICTION
 	}
@@ -226,13 +255,13 @@ namespace obl
 		// printsubtree();
 		paths = std::atomic_fetch_add(&access_counter, (std::uint64_t)1);
 
-		if ((3 * paths) % K == 0)
-			write_back((3 * paths) / K);
+		if (paths % K == 0)
+			write_back(paths / K);
 
 		return;
 	}
 
-	void taostore_oram_v2::download_path(leaf_id path, std::vector<node *> fetched_path)
+	void taostore_oram_v2::download_path(leaf_id path, std::vector<std::shared_ptr<node>> fetched_path)
 	{
 		// always start from root
 		std::int64_t l_index = 0;
@@ -248,7 +277,7 @@ namespace obl
 		*/
 		bool reachable = (path & 1) ? tree[l_index].reach_r : tree[l_index].reach_l;
 		// evaluate the next encrypted bucket index in the binary heap
-		l_index = (l_index << 1) + 1 + ((path) & 1);
+		l_index = (l_index << 1) + 1 + ((path)&1);
 
 		if (reachable)
 		{
@@ -335,15 +364,15 @@ namespace obl
 		fetched->bid = DUMMY;
 		fetched->lid = DUMMY;
 
-		std::vector<node *> fetched_path;
+		std::vector<std::shared_ptr<node>> fetched_path;
 		fetched_path.reserve(L + 1);
-		fetched_path.emplace_back(nullptr);
-		for (int i = 0; i < L + 1; i++)
-			fetched_path.emplace_back(new node(block_size * Z));
+		fetched_path.push_back(nullptr);
+		for (int i = 0; i < L; i++)
+			fetched_path.push_back(std::make_shared<node>(block_size * Z));
 
 		//fetch_path della circuit.
-		node *reference_node;
-		node *old_ref_node;
+		std::shared_ptr<node> reference_node;
+		std::shared_ptr<node> old_ref_node;
 		old_ref_node = local_subtree.root;
 		reference_node = local_subtree.root;
 
@@ -387,7 +416,6 @@ namespace obl
 			reference_node = (path >> i) & 1 ? old_ref_node->child_r : old_ref_node->child_l;
 
 			l_index = (l_index << 1) + 1 + ((path >> i) & 1);
-			delete fetched_path[i];
 		}
 
 		while (i <= L)
@@ -419,9 +447,7 @@ namespace obl
 
 		fetched->lid = new_lid;
 		fetched->bid = bid;
-
-		write_queue_t T = {path, old_ref_node};
-		local_subtree.insert_write_queue(T);
+		local_subtree.insert_write_queue(path);
 	}
 
 	void taostore_oram_v2::access(block_id bid, std::uint8_t *data_in, std::uint8_t *data_out)
@@ -445,36 +471,67 @@ namespace obl
 
 		std::memcpy(data_out, _data_out, B);
 	}
-
-	void taostore_oram_v2::write(block_id bid, std::uint8_t *data_in, leaf_id next_lif)
+	void taostore_oram_v2::write_back(std::uint32_t c)
 	{
-		std::uint8_t _fetched[block_size];
-		block_t *fetched = (block_t *)_fetched;
+		std::map<leaf_id, std::shared_ptr<node>> nodes_level_i[L + 1];
+		leaf_id l_index;
+		obl_aes_gcm_128bit_iv_t iv;
+		obl_aes_gcm_128bit_tag_t mac;
+		std::shared_ptr<node> reference_node;
 
-		// build the block to write!
-		fetched->bid = bid;
-		fetched->lid = next_lif;
-		std::memcpy(fetched->payload, data_in, B);
+		leaf_id *_paths;
 
-		// evict the created block to the stash
-		bool already_evicted = false;
-		for (unsigned int i = 0; i < S; ++i)
+		pthread_mutex_lock(&write_back_lock);
+		_paths = local_subtree.get_pop_queue(3 * K);
+		nodes_level_i[L] = local_subtree.update_valid(_paths, 3 * K, tree);
+
+		for (int i = L; i > 0; --i)
 		{
-			block_id sbid = stash[i].bid;
-			swap(!already_evicted & (sbid == DUMMY), _fetched, (std::uint8_t *)&stash[i], block_size);
-			already_evicted = already_evicted | (sbid == DUMMY);
+			for (auto &itx : nodes_level_i[i])
+			{
+				l_index = itx.first;
+				reference_node = itx.second;
+				// generate a new random IV
+				gen_rand(iv, OBL_AESGCM_IV_SIZE);
+
+				// save encrypted payload
+				wc_AesGcmEncrypt(crypt_handle,
+								 tree[l_index].payload,
+								 (std::uint8_t *)reference_node->payload,
+								 Z * block_size,
+								 iv,
+								 OBL_AESGCM_IV_SIZE,
+								 mac,
+								 OBL_AESGCM_MAC_SIZE,
+								 (std::uint8_t *)&reference_node->adata,
+								 sizeof(auth_data_t));
+
+				// save "mac" + iv + reachability flags
+				std::memcpy(tree[l_index].mac, mac, sizeof(obl_aes_gcm_128bit_tag_t));
+				std::memcpy(tree[l_index].iv, iv, sizeof(obl_aes_gcm_128bit_iv_t));
+
+				std::shared_ptr<node> parent = reference_node->parent;
+				// update the mac for the parent for the evaluation of its mac
+
+				std::uint8_t *target_mac = (l_index & 1) ? reference_node->parent->adata.left_mac : reference_node->parent->adata.right_mac;
+				std::memcpy(target_mac, mac, sizeof(obl_aes_gcm_128bit_tag_t));
+
+				pthread_mutex_lock(&multi_set_lock);
+				if (reference_node->local_timestamp <= c * K &&
+					reference_node->child_r == nullptr && reference_node->child_l == nullptr &&
+					path_req_multi_set.find(l_index) == path_req_multi_set.end())
+				{
+					nodes_level_i[i - 1][get_parent(l_index)] = reference_node->parent;
+					if (l_index & 1)
+						reference_node->parent->child_l = nullptr;
+					else
+						reference_node->parent->child_r = nullptr;
+				}
+				pthread_mutex_unlock(&multi_set_lock);
+			}
 		}
-
-		assert(already_evicted);
-
-		std::uint32_t evict_leaf = std::atomic_fetch_add(&evict_path, (std::uint32_t)1);
-		eviction(2 * evict_leaf);
-		eviction(2 * evict_leaf + 1);
-
-		if (evict_path % K)
-			write_back(evict_path / K);
-
-		return;
+		pthread_mutex_unlock(&write_back_lock);
+		delete _paths;
 	}
 
 } // namespace obl

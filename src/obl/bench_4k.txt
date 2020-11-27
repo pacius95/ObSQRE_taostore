@@ -1,0 +1,129 @@
+benchmarc block size:4000 bench size: 65536
+start recursive:16384
+tempo: 55.26s
+start v1 serial with N:16384 T_NUM:1
+tempo: 31.43s
+start v2 serial with N:16384 T_NUM:1
+tempo: 45.25s
+start v1 parallel with N:16384 T_NUM:1 RUN: 8
+tempo: 31.47s
+start v2 parallel with N:16384 T_NUM:1 RUN: 8
+tempo: 45.35s
+start v1 serial with N:16384 T_NUM:2
+tempo: 16.12s
+start v2 serial with N:16384 T_NUM:2
+tempo: 22.73s
+start v1 parallel with N:16384 T_NUM:2 RUN: 8
+tempo: 15.36s
+start v2 parallel with N:16384 T_NUM:2 RUN: 8
+tempo: 22.8s
+start v1 serial with N:16384 T_NUM:3
+tempo: 12.21s
+start v2 serial with N:16384 T_NUM:3
+tempo: 17.82s
+start v1 parallel with N:16384 T_NUM:3 RUN: 8
+tempo: 10.96s
+start v2 parallel with N:16384 T_NUM:3 RUN: 8
+tempo: 15.31s
+start v1 serial with N:16384 T_NUM:4
+tempo: 12.62s
+start v2 serial with N:16384 T_NUM:4
+tempo: 17.27s
+start v1 parallel with N:16384 T_NUM:4 RUN: 8
+tempo: 9.919s
+start v2 parallel with N:16384 T_NUM:4 RUN: 8
+tempo: 11.79s
+start v1 serial with N:16384 T_NUM:5
+tempo: 12.68s
+start v2 serial with N:16384 T_NUM:5
+tempo: 17.99s
+start v1 parallel with N:16384 T_NUM:5 RUN: 8
+tempo: 10.75s
+start v2 parallel with N:16384 T_NUM:5 RUN: 8
+tempo: 12.76s
+start recursive:65536
+tempo: 64.29s
+start v1 serial with N:65536 T_NUM:1
+tempo: 44.66s
+start v2 serial with N:65536 T_NUM:1
+tempo: 55.06s
+start v1 parallel with N:65536 T_NUM:1 RUN: 8
+tempo: 44.61s
+start v2 parallel with N:65536 T_NUM:1 RUN: 8
+tempo: 55.24s
+start v1 serial with N:65536 T_NUM:2
+tempo: 23.59s
+start v2 serial with N:65536 T_NUM:2
+tempo: 28.61s
+start v1 parallel with N:65536 T_NUM:2 RUN: 8
+tempo: 22.45s
+start v2 parallel with N:65536 T_NUM:2 RUN: 8
+tempo: 28.56s
+start v1 serial with N:65536 T_NUM:3
+tempo: 17.99s
+start v2 serial with N:65536 T_NUM:3
+tempo: 20.93s
+start v1 parallel with N:65536 T_NUM:3 RUN: 8
+tempo: 15.77s
+start v2 parallel with N:65536 T_NUM:3 RUN: 8
+tempo: 19.23s
+start v1 serial with N:65536 T_NUM:4
+tempo: 18.58s
+start v2 serial with N:65536 T_NUM:4
+tempo: 20.66s
+start v1 parallel with N:65536 T_NUM:4 RUN: 8
+tempo: 14.61s
+start v2 parallel with N:65536 T_NUM:4 RUN: 8
+tempo: 15.63s
+start v1 serial with N:65536 T_NUM:5
+tempo: 18.76s
+start v2 serial with N:65536 T_NUM:5
+tempo: 21.55s
+start v1 parallel with N:65536 T_NUM:5 RUN: 8
+tempo: 14.27s
+start v2 parallel with N:65536 T_NUM:5 RUN: 8
+tempo: 16.7s
+start recursive:262144
+tempo: 72.78s
+start v1 serial with N:262144 T_NUM:1
+tempo: 53.7s
+start v2 serial with N:262144 T_NUM:1
+tempo: 64.1s
+start v1 parallel with N:262144 T_NUM:1 RUN: 8
+tempo: 53.68s
+start v2 parallel with N:262144 T_NUM:1 RUN: 8
+tempo: 64.18s
+start v1 serial with N:262144 T_NUM:2
+tempo: 28.62s
+start v2 serial with N:262144 T_NUM:2
+tempo: 33.4s
+start v1 parallel with N:262144 T_NUM:2 RUN: 8
+tempo: 27.3s
+start v2 parallel with N:262144 T_NUM:2 RUN: 8
+tempo: 33.27s
+start v1 serial with N:262144 T_NUM:3
+tempo: 22.11s
+start v2 serial with N:262144 T_NUM:3
+tempo: 23.82s
+start v1 parallel with N:262144 T_NUM:3 RUN: 8
+tempo: 19.39s
+start v2 parallel with N:262144 T_NUM:3 RUN: 8
+tempo: 22.5s
+start v1 serial with N:262144 T_NUM:4
+tempo: 22.38s
+start v2 serial with N:262144 T_NUM:4
+tempo: 23.4s
+start v1 parallel with N:262144 T_NUM:4 RUN: 8
+tempo: 17.84s
+start v2 parallel with N:262144 T_NUM:4 RUN: 8
+tempo: 19.24s
+start v1 serial with N:262144 T_NUM:5
+tempo: 22.99s
+start v2 serial with N:262144 T_NUM:5
+tempo: 24.37s
+start v1 parallel with N:262144 T_NUM:5 RUN: 8
+tempo: 17.71s
+start v2 parallel with N:262144 T_NUM:5 RUN: 8
+tempo: 18.38
+
+--Non posso andare oltre altrimenti saturo la ram.

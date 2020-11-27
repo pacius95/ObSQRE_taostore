@@ -4,10 +4,10 @@ CXX = g++
 # release flags
 #CFLAGS = -Wall $(INC) -pthread -march=native -mrdrnd -mrdseed -mpopcnt -O2
 # debug flags
-CFLAGS =  -Wall $(INC) -pthread -march=native -mrdseed -mpopcnt -mavx -mavx2 -O2 -g 
-CXXFLAGS = -std=c++11
+CFLAGS =  -Wall $(INC) -pthread -march=native -mrdseed -mrdrnd -mpopcnt -mavx2 -O2 -g
+CXXFLAGS = -std=c++14
 
-LDFLAGS = ../../libs/libwolfssl.a -L$(SGX_SDK)/lib64 -lsgx_tcrypto -ltcmalloc 
+LDFLAGS = ../../libs/libwolfssl.a -L$(SGX_SDK)/lib64 -lsgx_tcrypto 
 
 INCDIR = ../../ ../../includes /usr/include $(SGX_SDK)/include
 INC = $(addprefix -I, $(INCDIR))

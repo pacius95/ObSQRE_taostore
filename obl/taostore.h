@@ -6,6 +6,7 @@
 #include "obl/taostore_types.hpp"
 #include "obl/flexible_array.hpp"
 #include "obl/taostore_pos_map.h"
+#include "obl/taostore_pos_map_notobl.h"
 #include "obl/taostore_subtree.h"
 #include "obl/threadpool.h"
 
@@ -68,7 +69,8 @@ namespace obl
 		std::multiset<leaf_id> path_req_multi_set;
 
 		circuit_fake_factory *allocator;
-		taostore_position_map *position_map;
+		// taostore_position_map *position_map;
+		taostore_position_map_notobl *position_map;
 
 		// crypto stuff
 		obl_aes_gcm_128bit_tag_t merkle_root;
@@ -92,7 +94,7 @@ namespace obl
 		void answer_request(request_t &req, std::uint8_t *fetched);
 		virtual void fetch_path(std::uint8_t *_fetched, block_id bid, leaf_id new_lid, leaf_id path, bool fake) = 0;
 		virtual void eviction(leaf_id path) = 0;
-		void write_back(std::uint32_t c);
+		virtual void write_back(std::uint32_t c) = 0;
 
 		// helper methods
 		bool has_free_block(block_t *bl, int len);
@@ -103,10 +105,10 @@ namespace obl
 
 	public:
 		taostore_oram(std::size_t N, std::size_t B, unsigned int Z, unsigned int S, unsigned int T_NUM);
-		~taostore_oram();
+		virtual ~taostore_oram(){};
 
 		//debug
-		int printrec(node *t, int L, int l_index);
+		int printrec(std::shared_ptr<node> t, int L, int l_index);
 		void printstash();
 		void printsubtree();
 		void print_tree();
@@ -118,9 +120,7 @@ namespace obl
 		// split fetch and eviction phases of the access method
 		void access_r(block_id bid, leaf_id lif, std::uint8_t *data_out){};
 		void access_w(block_id bid, leaf_id lif, std::uint8_t *data_in, leaf_id next_lif){};
-
-		// only write block into the stash and perfom evictions
-		virtual void write(block_id bid, std::uint8_t *data_in, leaf_id next_lif);
+		void write(block_id bid, std::uint8_t *data_in, leaf_id next_lif);
 	};
 	struct processing_thread_args_wrap
 	{
