@@ -250,7 +250,7 @@ namespace obl
 			already_evicted = req.fake | already_evicted | (sbid == DUMMY);
 		}
 		pthread_mutex_unlock(&stash_locks[SS - 1]);
-		// assert(already_evicted);
+		assert(already_evicted);
 	}
 	void taostore_oram::write(block_id bid, std::uint8_t *data_in, leaf_id next_lif)
 	{
