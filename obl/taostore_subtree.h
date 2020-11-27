@@ -4,6 +4,7 @@
 #include "obl/types.h"
 #include "obl/taostore_types.hpp"
 #include "obl/oassert.h"
+#include "concurrentqueue.h"
 
 #include <queue>
 #include <unordered_map>
@@ -82,7 +83,8 @@ namespace obl
     {
 
     public:
-        std::queue<leaf_id> write_queue; //paths and leaf pointers
+        // std::queue<leaf_id> write_queue; //paths and leaf pointers
+        moodycamel::ConcurrentQueue<leaf_id> write_queue;
         pthread_rwlock_t tree_rw_lock = PTHREAD_RWLOCK_INITIALIZER;
         pthread_mutex_t write_q_lk = PTHREAD_MUTEX_INITIALIZER;
         size_t node_size;
@@ -104,22 +106,24 @@ namespace obl
 
         void insert_write_queue(leaf_id T)
         {
-            pthread_mutex_lock(&write_q_lk);
-            write_queue.push(T);
-            pthread_mutex_unlock(&write_q_lk);
+            // pthread_mutex_lock(&write_q_lk);
+            // write_queue.push(T);
+            // pthread_mutex_unlock(&write_q_lk);
+            write_queue.enqueue(T);
         }
-        leaf_id *get_pop_queue(int K)
+        void get_pop_queue(leaf_id* _paths, int K)
         {
-            leaf_id *temp = new leaf_id [K];
-            pthread_mutex_lock(&write_q_lk);
-            for (int i = 0; i < K; i++)
-            {
-                temp[i] = write_queue.front();
-                //fetch and pop
-                write_queue.pop();
-            }
-            pthread_mutex_unlock(&write_q_lk);
-            return temp;
+            // leaf_id *temp = new leaf_id [K];
+            // pthread_mutex_lock(&write_q_lk);
+            // for (int i = 0; i < K; i++)
+            // {
+            //     temp[i] = write_queue.front();
+            //     //fetch and pop
+            //     write_queue.pop();
+            // }
+            // pthread_mutex_unlock(&write_q_lk);
+            // return temp;
+            write_queue.try_dequeue_bulk(_paths, K);
         }
 
         std::map<leaf_id, std::shared_ptr<node>> update_valid(leaf_id *_paths, int K, flex &tree)

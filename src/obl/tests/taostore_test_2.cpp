@@ -10,10 +10,10 @@
 #include <cassert>
 #include <ctime>
 
-#define P 15
+#define P 18
 #define N (1 << P)
 #define bench_size (1 << 15)
-#define RUN 1
+#define RUN 2
 
 #define S 8
 #define Z 3

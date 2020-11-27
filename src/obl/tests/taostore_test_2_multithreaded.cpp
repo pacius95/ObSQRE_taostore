@@ -1,6 +1,4 @@
-
-#include "obl/taostore.h"
-#include "obl/taostore_v1.h"
+#include "obl/taostore_v2.h"
 #include "obl/primitives.h"
 #include "obl/taostore_pos_map.h"
 #include "obl/circuit.h"
@@ -10,10 +8,11 @@
 #include <vector>
 #include <cassert>
 
-#define P 15
+#define P 16
 #define N (1 << P)
+#define bench_size (1 << 14)
+#define RUN 4
 
-#define C 5
 #define S 8
 #define Z 3
 
@@ -21,7 +20,7 @@ using namespace std;
 
 struct buffer
 {
-    std::uint8_t _buffer[8];
+    std::uint8_t _buffer[4000];
     bool operator==(const buffer &rhs) const
     {
         return !memcmp(_buffer, rhs._buffer, sizeof(_buffer));
@@ -30,22 +29,26 @@ struct buffer
 
 struct work_args
 {
-    obl::taostore_oram *rram;
+    obl::taostore_oram_v2 *rram;
     vector<buffer> *_mirror_data;
     int i;
 };
 
 void *work(void *T)
 {
+    work_args args = *(work_args *)T;
     std::clock_t start;
     double duration;
     start = std::clock();
-    work_args args = *(work_args *)T;
     buffer value_out;
-    for (int j = 0; j < N; j++)
+    uint32_t rnd_bid;
+
+    for (int j = 0; j < bench_size; j++)
     {
-        args.rram->access(j % N, nullptr, (std::uint8_t *)&value_out);
-        assert(value_out == (*args._mirror_data)[j % N]);
+        obl::gen_rand((std::uint8_t *)&rnd_bid, sizeof(obl::block_id));
+        rnd_bid = (rnd_bid >> 1) % N;
+        args.rram->access(rnd_bid, nullptr, (std::uint8_t *)&value_out);
+        // assert(value_out == (*args._mirror_data)[rnd_bid]);
     }
     cerr << "Run " << args.i << " finished" << endl;
     duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
@@ -53,16 +56,14 @@ void *work(void *T)
     return nullptr;
 };
 
-int main(int argc, char *argv[])
+int main()
 {
-    int T_NUM = atoi(argv[1]);
-    int RUN = atoi(argv[2]);
+
     vector<buffer> mirror_data;
 
-    obl::taostore_oram_v1 rram(N, sizeof(buffer), Z, S, T_NUM);
+    obl::taostore_oram_v2 rram(N, sizeof(buffer), Z, S, 4);
     buffer value, value_out;
-    std::clock_t start;
-    double duration;
+
     mirror_data.reserve(N);
 
     pthread_t workers[RUN];
@@ -76,7 +77,6 @@ int main(int argc, char *argv[])
     }
 
     cerr << "finished init" << endl;
-
     work_args args[RUN];
 
     for (int i = 0; i < RUN; i++)
@@ -89,16 +89,5 @@ int main(int argc, char *argv[])
     {
         pthread_join(workers[i], nullptr);
     }
-
-    start = std::clock();
-    for (int j = 0; j < N; j++)
-    {
-        rram.access(j, nullptr, (std::uint8_t *)&value_out);
-        assert(value_out == mirror_data[j]);
-    }
-    cerr << "Run serial finished" << endl;
-    duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-    std::cout << "printf: " << duration << '\n';
-
     return 0;
 };

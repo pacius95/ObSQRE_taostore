@@ -56,9 +56,6 @@ namespace obl
 	{
 		std::int64_t l_index = 0;
 		std::vector<std::shared_ptr<node>> fetched_path;
-		fetched_path.emplace_back(nullptr);
-		for (int i = 0; i < L; i++)
-			fetched_path.emplace_back(std::make_shared<node>(block_size * Z));
 
 		int i = 0;
 
@@ -86,11 +83,11 @@ namespace obl
 
 		for (unsigned int i = 0; i < SS - 1; ++i)
 		{
-			pthread_mutex_lock(&stash_locks[i]);
+			// pthread_mutex_lock(&stash_locks[i]);
 			goal_t = get_max_depth_bucket(&stash[i * ss], ss, path);
 			goal = ternary_op(goal > goal_t, goal, goal_t);
 		}
-		pthread_mutex_lock(&stash_locks[SS - 1]);
+		// pthread_mutex_lock(&stash_locks[SS - 1]);
 		goal_t = get_max_depth_bucket(&stash[(SS - 1) * ss], S % ss, path);
 		goal = ternary_op(goal > goal_t, goal, goal_t);
 
@@ -101,6 +98,8 @@ namespace obl
 		for (i = 0; i <= L && reference_node != nullptr; ++i)
 		{
 			reference_node->lock();
+			if (i != 0)
+				old_ref_node->unlock();
 			reference_node->local_timestamp = access_counter;
 
 			csb[i] = ternary_op(goal >= i, _closest_src_bucket, BOTTOM);
@@ -118,18 +117,17 @@ namespace obl
 			(l_index & 1) ? old_ref_node->child_l = fetched_path[i] : old_ref_node->child_r = fetched_path[i];
 			reference_node = (l_index & 1) ? old_ref_node->child_l : old_ref_node->child_r;
 			reference_node->parent = old_ref_node;
+			reference_node->local_timestamp = access_counter;
 
 			reference_node->lock();
+			old_ref_node->unlock();
 
 			csb[i] = ternary_op(goal >= i, _closest_src_bucket, BOTTOM);
 
 			std::int64_t jump = get_max_depth_bucket((block_t *)reference_node->payload, Z, path);
 			ljd[i] = jump;
-
 			_closest_src_bucket = ternary_op(jump >= goal, i, _closest_src_bucket);
 			goal = ternary_op(jump >= goal, jump, goal);
-
-			reference_node->local_timestamp = access_counter;
 
 			old_ref_node = reference_node;
 			l_index = (l_index << 1) + 1 + ((path >> i) & 1);
@@ -137,6 +135,7 @@ namespace obl
 			++i;
 		}
 
+		old_ref_node->unlock();
 		//END DEEPEST
 		//a questo punto tutto il ramo è stato scaricato e l'albero è stato tutto il tempo lockato
 		//posso fare target come nell circuit pari pari
@@ -194,14 +193,14 @@ namespace obl
 				bool deepest_block = (get_max_depth(stash[i * ss + j].lid, path, L) == ljd[-1]) & fill_hold & (stash[i * ss + j].bid != DUMMY);
 				swap(deepest_block, _hold, (std::uint8_t *)&stash[i * ss + j], block_size);
 			}
-			pthread_mutex_unlock(&stash_locks[i]);
+			// pthread_mutex_unlock(&stash_locks[i]);
 		}
 		for (unsigned int i = 0; i < S % ss; ++i)
 		{
 			bool deepest_block = (get_max_depth(stash[(SS - 1) * ss + i].lid, path, L) == ljd[-1]) & fill_hold & (stash[(SS - 1) * ss + i].bid != DUMMY);
 			swap(deepest_block, _hold, (std::uint8_t *)&stash[(SS - 1) * ss + i], block_size);
 		}
-		pthread_mutex_unlock(&stash_locks[SS - 1]);
+		// pthread_mutex_unlock(&stash_locks[SS - 1]);
 
 		dst = ndb[-1];
 
@@ -227,7 +226,7 @@ namespace obl
 
 				bl = (block_t *)((std::uint8_t *)bl + block_size);
 			}
-			reference_node->unlock();
+			// reference_node->unlock();
 			reference_node = i != L ? (path >> i) & 1 ? reference_node->child_r : reference_node->child_l : reference_node;
 		}
 		multiset_unlock(path);
@@ -261,32 +260,38 @@ namespace obl
 		return;
 	}
 
-	void taostore_oram_v2::download_path(leaf_id path, std::vector<std::shared_ptr<node>> fetched_path)
+	void taostore_oram_v2::download_path(leaf_id path, std::vector<std::shared_ptr<node>> &fetched_path)
 	{
 		// always start from root
 		std::int64_t l_index = 0;
 		block_t *bl;
 		int i;
+		bool valid;
+		std::shared_ptr<node> reference_node = local_subtree.root;
 
-		// start verifying the mac stored in the root, from the SAFE part of the memory
+		fetched_path.reserve(L + 1);
+
 		obl_aes_gcm_128bit_tag_t reference_mac;
-		/*
-			the additional method init (to be refined in the SGX deployment) actually inits
-			the root node in a proper way, storing the correct "accessed" flags inside
-			the root bucket. So the mac there contained in the root will always be valid
-		*/
-		bool reachable = (path & 1) ? tree[l_index].reach_r : tree[l_index].reach_l;
-		// evaluate the next encrypted bucket index in the binary heap
-		l_index = (l_index << 1) + 1 + ((path)&1);
 
-		if (reachable)
+		for (i = 0; i <= L && reference_node != nullptr; ++i)
 		{
-			std::uint8_t *src = tree[l_index].mac;
-			std::memcpy(reference_mac, src, sizeof(obl_aes_gcm_128bit_tag_t));
+			fetched_path.push_back(nullptr);
+
+			l_index = (l_index << 1) + 1 + ((path >> i) & 1);
+			reference_node = (path >> i) & 1 ? reference_node->child_r : reference_node->child_l;
 		}
-
-		for (i = 1; i <= L && reachable; i++)
+		if (i <= L)
 		{
+			valid = (l_index & 1) ? tree[get_parent(l_index)].reach_l : tree[get_parent(l_index)].reach_r;
+			if (valid)
+			{
+				std::uint8_t *src = tree[l_index].mac;
+				std::memcpy(reference_mac, src, sizeof(obl_aes_gcm_128bit_tag_t));
+			}
+		}
+		while (i <= L && valid)
+		{
+			fetched_path.push_back(std::make_shared<node>(block_size * Z));
 
 			std::int64_t leftch = get_left(l_index);
 			std::int64_t rightch = get_right(l_index);
@@ -329,21 +334,22 @@ namespace obl
 				NB 2: fetch this from data which was dumped and authenticated, and taken
 				from PROTECTED MEMORY. This should avoid some kind of attacks
 			*/
-			reachable = (path >> i) & 1 ? fetched_path[i]->adata.valid_r : fetched_path[i]->adata.valid_l;
+			valid = (path >> i) & 1 ? fetched_path[i]->adata.valid_r : fetched_path[i]->adata.valid_l;
 			// evaluate the next encrypted bucket index in the binary heap
 			l_index = (l_index << 1) + 1 + ((path >> i) & 1);
 
-			if (reachable)
+			if (valid)
 			{
 				std::uint8_t *src = ((path >> i) & 1) ? fetched_path[i]->adata.right_mac : fetched_path[i]->adata.left_mac;
 				std::memcpy(reference_mac, src, sizeof(obl_aes_gcm_128bit_tag_t));
 			}
+			++i;
 		}
 
 		// fill the other buckets with "empty" blocks
 		while (i <= L)
 		{
-
+			fetched_path.push_back(std::make_shared<node>(block_size * Z));
 			bl = (block_t *)fetched_path[i]->payload;
 			for (unsigned int j = 0; j < Z; ++j)
 			{
@@ -365,10 +371,6 @@ namespace obl
 		fetched->lid = DUMMY;
 
 		std::vector<std::shared_ptr<node>> fetched_path;
-		fetched_path.reserve(L + 1);
-		fetched_path.push_back(nullptr);
-		for (int i = 0; i < L; i++)
-			fetched_path.push_back(std::make_shared<node>(block_size * Z));
 
 		//fetch_path della circuit.
 		std::shared_ptr<node> reference_node;
@@ -479,10 +481,12 @@ namespace obl
 		obl_aes_gcm_128bit_tag_t mac;
 		std::shared_ptr<node> reference_node;
 
-		leaf_id *_paths;
+		leaf_id *_paths = new leaf_id[3 * K];
 
 		pthread_mutex_lock(&write_back_lock);
-		_paths = local_subtree.get_pop_queue(3 * K);
+		// _paths = local_subtree.get_pop_queue(3 * K);
+		local_subtree.get_pop_queue(_paths, 3 * K);
+
 		nodes_level_i[L] = local_subtree.update_valid(_paths, 3 * K, tree);
 
 		for (int i = L; i > 0; --i)

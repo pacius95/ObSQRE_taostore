@@ -524,10 +524,11 @@ namespace obl
 		obl_aes_gcm_128bit_tag_t mac;
 		std::shared_ptr<node> reference_node;
 
-		leaf_id *_paths;
+		leaf_id *_paths = new leaf_id[3 * K];
 
 		pthread_mutex_lock(&write_back_lock);
-		_paths = local_subtree.get_pop_queue(3 * K);
+		// _paths = local_subtree.get_pop_queue(3 * K);
+		local_subtree.get_pop_queue(_paths, 3 * K);
 		nodes_level_i[L] = local_subtree.update_valid(_paths, 3 * K, tree);
 
 		for (int i = L; i > 0; --i)

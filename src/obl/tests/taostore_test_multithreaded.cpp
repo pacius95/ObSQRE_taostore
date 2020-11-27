@@ -8,19 +8,19 @@
 #include <vector>
 #include <cassert>
 
-#define P 18
+#define P 16
 #define N (1 << P)
-#define bench_size (1 << 15)
+#define bench_size (1 << 14)
 #define RUN 4
 
-#define S 8
-#define Z 3
+#define S 80
+#define Z 2
 
 using namespace std;
 
 struct buffer
 {
-    std::uint8_t _buffer[8];
+    std::uint8_t _buffer[4000];
     bool operator==(const buffer &rhs) const
     {
         return !memcmp(_buffer, rhs._buffer, sizeof(_buffer));
@@ -61,7 +61,7 @@ int main()
 
     vector<buffer> mirror_data;
 
-    obl::taostore_oram_v1 rram(N, sizeof(buffer), Z, S, 3);
+    obl::taostore_oram_v1 rram(N, sizeof(buffer), Z, S, 1);
     buffer value, value_out;
 
     mirror_data.reserve(N);

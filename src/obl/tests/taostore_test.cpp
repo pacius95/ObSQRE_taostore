@@ -33,7 +33,7 @@ int main()
 {
 	vector<buffer> mirror_data;
 
-	obl::taostore_oram_v1 rram(N, sizeof(buffer), Z, S, 3);
+	obl::taostore_oram_v1 rram(N, sizeof(buffer), Z, S, 1);
 
 	uint32_t rnd_bid;
 	buffer value, value_out;
