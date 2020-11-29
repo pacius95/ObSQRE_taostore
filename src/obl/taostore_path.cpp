@@ -73,7 +73,7 @@ namespace obl
 
 		for (i = 0; i <= L && reference_node != nullptr; ++i)
 		{
-			// reference_node->lock();
+			reference_node->lock();
 			reference_node->local_timestamp = access_counter;
 			old_ref_node = reference_node;
 
@@ -94,7 +94,7 @@ namespace obl
 			(l_index & 1) ? old_ref_node->child_l = std::make_shared<node>(block_size * Z, access_counter) : old_ref_node->child_r = std::make_shared<node>(block_size * Z, access_counter);
 			reference_node = (l_index & 1) ? old_ref_node->child_l : old_ref_node->child_r;
 			reference_node->parent = old_ref_node;
-			// reference_node->lock();
+			reference_node->lock();
 
 			adata = &reference_node->adata;
 
@@ -149,7 +149,7 @@ namespace obl
 			(l_index & 1) ? old_ref_node->child_l = std::make_shared<node>(block_size * Z, access_counter) : old_ref_node->child_r = std::make_shared<node>(block_size * Z, access_counter);
 			reference_node = (l_index & 1) ? old_ref_node->child_l : old_ref_node->child_r;
 			reference_node->parent = old_ref_node;
-			// reference_node->lock();
+			reference_node->lock();
 
 			bl = (block_t *)reference_node->payload;
 			for (unsigned int j = 0; j < Z; ++j)
@@ -168,7 +168,7 @@ namespace obl
 
 		//versione che non fa overflow (come la path deterministica)
 		reference_node = leaf_pointer->parent;
-		// leaf_pointer->unlock();
+		leaf_pointer->unlock();
 
 		for (int i = L - 1; i >= 0; i--) // for every bucket in the fetched path, from root to leaf
 		{
@@ -193,7 +193,7 @@ namespace obl
 				}
 				bl_ev = (block_t *)((std::uint8_t *)bl_ev + block_size);
 			}
-			// reference_node->unlock();
+			reference_node->unlock();
 			reference_node = reference_node->parent;
 		}
 
@@ -207,7 +207,7 @@ namespace obl
 
 		for (unsigned int i = 0; i < SS - 1; ++i)
 		{
-			// pthread_mutex_lock(&stash_locks[i]);
+			pthread_mutex_lock(&stash_locks[i]);
 			for (unsigned int j = 0; j < ss; ++j)
 			{
 				unsigned int k = i * ss + j;
@@ -216,7 +216,7 @@ namespace obl
 				iterator = leaf_pointer;
 				for (int h = L; h >= 0; h--) // for every bucket in the path (in NORMAL order)
 				{
-					// iterator->lock();
+					iterator->lock();
 					bool can_reside = maxd >= h;
 					bl = (block_t *)iterator->payload;
 
@@ -227,14 +227,14 @@ namespace obl
 						can_reside &= !free_slot;
 						bl = (block_t *)((std::uint8_t *)bl + block_size);
 					}
-					// iterator->unlock();
+					iterator->unlock();
 					iterator = iterator->parent;
 				}
 			}
-			// pthread_mutex_unlock(&stash_locks[i]);
+			pthread_mutex_unlock(&stash_locks[i]);
 		}
 
-		// pthread_mutex_lock(&stash_locks[SS - 1]);
+		pthread_mutex_lock(&stash_locks[SS - 1]);
 		for (unsigned int i = 0; i < S % ss; ++i)
 		{
 			unsigned int k = (SS - 1) * ss + i;
@@ -243,7 +243,7 @@ namespace obl
 			iterator = leaf_pointer;
 			for (int j = L; j >= 0; j--) // for every bucket in the path (in reverse order)
 			{
-				// iterator->lock();
+				iterator->lock();
 				bool can_reside = maxd >= j;
 				bl = (block_t *)iterator->payload;
 
@@ -254,11 +254,11 @@ namespace obl
 					can_reside &= !free_slot;
 					bl = (block_t *)((std::uint8_t *)bl + block_size);
 				}
-				// iterator->unlock();
+				iterator->unlock();
 				iterator = iterator->parent;
 			}
 		}		
-		// pthread_mutex_unlock(&stash_locks[SS - 1]);
+		pthread_mutex_unlock(&stash_locks[SS - 1]);
 
 		// reference_node = local_subtree.root;
 		// for (int i = 0; i < L; i++)
@@ -414,6 +414,8 @@ namespace obl
 
 		multiset_lock(path);
 
+		// local_subtree.read_lock();
+
 		pthread_mutex_lock(&stash_locks[0]);
 		for (unsigned int i = 0; i < SS - 1; ++i)
 		{
@@ -544,6 +546,8 @@ namespace obl
 			++i;
 		}
 		old_ref_node->unlock();
+
+		// local_subtree.unlock();
 
 		multiset_unlock(path);
 

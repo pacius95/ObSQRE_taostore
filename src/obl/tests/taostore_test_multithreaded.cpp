@@ -53,7 +53,7 @@ void *work(void *T)
         obl::gen_rand((std::uint8_t *)&rnd_bid, sizeof(obl::block_id));
         rnd_bid = (rnd_bid >> 1) % N;
         args.rram->access(rnd_bid, nullptr, (std::uint8_t *)&value_out);
-        // assert(value_out == (*args._mirror_data)[rnd_bid]);
+        assert(value_out == (*args._mirror_data)[rnd_bid]);
     }
     end = hres::now();
     duration = end - start;

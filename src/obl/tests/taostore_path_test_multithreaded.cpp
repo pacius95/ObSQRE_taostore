@@ -56,7 +56,7 @@ void *work(void *T)
         rnd_bid = (rnd_bid >> 1) % N;
 
         args.rram->access(rnd_bid, nullptr, (std::uint8_t *)&value_out);
-        // assert(value_out == (*args._mirror_data)[rnd_bid]);
+        assert(value_out == (*args._mirror_data)[rnd_bid]);
     }
     end = hres::now();
     duration = end - start;

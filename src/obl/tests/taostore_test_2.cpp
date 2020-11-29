@@ -65,7 +65,7 @@ int main()
 			obl::gen_rand((std::uint8_t *)&rnd_bid, sizeof(obl::block_id));
 			rnd_bid = (rnd_bid >> 1) % N;
 			rram.access(rnd_bid, nullptr, (std::uint8_t *)&value_out);
-			// assert(value_out == mirror_data[rnd_bid]);
+			assert(value_out == mirror_data[rnd_bid]);
 		}
 		cerr << "Run " << i << " finished" << endl;
 

@@ -83,11 +83,11 @@ namespace obl
 
 		for (unsigned int i = 0; i < SS - 1; ++i)
 		{
-			// pthread_mutex_lock(&stash_locks[i]);
+			pthread_mutex_lock(&stash_locks[i]);
 			goal_t = get_max_depth_bucket(&stash[i * ss], ss, path);
 			goal = ternary_op(goal > goal_t, goal, goal_t);
 		}
-		// pthread_mutex_lock(&stash_locks[SS - 1]);
+		pthread_mutex_lock(&stash_locks[SS - 1]);
 		goal_t = get_max_depth_bucket(&stash[(SS - 1) * ss], S % ss, path);
 		goal = ternary_op(goal > goal_t, goal, goal_t);
 
@@ -98,8 +98,6 @@ namespace obl
 		for (i = 0; i <= L && reference_node != nullptr; ++i)
 		{
 			reference_node->lock();
-			if (i != 0)
-				old_ref_node->unlock();
 			reference_node->local_timestamp = access_counter;
 
 			csb[i] = ternary_op(goal >= i, _closest_src_bucket, BOTTOM);
@@ -120,7 +118,6 @@ namespace obl
 			reference_node->local_timestamp = access_counter;
 
 			reference_node->lock();
-			old_ref_node->unlock();
 
 			csb[i] = ternary_op(goal >= i, _closest_src_bucket, BOTTOM);
 
@@ -135,7 +132,6 @@ namespace obl
 			++i;
 		}
 
-		old_ref_node->unlock();
 		//END DEEPEST
 		//a questo punto tutto il ramo è stato scaricato e l'albero è stato tutto il tempo lockato
 		//posso fare target come nell circuit pari pari
@@ -193,14 +189,14 @@ namespace obl
 				bool deepest_block = (get_max_depth(stash[i * ss + j].lid, path, L) == ljd[-1]) & fill_hold & (stash[i * ss + j].bid != DUMMY);
 				swap(deepest_block, _hold, (std::uint8_t *)&stash[i * ss + j], block_size);
 			}
-			// pthread_mutex_unlock(&stash_locks[i]);
+			pthread_mutex_unlock(&stash_locks[i]);
 		}
 		for (unsigned int i = 0; i < S % ss; ++i)
 		{
 			bool deepest_block = (get_max_depth(stash[(SS - 1) * ss + i].lid, path, L) == ljd[-1]) & fill_hold & (stash[(SS - 1) * ss + i].bid != DUMMY);
 			swap(deepest_block, _hold, (std::uint8_t *)&stash[(SS - 1) * ss + i], block_size);
 		}
-		// pthread_mutex_unlock(&stash_locks[SS - 1]);
+		pthread_mutex_unlock(&stash_locks[SS - 1]);
 
 		dst = ndb[-1];
 
@@ -226,7 +222,7 @@ namespace obl
 
 				bl = (block_t *)((std::uint8_t *)bl + block_size);
 			}
-			// reference_node->unlock();
+			reference_node->unlock();
 			reference_node = i != L ? (path >> i) & 1 ? reference_node->child_r : reference_node->child_l : reference_node;
 		}
 		multiset_unlock(path);
@@ -343,7 +339,7 @@ namespace obl
 				std::uint8_t *src = ((path >> i) & 1) ? fetched_path[i]->adata.right_mac : fetched_path[i]->adata.left_mac;
 				std::memcpy(reference_mac, src, sizeof(obl_aes_gcm_128bit_tag_t));
 			}
-			 ++i;
+			++i;
 		}
 
 		// fill the other buckets with "empty" blocks
