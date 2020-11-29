@@ -5,11 +5,17 @@
 #include <cstdint>
 #include <vector>
 #include <cassert>
+#include <chrono>
 #include <ctime>
 
 #define P 18
 #define N (1 << P)
-#define RUN 1
+#define benc_size (1<<17)
+#define RUN 4
+
+using hres = std::chrono::high_resolution_clock;
+using _nano = std::chrono::nanoseconds;
+using tt = std::chrono::time_point<hres, _nano>;
 
 #define S 8
 #define Z 3
@@ -17,7 +23,7 @@
 using namespace std;
 struct buffer
 {
-	std::uint8_t _buffer[1000];
+	std::uint8_t _buffer[8];
 	bool operator==(const buffer &rhs) const
 	{
 		return !memcmp(_buffer, rhs._buffer, sizeof(_buffer));
@@ -32,14 +38,14 @@ int main()
 	buffer value, value_out;
 	position_map.reserve(N);
 	mirror_data.reserve(N);
-	std::clock_t start;
-	double duration;
+	tt start, end;
+	_nano duration;
+	uint32_t rnd_bid;
 
 	for (unsigned int i = 0; i < N; i++)
 	{
 		obl::leaf_id next_leef;
 		obl::gen_rand((std::uint8_t *)&next_leef, sizeof(obl::leaf_id));
-
 		obl::gen_rand((std::uint8_t *)&value, sizeof(buffer));
 
 		rram.write(i, (std::uint8_t *)&value, next_leef);
@@ -51,20 +57,23 @@ int main()
 
 	for (int i = 0; i < RUN; i++)
 	{
-		start = std::clock();
-		for (int j = 0; j < N; j++)
+		start = hres::now();
+		for (int j = 0; j < benc_size; j++)
 		{
 			obl::leaf_id next_leef;
 			obl::gen_rand((std::uint8_t *)&next_leef, sizeof(obl::leaf_id));
+			obl::gen_rand((std::uint8_t *)&rnd_bid, sizeof(obl::block_id));
+			rnd_bid = (rnd_bid >> 1) % N;
+			rram.access(rnd_bid, position_map[rnd_bid], nullptr, (std::uint8_t *)&value_out, next_leef);
+			position_map[rnd_bid] = next_leef;
 
-			rram.access(j, position_map[j], nullptr, (std::uint8_t *)&value_out, next_leef);
-			position_map[j] = next_leef;
-
-			assert(value_out == mirror_data[j]);
+			assert(value_out == mirror_data[rnd_bid]);
 		}
 		cerr << "Run " << i << " finished" << endl;
-		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-		std::cerr << "printf: " << duration << '\n';
+		end = hres::now();
+		duration = end - start;
+		std::cout << "printf: " << duration.count() / 1000000000.0 << "s" << std::endl;
+
 	}
 
 	return 0;

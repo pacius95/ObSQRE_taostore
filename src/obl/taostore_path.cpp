@@ -414,8 +414,6 @@ namespace obl
 
 		multiset_lock(path);
 
-		// local_subtree.read_lock();
-
 		pthread_mutex_lock(&stash_locks[0]);
 		for (unsigned int i = 0; i < SS - 1; ++i)
 		{
@@ -546,8 +544,6 @@ namespace obl
 			++i;
 		}
 		old_ref_node->unlock();
-
-		// local_subtree.unlock();
 
 		multiset_unlock(path);
 

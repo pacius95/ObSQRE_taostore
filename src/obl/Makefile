@@ -4,7 +4,7 @@ CXX = g++
 # release flags
 #CFLAGS = -Wall $(INC) -pthread -march=native -mrdrnd -mrdseed -mpopcnt -O2
 # debug flags
-CFLAGS =  -Wall $(INC) -pthread -march=native -mrdseed -mrdrnd -mpopcnt -mavx2 -O2
+CFLAGS =  -Wall $(INC) -pthread -march=native -mrdseed -mrdrnd -mpopcnt -mavx2 -O2 -g 
 CXXFLAGS = -std=c++14
 
 LDFLAGS = ../../libs/libwolfssl.a -L$(SGX_SDK)/lib64 -lsgx_tcrypto 

@@ -37,7 +37,7 @@ namespace obl
 		for (unsigned int i = 0; i < this->S; ++i)
 			stash[i].bid = DUMMY;
 
-		this->ss = 5;
+		this->ss = 4;
 		this->SS = (S / ss) + 1;
 		stash_locks = new pthread_mutex_t[SS];
 		for (unsigned int i = 0; i < SS; i++)
@@ -123,9 +123,8 @@ namespace obl
 				pthread_mutex_lock(&request_structure.front()->cond_mutex);
 
 				request_structure.front()->res_ready = true;
-				pthread_cond_broadcast(&request_structure.front()->serializer_res_ready);
 				pthread_mutex_unlock(&request_structure.front()->cond_mutex);
-
+				pthread_cond_signal(&request_structure.front()->serializer_res_ready);
 				request_structure.pop_front();
 			}
 			pthread_mutex_unlock(&serializer_lck);
@@ -228,7 +227,7 @@ namespace obl
 			if (it->data_in != nullptr)
 				replace(hit, fetched->payload, it->data_in, B);
 		}
-		pthread_cond_broadcast(&serializer_cond);
+		pthread_cond_signal(&serializer_cond);
 		pthread_mutex_unlock(&serializer_lck);
 
 		bool already_evicted = false;
@@ -250,7 +249,7 @@ namespace obl
 			already_evicted = req.fake | already_evicted | (sbid == DUMMY);
 		}
 		pthread_mutex_unlock(&stash_locks[SS - 1]);
-		assert(already_evicted);
+		// assert(already_evicted);
 	}
 	void taostore_oram::write(block_id bid, std::uint8_t *data_in, leaf_id next_lif)
 	{

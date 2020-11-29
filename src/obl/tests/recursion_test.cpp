@@ -9,28 +9,35 @@
 #include <vector>
 #include <cassert>
 #include <ctime>
+#include <chrono>
 
-#define P 15
+#define P 22
 #define N (1 << P)
-#define RUN 1
+#define bench_size (1 << 17)
+#define RUN 4
+
+using hres = std::chrono::high_resolution_clock;
+using _nano = std::chrono::nanoseconds;
+using tt = std::chrono::time_point<hres, _nano>;
 
 using namespace std;
 struct buffer
 {
-    std::uint8_t _buffer[4000];
+	std::uint8_t _buffer[8];
 
-    bool operator==(const buffer &rhs) const
-    {
-        return !memcmp(_buffer, rhs._buffer, sizeof(_buffer));
-    }
+	bool operator==(const buffer &rhs) const
+	{
+		return !memcmp(_buffer, rhs._buffer, sizeof(_buffer));
+	}
 };
 int main()
 {
 	vector<buffer> mirror_data;
 
 	buffer value, value_out;
-	std::clock_t start;
-	double duration;
+	tt start, end;
+	_nano duration;
+	uint32_t rnd_bid;
 
 	obl::coram_factory of(3, 8);
 	obl::recursive_oram rram(N, sizeof(buffer), 5, &of);
@@ -48,17 +55,19 @@ int main()
 	cerr << "finished init" << endl;
 	for (int i = 0; i < RUN; i++)
 	{
-		start = std::clock();
-		for (int j = 0; j < N; j++)
+		start = hres::now();
+		for (int j = 0; j < bench_size; j++)
 		{
-			rram.access(j, nullptr, (std::uint8_t *)&value_out);
-
-			assert(value_out == mirror_data[j]);
+			obl::gen_rand((std::uint8_t *)&rnd_bid, sizeof(obl::block_id));
+			rnd_bid = (rnd_bid >> 1) % N;
+			rram.access(rnd_bid, nullptr, (std::uint8_t *)&value_out);
+			assert(value_out == mirror_data[rnd_bid]);
 		}
 
 		cerr << "Run " << i << " finished" << endl;
-		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-		std::cout << "printf: " << duration << '\n';
+		end = hres::now();
+		duration = end - start;
+		std::cout << "printf: " << duration.count() / 1000000000.0 << "s" << std::endl;
 	}
 
 	return 0;

@@ -3,24 +3,30 @@
 #include "obl/taostore_pos_map.h"
 #include "obl/circuit.h"
 
+#include <chrono>
 #include <iostream>
 #include <cstdint>
 #include <vector>
 #include <cassert>
+#include <iomanip>
 
-#define P 16
+#define P 20
 #define N (1 << P)
-#define bench_size (1 << 14)
+#define bench_size (1 << 15)
 #define RUN 4
 
 #define S 8
 #define Z 3
 
+using hres = std::chrono::high_resolution_clock;
+using _nano = std::chrono::nanoseconds;
+using tt = std::chrono::time_point<hres, _nano>;
+
 using namespace std;
 
 struct buffer
 {
-    std::uint8_t _buffer[4000];
+    std::uint8_t _buffer[8];
     bool operator==(const buffer &rhs) const
     {
         return !memcmp(_buffer, rhs._buffer, sizeof(_buffer));
@@ -37,22 +43,23 @@ struct work_args
 void *work(void *T)
 {
     work_args args = *(work_args *)T;
-    std::clock_t start;
-    double duration;
-    start = std::clock();
+    tt start, end;
+    _nano duration;
     buffer value_out;
     uint32_t rnd_bid;
 
+    start = hres::now();
     for (int j = 0; j < bench_size; j++)
     {
         obl::gen_rand((std::uint8_t *)&rnd_bid, sizeof(obl::block_id));
         rnd_bid = (rnd_bid >> 1) % N;
         args.rram->access(rnd_bid, nullptr, (std::uint8_t *)&value_out);
-        assert(value_out == (*args._mirror_data)[rnd_bid]);
+        // assert(value_out == (*args._mirror_data)[rnd_bid]);
     }
+    end = hres::now();
+    duration = end - start;
     cerr << "Run " << args.i << " finished" << endl;
-    duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-    std::cout << "printf: " << duration << '\n';
+    std::cout << "printf: " << duration.count() / 1000000000.0 << "s" << std::endl;
     return nullptr;
 };
 

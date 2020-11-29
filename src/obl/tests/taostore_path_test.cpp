@@ -9,14 +9,18 @@
 #include <cassert>
 #include <ctime>
 
-#define P 18
+#define P 20
 #define N (1 << P)
-#define bench_size (1 << 15)
-#define RUN 2
+#define bench_size (1 << 17)
+#define RUN 4
 
 #define S 32
 #define Z 4
 #define A 3
+
+using hres = std::chrono::high_resolution_clock;
+using _nano = std::chrono::nanoseconds;
+using tt = std::chrono::time_point<hres, _nano>;
 
 using namespace std;
 
@@ -33,10 +37,11 @@ int main()
 {
 	vector<buffer> mirror_data;
 
-	obl::taostore_path_oram rram(N, sizeof(buffer), Z, S, A, 3);
+	obl::taostore_path_oram rram(N, sizeof(buffer), Z, S, A, 4);
+	uint32_t rnd_bid;
 	buffer value, value_out;
-	std::clock_t start;
-	double duration;
+	tt start, end;
+	_nano duration;
 
 	mirror_data.reserve(N);
 
@@ -53,15 +58,19 @@ int main()
 
 	for (int i = 0; i < RUN; i++)
 	{
-		start = std::clock();
+		start = hres::now();
 		for (int j = 0; j < bench_size; j++)
 		{
-			rram.access(j, nullptr, (std::uint8_t *)&value_out);
-			// assert(value_out == mirror_data[j]);
+			obl::gen_rand((std::uint8_t *)&rnd_bid, sizeof(obl::block_id));
+			rnd_bid = (rnd_bid >> 1) % N;
+			rram.access(rnd_bid, nullptr, (std::uint8_t *)&value_out);
+			// assert(value_out == mirror_data[rnd_bid]);
 		}
 		cerr << "Run " << i << " finished" << endl;
-		duration = (std::clock() - start) / (double)CLOCKS_PER_SEC;
-		std::cerr << "printf: " << duration << '\n';
+
+		end = hres::now();
+		duration = end - start;
+		std::cout << "printf: " << duration.count() / 1000000000.0 << "s" << std::endl;
 	}
 	return 0;
 }
