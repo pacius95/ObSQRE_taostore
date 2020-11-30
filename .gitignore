@@ -4,3 +4,5 @@
 src/obl/benchmarks/bench_8byte_out_modifica_stash
 src/obl/benchmarks/bench_8byte_out_modifica_1
 src/obl/benchmarks/bench_8byte_out
+libs/libwolfssl.a
+**/*/Makefile
