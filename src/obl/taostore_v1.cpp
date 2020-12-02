@@ -320,12 +320,14 @@ namespace obl
 
 		answer_request(_req, _fetched);
 
-		evict_leaf = std::atomic_fetch_add(&evict_path, (std::uint32_t)1);
+		// evict_leaf = std::atomic_fetch_add(&evict_path, (std::uint32_t)1);
+		evict_leaf = evict_path++;
 
 		eviction(2 * evict_leaf);
 		eviction(2 * evict_leaf + 1);
 
-		paths = std::atomic_fetch_add(&access_counter, (std::uint64_t)1);
+		// paths = std::atomic_fetch_add(&access_counter, (std::uint64_t)1);
+		paths = access_counter++;
 
 		if (paths % K == 0)
 			write_back(paths / K);

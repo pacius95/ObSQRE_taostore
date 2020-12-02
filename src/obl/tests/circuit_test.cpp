@@ -8,9 +8,9 @@
 #include <chrono>
 #include <ctime>
 
-#define P 18
+#define P 20
 #define N (1 << P)
-#define benc_size (1<<17)
+#define benc_size (1 << 17)
 #define RUN 4
 
 using hres = std::chrono::high_resolution_clock;
@@ -57,9 +57,10 @@ int main()
 
 	for (int i = 0; i < RUN; i++)
 	{
-		start = hres::now();
+		// start = hres::now();
 		for (int j = 0; j < benc_size; j++)
 		{
+			start = hres::now();
 			obl::leaf_id next_leef;
 			obl::gen_rand((std::uint8_t *)&next_leef, sizeof(obl::leaf_id));
 			obl::gen_rand((std::uint8_t *)&rnd_bid, sizeof(obl::block_id));
@@ -68,12 +69,14 @@ int main()
 			position_map[rnd_bid] = next_leef;
 
 			assert(value_out == mirror_data[rnd_bid]);
+			end = hres::now();
+			duration = end - start;
+			std::cout << "----------------printf:---------" << duration.count() / 1000.0 << "mms" << std::endl;
 		}
 		cerr << "Run " << i << " finished" << endl;
-		end = hres::now();
-		duration = end - start;
-		std::cout << "printf: " << duration.count() / 1000000000.0 << "s" << std::endl;
-
+		// end = hres::now();
+		// duration = end - start;
+		// std::cout << "printf: " << duration.count() / 1000000000.0 << "s" << std::endl;
 	}
 
 	return 0;

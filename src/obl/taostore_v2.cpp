@@ -9,8 +9,14 @@
 #include <iostream>
 #include <cstring>
 #include <ctime>
+#include <chrono>
 
 //#include "sgx_trts.h"
+
+using hres = std::chrono::high_resolution_clock;
+using _nano = std::chrono::nanoseconds;
+using tt = std::chrono::time_point<hres, _nano>;
+
 
 #define DUMMY -1
 #define BOTTOM -2
@@ -234,25 +240,44 @@ namespace obl
 
 	void taostore_oram_v2::access_thread(request_t &_req)
 	{
+
+		tt start, end;
+		_nano duration;
 		std::uint8_t _fetched[block_size];
 		std::uint32_t evict_leaf;
 		std::uint64_t paths;
 
+		// start = hres::now();
 		read_path(_req, _fetched);
-
+// 
+		// end = hres::now();
+		// duration = end - start;
+		// std::cout << "read: " << duration.count() / 1000.0 << "mms" << std::endl;
+		// start = hres::now();
 		answer_request(_req, _fetched);
+		// end = hres::now();
+		// duration = end - start;
+		// std::cout << "ans: " << duration.count() / 1000.0 << "mms" << std::endl;
 
-		evict_leaf = std::atomic_fetch_add(&evict_path, (std::uint32_t)1);
+		evict_leaf = evict_path++;
 
+		// start = hres::now();
 		eviction(2 * evict_leaf);
+		// end = hres::now();
+		// duration = end - start;
+		// std::cout << "eviction: " << duration.count() / 1000.0 << "mms" << std::endl;
 		eviction(2 * evict_leaf + 1);
 
-		// printsubtree();
-		paths = std::atomic_fetch_add(&access_counter, (std::uint64_t)1);
+		paths = access_counter++;
 
 		if (paths % K == 0)
+		{
+			start = hres::now();
 			write_back(paths / K);
-
+			end = hres::now();
+			duration = end - start;
+			std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!|||||||||||||||wb: " << duration.count() / 1000.0 << "mms" << std::endl;
+		}
 		return;
 	}
 
@@ -477,7 +502,7 @@ namespace obl
 		obl_aes_gcm_128bit_tag_t mac;
 		std::shared_ptr<node> reference_node;
 
-		leaf_id *_paths = new leaf_id[3*K];
+		leaf_id *_paths = new leaf_id[3 * K];
 
 		pthread_mutex_lock(&write_back_lock);
 		// _paths = local_subtree.get_pop_queue(3 * K);
