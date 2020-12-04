@@ -71,7 +71,6 @@ namespace obl
 		std::multiset<leaf_id> path_req_multi_set;
 
 		circuit_fake_factory *allocator;
-		// taostore_position_map *position_map;
 		taostore_position_map_notobl *position_map;
 
 		// crypto stuff

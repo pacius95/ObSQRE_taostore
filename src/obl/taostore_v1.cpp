@@ -38,6 +38,7 @@ namespace obl
 
 		free(_crypt_buffer);
 
+		delete stash_locks;
 		delete position_map;
 		local_subtree.root = nullptr;
 		//TODO cleanup
@@ -520,8 +521,7 @@ namespace obl
 		leaf_id *_paths = new leaf_id[3 * K];
 
 		write_back_lock.lock();
-		// _paths = local_subtree.get_pop_queue(3 * K);
-		local_subtree.get_pop_queue(_paths, 3 * K);
+		_paths = local_subtree.get_pop_queue(3 * K);
 		nodes_level_i[L] = local_subtree.update_valid(_paths, 3 * K, tree);
 
 		for (int i = L; i > 0; --i)
