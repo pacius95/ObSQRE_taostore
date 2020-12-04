@@ -43,6 +43,9 @@ namespace obl
         {
             local_timestamp = 0;
             std::memset(&adata, 0x00, sizeof(auth_data_t));
+            child_l = nullptr;
+            child_r = nullptr;
+            parent = nullptr;
         }
         node(size_t size) : node()
         {
@@ -97,13 +100,14 @@ namespace obl
         taostore_subtree()
         {
             L = 0;
+            root = nullptr;
         }
         void init(size_t _node_size, std::uint8_t *_data, int _L)
         {
 
             L = _L;
             node_size = _node_size;
-            root = std::shared_ptr<node>(new node (node_size,0));
+            root = std::shared_ptr<node>(new node (node_size));
             memcpy(root->payload, _data, node_size);
         }
 

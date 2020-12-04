@@ -12,6 +12,8 @@
 
 #include <cstdint>
 #include <cstddef>
+#include <mutex>
+#include <condition_variable>
 
 #include <deque>
 #include <set>
@@ -42,7 +44,7 @@ namespace obl
 		unsigned int S; // stash size
 		unsigned int ss;
 		unsigned int SS;
-		pthread_mutex_t *stash_locks;
+		std::mutex *stash_locks;
 
 		taostore_subtree local_subtree;
 
@@ -54,13 +56,13 @@ namespace obl
 #endif
 		//serialier
 		pthread_t serializer_id;									 //serializer thread id
-		pthread_mutex_t serializer_lck = PTHREAD_MUTEX_INITIALIZER;	 //lock della request structure
-		pthread_cond_t serializer_cond = PTHREAD_COND_INITIALIZER;	 //cond associata al serializer
-		pthread_mutex_t write_back_lock = PTHREAD_MUTEX_INITIALIZER; //for debugging (1 WB at time)
-		pthread_mutex_t stash_lock = PTHREAD_MUTEX_INITIALIZER;
-		pthread_mutex_t multi_set_lock = PTHREAD_MUTEX_INITIALIZER;
-		pthread_mutex_t eviction_lock = PTHREAD_MUTEX_INITIALIZER;
-		pthread_mutex_t pos_map_lock = PTHREAD_MUTEX_INITIALIZER;
+		std::mutex serializer_lck;	 //lock della request structure
+		std::condition_variable serializer_cond;	 //cond associata al serializer
+		std::mutex write_back_lock; //for debugging (1 WB at time)
+		std::mutex stash_lock;
+		std::mutex multi_set_lock;
+		std::mutex eviction_lock;
+		std::mutex pos_map_lock;
 
 		threadpool_t *thpool;
 

@@ -198,7 +198,7 @@ int main()
 		std::cout << "tempo: " << duration.count() / 1000000000.0 << "s" << std::endl;
 		delete path8_8;
 
-		for (int T_NUM = 1; T_NUM < 20; T_NUM++)
+		for (int T_NUM = 1; T_NUM < 4; T_NUM++)
 		{
 			pthread_t workers[16];
 

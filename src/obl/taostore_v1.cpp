@@ -25,12 +25,11 @@ namespace obl
 	taostore_oram_v1::~taostore_oram_v1()
 	{
 		threadpool_destroy(thpool, threadpool_graceful);
-
-		pthread_mutex_lock(&serializer_lck);
-		oram_alive = false;
-		pthread_cond_broadcast(&serializer_cond);
-		pthread_mutex_unlock(&serializer_lck);
-
+		{
+			std::unique_lock<std::mutex>serializer_lock;
+			oram_alive = false;
+			serializer_cond.notify_one();
+		}
 		pthread_join(serializer_id, nullptr);
 
 		std::memset(_crypt_buffer, 0x00, sizeof(Aes) + 16);
@@ -38,17 +37,9 @@ namespace obl
 		std::memset(&stash[0], 0x00, block_size * S);
 
 		free(_crypt_buffer);
-		for (unsigned int i = 0; i < SS; i++)
-		{
-			pthread_mutex_destroy(&stash_locks[i]);
-		}
-		pthread_mutex_destroy(&stash_lock);
-		pthread_mutex_destroy(&multi_set_lock);
-		pthread_cond_destroy(&serializer_cond);
-		pthread_mutex_destroy(&serializer_lck);
-		pthread_mutex_destroy(&write_back_lock);
 
 		delete position_map;
+		local_subtree.root = nullptr;
 		//TODO cleanup
 	}
 	void taostore_oram_v1::eviction(leaf_id path)
@@ -83,11 +74,11 @@ namespace obl
 
 		for (unsigned int i = 0; i < SS - 1; ++i)
 		{
-			pthread_mutex_lock(&stash_locks[i]);
+			stash_locks[i].lock();
 			goal_t = get_max_depth_bucket(&stash[i * ss], ss, path);
 			goal = ternary_op(goal > goal_t, goal, goal_t);
 		}
-		pthread_mutex_lock(&stash_locks[SS - 1]);
+		stash_locks[SS - 1].lock();
 		goal_t = get_max_depth_bucket(&stash[(SS - 1) * ss], S % ss, path);
 		goal = ternary_op(goal > goal_t, goal, goal_t);
 
@@ -122,11 +113,11 @@ namespace obl
 		}
 		while (i <= L && valid)
 		{
-			(l_index & 1) ? old_ref_node->child_l = std::shared_ptr<node>(new node(block_size * Z, access_counter)): old_ref_node->child_r = std::shared_ptr<node>(new node(block_size * Z, access_counter));
+			(l_index & 1) ? old_ref_node->child_l = std::shared_ptr<node>(new node(block_size * Z, access_counter)) : old_ref_node->child_r = std::shared_ptr<node>(new node(block_size * Z, access_counter));
 			reference_node = (l_index & 1) ? old_ref_node->child_l : old_ref_node->child_r;
 			reference_node->parent = old_ref_node;
 			reference_node->lock();
-			
+
 			adata = &reference_node->adata;
 
 			std::int64_t leftch = get_left(l_index);
@@ -184,7 +175,7 @@ namespace obl
 		// fill the other buckets with "empty" blocks
 		while (i <= L)
 		{
-			(l_index & 1) ? old_ref_node->child_l = std::shared_ptr<node>(new node(block_size * Z, access_counter)): old_ref_node->child_r = std::shared_ptr<node>(new node(block_size * Z, access_counter));
+			(l_index & 1) ? old_ref_node->child_l = std::shared_ptr<node>(new node(block_size * Z, access_counter)) : old_ref_node->child_r = std::shared_ptr<node>(new node(block_size * Z, access_counter));
 			reference_node = (l_index & 1) ? old_ref_node->child_l : old_ref_node->child_r;
 			reference_node->parent = old_ref_node;
 			reference_node->lock();
@@ -266,14 +257,14 @@ namespace obl
 				bool deepest_block = (get_max_depth(stash[i * ss + j].lid, path, L) == ljd[-1]) & fill_hold & (stash[i * ss + j].bid != DUMMY);
 				swap(deepest_block, _hold, (std::uint8_t *)&stash[i * ss + j], block_size);
 			}
-			pthread_mutex_unlock(&stash_locks[i]);
+			stash_locks[i].unlock();
 		}
 		for (unsigned int i = 0; i < S % ss; ++i)
 		{
 			bool deepest_block = (get_max_depth(stash[(SS - 1) * ss + i].lid, path, L) == ljd[-1]) & fill_hold & (stash[(SS - 1) * ss + i].bid != DUMMY);
 			swap(deepest_block, _hold, (std::uint8_t *)&stash[(SS - 1) * ss + i], block_size);
 		}
-		pthread_mutex_unlock(&stash_locks[SS - 1]);
+		stash_locks[SS - 1].unlock();
 
 		dst = ndb[-1];
 
@@ -357,7 +348,7 @@ namespace obl
 
 		multiset_lock(path);
 
-		pthread_mutex_lock(&stash_locks[0]);
+		stash_locks[0].lock();
 		for (unsigned int i = 0; i < SS - 1; ++i)
 		{
 			for (unsigned int j = 0; j < ss; ++j)
@@ -365,8 +356,8 @@ namespace obl
 				block_id sbid = stash[i * ss + j].bid;
 				swap(not_fake && bid == sbid, _fetched, (std::uint8_t *)&stash[i * ss + j], block_size);
 			}
-			pthread_mutex_lock(&stash_locks[i + 1]);
-			pthread_mutex_unlock(&stash_locks[i]);
+			stash_locks[i + 1].lock();
+			stash_locks[i].unlock();
 		}
 		for (unsigned int i = 0; i < S % ss; ++i)
 		{
@@ -379,7 +370,7 @@ namespace obl
 			if (i != 0)
 				old_ref_node->unlock();
 			else
-				pthread_mutex_unlock(&stash_locks[SS - 1]);
+				stash_locks[SS - 1].unlock();
 
 			bl = (block_t *)reference_node->payload;
 			for (unsigned int j = 0; j < Z; ++j)
@@ -500,7 +491,7 @@ namespace obl
 	{
 		std::uint8_t _data_out[B];
 		std::int32_t _id = std::atomic_fetch_add(&thread_id, 1);
-		request_t _req = {data_in, bid, false, false, _data_out, false, false, _id, PTHREAD_MUTEX_INITIALIZER, PTHREAD_COND_INITIALIZER};
+		request_t _req = {data_in, bid, false, false, _data_out, false, false, _id};
 
 		struct processing_thread_args_wrap obj_wrap = {this, _req};
 
@@ -508,13 +499,13 @@ namespace obl
 		assert(err == 0);
 
 		//wait on the conditional var
-		pthread_mutex_lock(&_req.cond_mutex);
-		while (!_req.res_ready)
 		{
-			pthread_cond_wait(&_req.serializer_res_ready, &_req.cond_mutex);
+			std::unique_lock<std::mutex> lck(_req.cond_mutex);
+			while (!_req.res_ready)
+			{
+				_req.serializer_res_ready.wait(lck);
+			}
 		}
-		pthread_mutex_unlock(&_req.cond_mutex);
-
 		std::memcpy(data_out, _data_out, B);
 	}
 
@@ -528,7 +519,7 @@ namespace obl
 
 		leaf_id *_paths = new leaf_id[3 * K];
 
-		pthread_mutex_lock(&write_back_lock);
+		write_back_lock.lock();
 		// _paths = local_subtree.get_pop_queue(3 * K);
 		local_subtree.get_pop_queue(_paths, 3 * K);
 		nodes_level_i[L] = local_subtree.update_valid(_paths, 3 * K, tree);
@@ -563,22 +554,22 @@ namespace obl
 
 				std::uint8_t *target_mac = (l_index & 1) ? reference_node->parent->adata.left_mac : reference_node->parent->adata.right_mac;
 				std::memcpy(target_mac, mac, sizeof(obl_aes_gcm_128bit_tag_t));
-
-				pthread_mutex_lock(&multi_set_lock);
-				if (reference_node->local_timestamp <= c * K &&
-					reference_node->child_r == nullptr && reference_node->child_l == nullptr &&
-					path_req_multi_set.find(l_index) == path_req_multi_set.end())
 				{
-					nodes_level_i[i - 1][get_parent(l_index)] = reference_node->parent;
-					if (l_index & 1)
-						reference_node->parent->child_l = nullptr;
-					else
-						reference_node->parent->child_r = nullptr;
+					std::lock_guard<std::mutex> lock(multi_set_lock);
+					if (reference_node->local_timestamp <= c * K &&
+						reference_node->child_r == nullptr && reference_node->child_l == nullptr &&
+						path_req_multi_set.find(l_index) == path_req_multi_set.end())
+					{
+						nodes_level_i[i - 1][get_parent(l_index)] = reference_node->parent;
+						if (l_index & 1)
+							reference_node->parent->child_l = nullptr;
+						else
+							reference_node->parent->child_r = nullptr;
+					}
 				}
-				pthread_mutex_unlock(&multi_set_lock);
 			}
 		}
-		pthread_mutex_unlock(&write_back_lock);
+		write_back_lock.unlock();
 		delete _paths;
 	}
 
