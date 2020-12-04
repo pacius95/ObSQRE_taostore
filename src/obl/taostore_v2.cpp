@@ -288,7 +288,7 @@ namespace obl
 		}
 		while (i <= L && valid)
 		{
-			fetched_path.push_back(std::make_shared<node>(block_size * Z));
+			fetched_path.push_back(std::shared_ptr<node>(new node(block_size * Z)));
 
 			std::int64_t leftch = get_left(l_index);
 			std::int64_t rightch = get_right(l_index);
@@ -346,7 +346,7 @@ namespace obl
 		// fill the other buckets with "empty" blocks
 		while (i <= L)
 		{
-			fetched_path.push_back(std::make_shared<node>(block_size * Z));
+			fetched_path.push_back(std::shared_ptr<node>(new node(block_size * Z)));
 			bl = (block_t *)fetched_path[i]->payload;
 			for (unsigned int j = 0; j < Z; ++j)
 			{

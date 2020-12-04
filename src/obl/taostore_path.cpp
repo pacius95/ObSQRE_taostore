@@ -92,7 +92,7 @@ namespace obl
 		}
 		while (i <= L && valid)
 		{
-			(l_index & 1) ? old_ref_node->child_l = std::make_shared<node>(block_size * Z, access_counter) : old_ref_node->child_r = std::make_shared<node>(block_size * Z, access_counter);
+			(l_index & 1) ? old_ref_node->child_l = std::shared_ptr<node>(new node(block_size * Z, access_counter)) : old_ref_node->child_r = std::shared_ptr<node>(new node(block_size * Z, access_counter));
 			reference_node = (l_index & 1) ? old_ref_node->child_l : old_ref_node->child_r;
 			reference_node->parent = old_ref_node;
 			reference_node->lock();
@@ -147,7 +147,7 @@ namespace obl
 		// fill the other buckets with "empty" blocks
 		while (i <= L)
 		{
-			(l_index & 1) ? old_ref_node->child_l = std::make_shared<node>(block_size * Z, access_counter) : old_ref_node->child_r = std::make_shared<node>(block_size * Z, access_counter);
+			(l_index & 1) ? old_ref_node->child_l = std::shared_ptr<node>(new node(block_size * Z, access_counter)) : old_ref_node->child_r = std::shared_ptr<node>(new node(block_size * Z, access_counter));
 			reference_node = (l_index & 1) ? old_ref_node->child_l : old_ref_node->child_r;
 			reference_node->parent = old_ref_node;
 			reference_node->lock();
@@ -447,7 +447,7 @@ namespace obl
 		}
 		while (i <= L && valid)
 		{
-			(l_index & 1) ? old_ref_node->child_l = std::make_shared<node>(block_size * Z, access_counter) : old_ref_node->child_r = std::make_shared<node>(block_size * Z, access_counter);
+			(l_index & 1) ? old_ref_node->child_l = std::shared_ptr<node>(new node(block_size * Z, access_counter)) : old_ref_node->child_r = std::shared_ptr<node>(new node(block_size * Z, access_counter));
 			reference_node = (l_index & 1) ? old_ref_node->child_l : old_ref_node->child_r;
 			reference_node->parent = old_ref_node;
 
@@ -509,7 +509,7 @@ namespace obl
 		// fill the other buckets with "empty" blocks
 		while (i <= L)
 		{
-			(l_index & 1) ? old_ref_node->child_l = std::make_shared<node>(block_size * Z, access_counter) : old_ref_node->child_r = std::make_shared<node>(block_size * Z, access_counter);
+			(l_index & 1) ? old_ref_node->child_l = std::shared_ptr<node>(new node(block_size * Z, access_counter)) : old_ref_node->child_r = std::shared_ptr<node>(new node(block_size * Z, access_counter));
 			reference_node = (l_index & 1) ? old_ref_node->child_l : old_ref_node->child_r;
 			reference_node->parent = old_ref_node;
 

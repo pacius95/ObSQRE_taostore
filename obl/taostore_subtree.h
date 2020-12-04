@@ -103,7 +103,7 @@ namespace obl
 
             L = _L;
             node_size = _node_size;
-            root = std::make_unique<node>(node_size, 0);
+            root = std::shared_ptr<node>(new node (node_size,0));
             memcpy(root->payload, _data, node_size);
         }
 
