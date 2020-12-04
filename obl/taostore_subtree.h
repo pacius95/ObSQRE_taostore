@@ -59,6 +59,9 @@ namespace obl
             pthread_mutex_destroy(&lk);
             std::memset(&adata, 0x00, sizeof(auth_data_t));
             delete payload;
+            child_l = nullptr;
+            child_r = nullptr;
+        
         }
         int lock()
         {

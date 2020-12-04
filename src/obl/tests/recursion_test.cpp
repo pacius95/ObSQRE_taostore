@@ -1,4 +1,3 @@
-#include "obl/ring.h"
 #include "obl/circuit.h"
 #include "obl/path.h"
 #include "obl/rec.h"

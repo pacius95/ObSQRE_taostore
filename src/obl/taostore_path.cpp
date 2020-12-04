@@ -33,13 +33,14 @@ namespace obl
 		oram_alive = false;
 		pthread_cond_broadcast(&serializer_cond);
 		pthread_mutex_unlock(&serializer_lck);
+
+		pthread_join(serializer_id, nullptr);
+
 		std::memset(_crypt_buffer, 0x00, sizeof(Aes) + 16);
 
 		std::memset(&stash[0], 0x00, block_size * S);
 
 		free(_crypt_buffer);
-
-		pthread_join(serializer_id, nullptr);
 		for (unsigned int i = 0; i < SS; i++)
 		{
 			pthread_mutex_destroy(&stash_locks[i]);
@@ -64,12 +65,12 @@ namespace obl
 		bool valid = false;
 		int i = 0;
 
-		std::shared_ptr<node> reference_node, old_ref_node;
+		std::shared_ptr<node> reference_node;
+		std::shared_ptr<node> old_ref_node;
 		old_ref_node = local_subtree.root;
 		reference_node = local_subtree.root;
 
 		multiset_lock(path);
-		// local_subtree.write_lock();
 
 		for (i = 0; i <= L && reference_node != nullptr; ++i)
 		{
@@ -77,8 +78,8 @@ namespace obl
 			reference_node->local_timestamp = access_counter;
 			old_ref_node = reference_node;
 
-			reference_node = (path >> i) & 1 ? old_ref_node->child_r : old_ref_node->child_l;
 			l_index = (l_index << 1) + 1 + ((path >> i) & 1);
+			reference_node = (l_index & 1) ? old_ref_node->child_l : old_ref_node->child_r;
 		}
 		if (i <= L)
 		{
@@ -197,14 +198,6 @@ namespace obl
 			reference_node = reference_node->parent;
 		}
 
-		// reference_node = local_subtree.root;
-		// for (int i = 0; i < L; i++)
-		// {
-		// 	reference_node->lock();
-		// 	reference_node = ((path >> i) & 1) ? reference_node->child_r : reference_node->child_l;
-		// }
-		// reference_node->lock();
-
 		for (unsigned int i = 0; i < SS - 1; ++i)
 		{
 			pthread_mutex_lock(&stash_locks[i]);
@@ -259,16 +252,6 @@ namespace obl
 			}
 		}		
 		pthread_mutex_unlock(&stash_locks[SS - 1]);
-
-		// reference_node = local_subtree.root;
-		// for (int i = 0; i < L; i++)
-		// {
-		// 	reference_node->unlock();
-		// 	reference_node = ((path >> i) & 1) ? reference_node->child_r : reference_node->child_l;
-		// }
-		// reference_node->unlock();
-
-		// local_subtree.unlock();
 		
 		multiset_unlock(path);
 
@@ -373,6 +356,7 @@ namespace obl
 		leaf_id evict_leaf;
 		uint64_t paths;
 		uint64_t fetched_counter;
+		uint64_t fetched_counter_2 = 1;
 
 		read_path(_req, _fetched);
 
@@ -384,12 +368,13 @@ namespace obl
 		{
 			evict_leaf = std::atomic_fetch_add(&evict_path, (std::uint32_t)1);
 			eviction(evict_leaf);
-			fetched_counter = std::atomic_fetch_add(&fetched_path_counter, (std::uint64_t)1);
+			fetched_counter_2 = std::atomic_fetch_add(&fetched_path_counter, (std::uint64_t)1);
 		}
 
 		if (fetched_counter % K == 0)
 			write_back(fetched_counter / K);
-
+		if (fetched_counter_2 % K == 0)
+			write_back(fetched_counter_2 / K);
 		return;
 	}
 
@@ -413,8 +398,6 @@ namespace obl
 		old_ref_node = local_subtree.root;
 
 		multiset_lock(path);
-
-		// local_subtree.read_lock();
 
 		pthread_mutex_lock(&stash_locks[0]);
 		for (unsigned int i = 0; i < SS - 1; ++i)
@@ -547,8 +530,6 @@ namespace obl
 		}
 		old_ref_node->unlock();
 
-		// local_subtree.unlock();
-
 		multiset_unlock(path);
 
 		fetched->lid = new_lid;
@@ -585,7 +566,6 @@ namespace obl
 		obl_aes_gcm_128bit_iv_t iv;
 		obl_aes_gcm_128bit_tag_t mac;
 		std::shared_ptr<node> reference_node;
-
 
 		leaf_id *_paths = new leaf_id[K];
 

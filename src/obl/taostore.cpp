@@ -123,8 +123,8 @@ namespace obl
 				pthread_mutex_lock(&request_structure.front()->cond_mutex);
 
 				request_structure.front()->res_ready = true;
-				pthread_mutex_unlock(&request_structure.front()->cond_mutex);
 				pthread_cond_signal(&request_structure.front()->serializer_res_ready);
+				pthread_mutex_unlock(&request_structure.front()->cond_mutex);
 				request_structure.pop_front();
 			}
 			pthread_mutex_unlock(&serializer_lck);
@@ -227,7 +227,7 @@ namespace obl
 			if (it->data_in != nullptr)
 				replace(hit, fetched->payload, it->data_in, B);
 		}
-		pthread_cond_signal(&serializer_cond);
+		pthread_cond_broadcast(&serializer_cond);
 		pthread_mutex_unlock(&serializer_lck);
 
 		bool already_evicted = false;

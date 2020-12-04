@@ -5,10 +5,8 @@
 #include <cassert>
 
 #include "obl/oram.h"
-#include "obl/ring.h"
 #include "obl/circuit.h"
 #include "obl/path.h"
-#include "obl/so_ring.h"
 #include "obl/so_path.h"
 #include "obl/so_circuit.h"
 #include "obl/linear.h"

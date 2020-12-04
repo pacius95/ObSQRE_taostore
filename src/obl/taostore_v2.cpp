@@ -13,11 +13,6 @@
 
 //#include "sgx_trts.h"
 
-using hres = std::chrono::high_resolution_clock;
-using _nano = std::chrono::nanoseconds;
-using tt = std::chrono::time_point<hres, _nano>;
-
-
 #define DUMMY -1
 #define BOTTOM -2
 #define QUEUE_SIZE 256
@@ -240,44 +235,23 @@ namespace obl
 
 	void taostore_oram_v2::access_thread(request_t &_req)
 	{
-
-		tt start, end;
-		_nano duration;
 		std::uint8_t _fetched[block_size];
 		std::uint32_t evict_leaf;
 		std::uint64_t paths;
 
-		// start = hres::now();
 		read_path(_req, _fetched);
-// 
-		// end = hres::now();
-		// duration = end - start;
-		// std::cout << "read: " << duration.count() / 1000.0 << "mms" << std::endl;
-		// start = hres::now();
 		answer_request(_req, _fetched);
-		// end = hres::now();
-		// duration = end - start;
-		// std::cout << "ans: " << duration.count() / 1000.0 << "mms" << std::endl;
 
 		evict_leaf = evict_path++;
 
-		// start = hres::now();
 		eviction(2 * evict_leaf);
-		// end = hres::now();
-		// duration = end - start;
-		// std::cout << "eviction: " << duration.count() / 1000.0 << "mms" << std::endl;
 		eviction(2 * evict_leaf + 1);
 
 		paths = access_counter++;
 
 		if (paths % K == 0)
-		{
-			start = hres::now();
 			write_back(paths / K);
-			end = hres::now();
-			duration = end - start;
-			std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!|||||||||||||||wb: " << duration.count() / 1000.0 << "mms" << std::endl;
-		}
+
 		return;
 	}
 
@@ -289,6 +263,7 @@ namespace obl
 		int i;
 		bool valid;
 		std::shared_ptr<node> reference_node = local_subtree.root;
+		std::shared_ptr<node> old_ref_node = local_subtree.root;
 
 		fetched_path.reserve(L + 1);
 
@@ -299,11 +274,12 @@ namespace obl
 			fetched_path.push_back(nullptr);
 
 			l_index = (l_index << 1) + 1 + ((path >> i) & 1);
-			reference_node = (path >> i) & 1 ? reference_node->child_r : reference_node->child_l;
+			old_ref_node = reference_node;
+			reference_node = (path >> i) & 1 ? old_ref_node->child_r : old_ref_node->child_l;
 		}
 		if (i <= L)
 		{
-			valid = (l_index & 1) ? tree[get_parent(l_index)].reach_l : tree[get_parent(l_index)].reach_r;
+			valid = (l_index & 1) ? old_ref_node->adata.valid_l : old_ref_node->adata.valid_r;
 			if (valid)
 			{
 				std::uint8_t *src = tree[l_index].mac;

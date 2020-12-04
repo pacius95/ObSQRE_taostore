@@ -125,8 +125,8 @@ namespace obl
 			(l_index & 1) ? old_ref_node->child_l = std::make_shared<node>(block_size * Z, access_counter) : old_ref_node->child_r = std::make_shared<node>(block_size * Z, access_counter);
 			reference_node = (l_index & 1) ? old_ref_node->child_l : old_ref_node->child_r;
 			reference_node->parent = old_ref_node;
-
 			reference_node->lock();
+			
 			adata = &reference_node->adata;
 
 			std::int64_t leftch = get_left(l_index);
