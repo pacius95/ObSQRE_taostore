@@ -19,13 +19,12 @@ namespace obl
 
 		void fetch_path(std::uint8_t *_fetched, block_id bid, leaf_id new_lid, leaf_id path, bool fake);
 		void eviction(leaf_id path);
+		void write_back(std::uint32_t c);
 
 	public:
-		taostore_oram_v1(std::size_t N, std::size_t B, unsigned int Z, unsigned int S, unsigned int T_NUM);
-		~taostore_oram_v1();
-		void access(block_id bid, std::uint8_t *data_in, std::uint8_t *data_out);
+		taostore_oram_v1(std::size_t N, std::size_t B, unsigned int Z, unsigned int S, unsigned int T_NUM) : taostore_oram(N, B, Z, S, T_NUM){};
 
-		void write_back(std::uint32_t c);
+		void write(block_id bid, std::uint8_t *data_in, leaf_id next_lif);
 	};
 
 	class taostore_factory_v1 : public taostore_factory

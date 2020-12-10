@@ -9,9 +9,9 @@
 #include <cassert>
 #include <ctime>
 
-#define P 20
+#define P 16
 #define N (1 << P)
-#define bench_size (1 << 17)
+#define bench_size (1 << 16)
 #define RUN 4
 
 #define S 32
@@ -37,7 +37,7 @@ int main()
 {
 	vector<buffer> mirror_data;
 
-	obl::taostore_path_oram rram(N, sizeof(buffer), Z, S, A, 4);
+	obl::taostore_path_oram *rram = new obl::taostore_path_oram(N, sizeof(buffer), Z, S, A, 1);
 	uint32_t rnd_bid;
 	buffer value, value_out;
 	tt start, end;
@@ -49,7 +49,7 @@ int main()
 	{
 		obl::gen_rand((std::uint8_t *)&value, sizeof(buffer));
 
-		rram.access(i, (std::uint8_t *)&value, (std::uint8_t *)&value_out);
+		rram->access(i, (std::uint8_t *)&value, (std::uint8_t *)&value_out);
 		mirror_data[i] = value;
 	}
 
@@ -63,7 +63,7 @@ int main()
 		{
 			obl::gen_rand((std::uint8_t *)&rnd_bid, sizeof(obl::block_id));
 			rnd_bid = (rnd_bid >> 1) % N;
-			rram.access(rnd_bid, nullptr, (std::uint8_t *)&value_out);
+			rram->access(rnd_bid, nullptr, (std::uint8_t *)&value_out);
 			assert(value_out == mirror_data[rnd_bid]);
 		}
 		cerr << "Run " << i << " finished" << endl;

@@ -4,8 +4,6 @@
 #include "obl/oram.h"
 #include "obl/types.h"
 
-#include <mutex>
-#include <condition_variable>
 #include <pthread.h>
 #include <cstdint>
 
@@ -38,8 +36,8 @@ namespace obl
 		bool res_ready;
 		bool data_ready;
 		std::int32_t id;
-		std::mutex cond_mutex;
-		std::condition_variable serializer_res_ready;
+		pthread_mutex_t cond_mutex;
+		pthread_cond_t serializer_res_ready;
 	};
 
 	typedef taostore_block_t block_t;

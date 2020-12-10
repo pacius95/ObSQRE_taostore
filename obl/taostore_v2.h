@@ -14,15 +14,16 @@ namespace obl
 	private:
 		void access_thread(request_t &_req);
 
-		void download_path(leaf_id path, std::vector<std::shared_ptr<node>> &fetched_path);
+		void download_path(leaf_id path, std::vector<node *> &fetched_path);
 		void fetch_path(std::uint8_t *_fetched, block_id bid, leaf_id new_lid, leaf_id path, bool fake);
 		void eviction(leaf_id path);
+		void write_back(std::uint32_t c);
 
 	public:
-		taostore_oram_v2(std::size_t N, std::size_t B, unsigned int Z, unsigned int S, unsigned int T_NUM);
-		~taostore_oram_v2();
-		void access(block_id bid, std::uint8_t *data_in, std::uint8_t *data_out);
-		void write_back(std::uint32_t c);
+		taostore_oram_v2(std::size_t N, std::size_t B, unsigned int Z, unsigned int S, unsigned int T_NUM) : taostore_oram(N, B, Z, S, T_NUM){};
+
+		// only write block into the stash and perfom evictions
+		void write(block_id bid, std::uint8_t *data_in, leaf_id next_lif);
 	};
 
 	class taostore_factory_v2 : public taostore_factory

@@ -12,11 +12,10 @@
 
 #include <cstdint>
 #include <cstddef>
-#include <mutex>
-#include <condition_variable>
 
 #include <deque>
 #include <set>
+#include <unordered_set>
 
 //threading libs
 #include <iostream>
@@ -44,7 +43,7 @@ namespace obl
 		unsigned int S; // stash size
 		unsigned int ss;
 		unsigned int SS;
-		std::mutex *stash_locks;
+		pthread_mutex_t *stash_locks;
 
 		taostore_subtree local_subtree;
 
@@ -56,19 +55,19 @@ namespace obl
 #endif
 		//serialier
 		pthread_t serializer_id;									 //serializer thread id
-		std::mutex serializer_lck;	 //lock della request structure
-		std::condition_variable serializer_cond;	 //cond associata al serializer
-		std::mutex write_back_lock; //for debugging (1 WB at time)
-		std::mutex stash_lock;
-		std::mutex multi_set_lock;
-		std::mutex eviction_lock;
-		std::mutex pos_map_lock;
+		pthread_mutex_t serializer_lck = PTHREAD_MUTEX_INITIALIZER;	 //lock della request structure
+		pthread_cond_t serializer_cond = PTHREAD_COND_INITIALIZER;	 //cond associata al serializer
+		pthread_mutex_t write_back_lock = PTHREAD_MUTEX_INITIALIZER; //for debugging (1 WB at time)
+		pthread_mutex_t stash_lock = PTHREAD_MUTEX_INITIALIZER;
+		pthread_mutex_t multi_set_lock = PTHREAD_MUTEX_INITIALIZER;
+		pthread_mutex_t eviction_lock = PTHREAD_MUTEX_INITIALIZER;
+		pthread_mutex_t pos_map_lock = PTHREAD_MUTEX_INITIALIZER;
 
 		threadpool_t *thpool;
 
 		std::deque<request_t *> request_structure;
 
-		std::multiset<leaf_id> path_req_multi_set;
+		std::unordered_multiset<leaf_id> path_req_multi_set;
 
 		circuit_fake_factory *allocator;
 		taostore_position_map_notobl *position_map;
@@ -83,6 +82,10 @@ namespace obl
 		std::atomic_uint32_t evict_path;
 		std::atomic_uint64_t access_counter;
 
+		//path variables
+		unsigned int A;
+		std::atomic_uint64_t fetched_path_counter;
+
 		// private methods
 		void init();
 
@@ -92,7 +95,7 @@ namespace obl
 		virtual void access_thread(request_t &_req) = 0;
 
 		void read_path(request_t &req, std::uint8_t *_fetched);
-		void answer_request(request_t &req, std::uint8_t *fetched);
+		void answer_request(bool fake, block_id bid, std::int32_t id, std::uint8_t *_fetched);
 		virtual void fetch_path(std::uint8_t *_fetched, block_id bid, leaf_id new_lid, leaf_id path, bool fake) = 0;
 		virtual void eviction(leaf_id path) = 0;
 		virtual void write_back(std::uint32_t c) = 0;
@@ -106,22 +109,25 @@ namespace obl
 
 	public:
 		taostore_oram(std::size_t N, std::size_t B, unsigned int Z, unsigned int S, unsigned int T_NUM);
-		virtual ~taostore_oram(){};
+		~taostore_oram();
 
 		//debug
-		int printrec(std::shared_ptr<node> t, int L, int l_index);
+		int printrec(node *t, int L, int l_index);
 		void printstash();
 		void printsubtree();
 		void print_tree();
 		void printpath(leaf_id path);
 
-		virtual void access(block_id bid, std::uint8_t *data_in, std::uint8_t *data_out) = 0;
+		void access(block_id bid, std::uint8_t *data_in, std::uint8_t *data_out);
 		void access(block_id bid, leaf_id lif, std::uint8_t *data_in, std::uint8_t *data_out, leaf_id next_lif){};
 
 		// split fetch and eviction phases of the access method
 		void access_r(block_id bid, leaf_id lif, std::uint8_t *data_out){};
 		void access_w(block_id bid, leaf_id lif, std::uint8_t *data_in, leaf_id next_lif){};
-		void write(block_id bid, std::uint8_t *data_in, leaf_id next_lif);
+
+		// only write block into the stash and perfom evictions
+		virtual void write(block_id bid, std::uint8_t *data_in, leaf_id next_lif);
+		
 	};
 	struct processing_thread_args_wrap
 	{

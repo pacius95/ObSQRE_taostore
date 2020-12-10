@@ -37,21 +37,19 @@ namespace obl
 	class taostore_path_oram : public taostore_oram
 	{
 	private:
-		unsigned int A;
-		std::atomic_uint64_t fetched_path_counter;
 		// private methods
-		void init();
 
 		void access_thread(request_t &_req);
+
+		void download_path(leaf_id path, std::vector<node*> &fetched_path);
 		void fetch_path(std::uint8_t *_fetched, block_id bid, leaf_id new_lid, leaf_id path, bool fake);
 		void eviction(leaf_id path);
+		void write_back(std::uint32_t c);
 
 	public:
 		taostore_path_oram(std::size_t N, std::size_t B, unsigned int Z, unsigned int S, unsigned int A, unsigned int T_NUM);
-		~taostore_path_oram();
 
-		void access(block_id bid, std::uint8_t *data_in, std::uint8_t *data_out);
-		void write_back(std::uint32_t c);
+		void write(block_id bid, std::uint8_t *data_in, leaf_id next_lif);
 	};
 
 	class taostore_path_factory : public taostore_factory

@@ -433,21 +433,13 @@ namespace obl
 	void circuit_oram::access(block_id bid, leaf_id lif, std::uint8_t *data_in, std::uint8_t *data_out, leaf_id next_lif)
 	{
 
-		tt start, end;
-		_nano duration;
 		std::uint8_t _fetched[block_size];
 		block_t *fetched = (block_t *)_fetched;
 
-		// start = hres::now();
 		std::int64_t leaf_idx = fetch_path(lif);
-		// end = hres::now();
-		// duration = end - start;
-		// std::cout << "download: " << duration.count() / 1000.0 << "mms" << std::endl;
 
 		fetched->bid = DUMMY;
 
-		// start = hres::now();
-		// search for the requested block by traversing the bucket sequence from root to leaf
 		for (int i = 0; i <= L; i++)
 			for (unsigned int j = 0; j < Z; j++)
 			{
@@ -463,14 +455,9 @@ namespace obl
 			swap(bid == sbid, _fetched, (std::uint8_t *)&stash[i], block_size);
 		}
 
-		// end = hres::now();
-		// duration = end - start;
-		// std::cout << "fetch: " << duration.count() / 1000.0 << "mms" << std::endl;
-		// build the block to write!
 		fetched->bid = bid;
 		fetched->lid = next_lif;
 
-		// start = hres::now();
 		std::memcpy(data_out, fetched->payload, B);
 
 		// if write operation, write the fed data
@@ -488,25 +475,14 @@ namespace obl
 
 		// if this fails, it means that the stash overflowed and you cannot insert any new element!
 		assert(already_evicted);
-		// end = hres::now();
-		// duration = end - start;
-		// std::cout << "answ: " << duration.count() / 1000.0 << "mms" << std::endl;
 
-		// start = hres::now();
 		wb_path(lif, leaf_idx);
-		// end = hres::now();
-		// duration = end - start;
-		// std::cout << "wb: " << duration.count() / 1000.0 << "mms" << std::endl;
 
 		/*
 			CIRCUIT ORAM DETERMINISTIC EVICTION
 		*/
 
-		// start = hres::now();
 		evict(2 * access_counter);
-		// end = hres::now();
-		// duration = end - start;
-		// std::cout << "eviction: " << duration.count() / 1000.0 << "mms" << std::endl;
 		evict(2 * access_counter + 1);
 
 		// increment the access counter
