@@ -104,13 +104,13 @@ namespace obl
 
 		reference_node = local_subtree.root;
 
-		for (unsigned int i = 0; i < SS; ++i)
-			pthread_mutex_lock(&stash_locks[i]);
+		// for (unsigned int i = 0; i < SS; ++i)
+		// 	pthread_mutex_lock(&stash_locks[i]);
 
-		for (unsigned int i = 0; i <= L; ++i) {
-			reference_node->lock();
-			reference_node = (path >> i) & 1 ? reference_node->child_r : reference_node->child_l;
-		}
+		// for (unsigned int i = 0; i <= L; ++i) {
+		// 	reference_node->lock();
+		// 	reference_node = (path >> i) & 1 ? reference_node->child_r : reference_node->child_l;
+		// }
 
 		for (unsigned int i = 0; i < SS - 1; ++i)
 		{
@@ -118,16 +118,15 @@ namespace obl
 			for (unsigned int j = 0; j < ss; ++j)
 			{
 				unsigned int k = i * ss + j;
-
-				std::int64_t maxd = get_max_depth(stash[k].lid, path, L);
 				iterator = leaf_pointer;
-				// iterator = local_subtree.root;
+				pthread_mutex_lock(&stash_locks[i]);
+				std::int64_t maxd = get_max_depth(stash[k].lid, path, L);
 				for (int h = L; h >= 0; h--) // for every bucket in the path
 				{
-					// iterator->lock();
 					bool can_reside = maxd >= h;
 					bl = (block_t *)iterator->payload;
-
+					// iterator->lock();
+					iterator->lock();
 					for (unsigned int z = 0; z < Z; z++) // for every block in a bucket
 					{
 						bool free_slot = bl->bid == DUMMY;
@@ -136,25 +135,28 @@ namespace obl
 						bl = (block_t *)((std::uint8_t *)bl + block_size);
 					}
 					// iterator->unlock();
+					iterator->unlock();
+					pthread_mutex_unlock(&stash_locks[i]);
 					iterator = iterator->parent;
 				}
 			}
-			pthread_mutex_unlock(&stash_locks[i]);
+			// pthread_mutex_unlock(&stash_locks[i]);
 		}
 
 		// pthread_mutex_lock(&stash_locks[SS - 1]);
 		for (unsigned int i = 0; i < S % ss; ++i)
 		{
 			unsigned int k = (SS - 1) * ss + i;
-
-			std::int64_t maxd = get_max_depth(stash[k].lid, path, L);
 			iterator = leaf_pointer;
+
+			pthread_mutex_lock(&stash_locks[SS - 1]);
+			std::int64_t maxd = get_max_depth(stash[k].lid, path, L);
 			for (int j = L; j >= 0; j--) // for every bucket in the path (in reverse order)
 			{
-				// iterator->lock();
 				bool can_reside = maxd >= j;
 				bl = (block_t *)iterator->payload;
-
+				// iterator->lock();
+				iterator->lock();
 				for (unsigned int z = 0; z < Z; z++) // for every block in a bucket
 				{
 					bool free_slot = bl->bid == DUMMY;
@@ -163,21 +165,24 @@ namespace obl
 					bl = (block_t *)((std::uint8_t *)bl + block_size);
 				}
 				// iterator->unlock();
+				iterator->unlock();
+				pthread_mutex_unlock(&stash_locks[SS - 1]);
 				iterator = iterator->parent;
 			}
 		}
-		pthread_mutex_unlock(&stash_locks[SS - 1]);
-		reference_node = local_subtree.root;
-		for (unsigned int i = 0; i <= L; ++i) {
-			reference_node->unlock();
-			reference_node = (path >> i) & 1 ? reference_node->child_r : reference_node->child_l;
-		}
+		// pthread_mutex_unlock(&stash_locks[SS - 1]);
+		// reference_node = local_subtree.root;
+		// for (unsigned int i = 0; i <= L; ++i)
+		// {
+		// 	reference_node->unlock();
+		// 	reference_node = (path >> i) & 1 ? reference_node->child_r : reference_node->child_l;
+		// }
 		multiset_unlock(path);
 
 		local_subtree.insert_write_queue(path);
 	}
 
-	void taostore_path_oram::download_path(leaf_id path, std::vector<node*> &fetched_path)
+	void taostore_path_oram::download_path(leaf_id path, std::vector<node *> &fetched_path)
 	{
 		// always start from root
 		std::int64_t l_index = 0;
@@ -187,8 +192,8 @@ namespace obl
 		int i = 0;
 		block_t *bl;
 
-		node* reference_node = local_subtree.root;
-		node* old_ref_node = local_subtree.root;
+		node *reference_node = local_subtree.root;
+		node *old_ref_node = local_subtree.root;
 
 		fetched_path.reserve(L + 1);
 
