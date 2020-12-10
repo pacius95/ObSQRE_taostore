@@ -57,8 +57,6 @@ namespace obl
 
 	taostore_oram::~taostore_oram()
 	{
-		threadpool_destroy(thpool, threadpool_graceful);
-
 		pthread_mutex_lock(&serializer_lck);
 		oram_alive = false;
 		pthread_cond_broadcast(&serializer_cond);

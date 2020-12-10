@@ -33,7 +33,7 @@ namespace obl
 		int i = 0;
 
 		std::vector<node *> fetched_path;
-		
+
 		node *reference_node, *old_ref_node;
 		old_ref_node = local_subtree.root;
 		reference_node = local_subtree.root;
@@ -317,7 +317,7 @@ namespace obl
 		fetched->lid = DUMMY;
 
 		std::vector<node *> fetched_path;
-		
+
 		//fetch_path della circuit.
 		node *reference_node;
 		node *old_ref_node;
@@ -432,7 +432,7 @@ namespace obl
 	}
 	void taostore_path_oram::write_back(std::uint32_t c)
 	{
-		std::map<leaf_id, node *> nodes_level_i[L + 1];
+		std::unordered_map<leaf_id, node *> nodes_level_i[L + 1];
 		leaf_id l_index;
 		obl_aes_gcm_128bit_iv_t iv;
 		obl_aes_gcm_128bit_tag_t mac;
@@ -473,7 +473,7 @@ namespace obl
 				std::uint8_t *target_mac = (l_index & 1) ? reference_node->parent->adata.left_mac : reference_node->parent->adata.right_mac;
 				std::memcpy(target_mac, mac, sizeof(obl_aes_gcm_128bit_tag_t));
 
-				// pthread_mutex_lock(&multi_set_lock);
+				pthread_mutex_lock(&multi_set_lock);
 				if (reference_node->local_timestamp <= c * K &&
 					reference_node->child_r == nullptr && reference_node->child_l == nullptr &&
 					path_req_multi_set.find(l_index) == path_req_multi_set.end())
@@ -485,7 +485,7 @@ namespace obl
 						reference_node->parent->child_r = nullptr;
 					delete reference_node;
 				}
-				// pthread_mutex_unlock(&multi_set_lock);
+				pthread_mutex_unlock(&multi_set_lock);
 			}
 		}
 		pthread_mutex_unlock(&write_back_lock);

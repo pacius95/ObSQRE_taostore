@@ -118,10 +118,11 @@ namespace obl
             return temp;
         }
 
-        std::map<leaf_id, node *> update_valid(leaf_id *_paths, int K, flex &tree)
+        std::unordered_map<leaf_id, node *> update_valid(leaf_id *_paths, int K, flex &tree)
         {
             node *reference_node, *old_reference_node;
-            std::map<leaf_id, node *> nodes_map; //l_index and leaf_pointer
+            std::unordered_map<leaf_id, node *> nodes_map; //l_index and leaf_pointer
+            nodes_map.reserve(K);
             bool reachable;
             leaf_id paths;
             leaf_id l_index;

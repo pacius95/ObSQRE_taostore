@@ -21,7 +21,10 @@ namespace obl
 
 	public:
 		taostore_oram_v2(std::size_t N, std::size_t B, unsigned int Z, unsigned int S, unsigned int T_NUM) : taostore_oram(N, B, Z, S, T_NUM){};
-
+		~taostore_oram_v2()
+		{
+			threadpool_destroy(thpool, threadpool_graceful);
+		};
 		// only write block into the stash and perfom evictions
 		void write(block_id bid, std::uint8_t *data_in, leaf_id next_lif);
 	};

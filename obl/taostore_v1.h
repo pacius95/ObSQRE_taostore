@@ -23,7 +23,10 @@ namespace obl
 
 	public:
 		taostore_oram_v1(std::size_t N, std::size_t B, unsigned int Z, unsigned int S, unsigned int T_NUM) : taostore_oram(N, B, Z, S, T_NUM){};
-
+		~taostore_oram_v1()
+		{
+			threadpool_destroy(thpool, threadpool_graceful);
+		};
 		void write(block_id bid, std::uint8_t *data_in, leaf_id next_lif);
 	};
 

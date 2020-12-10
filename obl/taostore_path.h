@@ -48,7 +48,10 @@ namespace obl
 
 	public:
 		taostore_path_oram(std::size_t N, std::size_t B, unsigned int Z, unsigned int S, unsigned int A, unsigned int T_NUM);
-
+		~taostore_path_oram()
+		{
+			threadpool_destroy(thpool, threadpool_graceful);
+		};
 		void write(block_id bid, std::uint8_t *data_in, leaf_id next_lif);
 	};
 
