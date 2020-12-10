@@ -15,7 +15,6 @@
 
 #include <deque>
 #include <set>
-#include <unordered_set>
 
 //threading libs
 #include <iostream>
@@ -67,7 +66,7 @@ namespace obl
 
 		std::deque<request_t *> request_structure;
 
-		std::unordered_multiset<leaf_id> path_req_multi_set;
+		std::multiset<leaf_id> path_req_multi_set;
 
 		circuit_fake_factory *allocator;
 		taostore_position_map_notobl *position_map;
@@ -126,7 +125,7 @@ namespace obl
 		void access_w(block_id bid, leaf_id lif, std::uint8_t *data_in, leaf_id next_lif){};
 
 		// only write block into the stash and perfom evictions
-		virtual void write(block_id bid, std::uint8_t *data_in, leaf_id next_lif);
+		virtual void write(block_id bid, std::uint8_t *data_in, leaf_id next_lif) = 0;
 		
 	};
 	struct processing_thread_args_wrap
