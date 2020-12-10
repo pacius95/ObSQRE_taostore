@@ -104,29 +104,27 @@ namespace obl
 
 		reference_node = local_subtree.root;
 
-		// for (unsigned int i = 0; i < SS; ++i)
-		// 	pthread_mutex_lock(&stash_locks[i]);
 
-		// for (unsigned int i = 0; i <= L; ++i) {
-		// 	reference_node->lock();
-		// 	reference_node = (path >> i) & 1 ? reference_node->child_r : reference_node->child_l;
-		// }
+		for (unsigned int i = 0; i < SS; ++i)
+			pthread_mutex_lock(&stash_locks[i]);
 
+		for (unsigned int i = 0; i <= L; ++i) {
+			reference_node->lock();
+			reference_node = (path >> i) & 1 ? reference_node->child_r : reference_node->child_l;
+		}
 		for (unsigned int i = 0; i < SS - 1; ++i)
 		{
-			// pthread_mutex_lock(&stash_locks[i]);
 			for (unsigned int j = 0; j < ss; ++j)
 			{
 				unsigned int k = i * ss + j;
-				iterator = leaf_pointer;
-				pthread_mutex_lock(&stash_locks[i]);
+
 				std::int64_t maxd = get_max_depth(stash[k].lid, path, L);
+				iterator = leaf_pointer;
 				for (int h = L; h >= 0; h--) // for every bucket in the path
 				{
 					bool can_reside = maxd >= h;
 					bl = (block_t *)iterator->payload;
-					// iterator->lock();
-					iterator->lock();
+
 					for (unsigned int z = 0; z < Z; z++) // for every block in a bucket
 					{
 						bool free_slot = bl->bid == DUMMY;
@@ -134,29 +132,23 @@ namespace obl
 						can_reside &= !free_slot;
 						bl = (block_t *)((std::uint8_t *)bl + block_size);
 					}
-					// iterator->unlock();
-					iterator->unlock();
-					pthread_mutex_unlock(&stash_locks[i]);
 					iterator = iterator->parent;
 				}
 			}
-			// pthread_mutex_unlock(&stash_locks[i]);
+			pthread_mutex_unlock(&stash_locks[i]);
 		}
 
-		// pthread_mutex_lock(&stash_locks[SS - 1]);
 		for (unsigned int i = 0; i < S % ss; ++i)
 		{
 			unsigned int k = (SS - 1) * ss + i;
-			iterator = leaf_pointer;
 
-			pthread_mutex_lock(&stash_locks[SS - 1]);
 			std::int64_t maxd = get_max_depth(stash[k].lid, path, L);
+			iterator = leaf_pointer;
 			for (int j = L; j >= 0; j--) // for every bucket in the path (in reverse order)
 			{
 				bool can_reside = maxd >= j;
 				bl = (block_t *)iterator->payload;
-				// iterator->lock();
-				iterator->lock();
+
 				for (unsigned int z = 0; z < Z; z++) // for every block in a bucket
 				{
 					bool free_slot = bl->bid == DUMMY;
@@ -164,19 +156,15 @@ namespace obl
 					can_reside &= !free_slot;
 					bl = (block_t *)((std::uint8_t *)bl + block_size);
 				}
-				// iterator->unlock();
-				iterator->unlock();
-				pthread_mutex_unlock(&stash_locks[SS - 1]);
 				iterator = iterator->parent;
 			}
 		}
-		// pthread_mutex_unlock(&stash_locks[SS - 1]);
-		// reference_node = local_subtree.root;
-		// for (unsigned int i = 0; i <= L; ++i)
-		// {
-		// 	reference_node->unlock();
-		// 	reference_node = (path >> i) & 1 ? reference_node->child_r : reference_node->child_l;
-		// }
+		pthread_mutex_unlock(&stash_locks[SS - 1]);
+		reference_node = local_subtree.root;
+		for (unsigned int i = 0; i <= L; ++i) {
+			reference_node->unlock();
+			reference_node = (path >> i) & 1 ? reference_node->child_r : reference_node->child_l;
+		}
 		multiset_unlock(path);
 
 		local_subtree.insert_write_queue(path);
