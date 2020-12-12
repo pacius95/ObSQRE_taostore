@@ -509,7 +509,7 @@ namespace obl
 
 	void taostore_oram_v1::write_back(std::uint32_t c)
 	{
-		std::unordered_map<leaf_id, node *> nodes_level_i[L + 1];
+		std::map<leaf_id, node *> nodes_level_i[L + 1];
 		leaf_id l_index;
 		obl_aes_gcm_128bit_iv_t iv;
 		obl_aes_gcm_128bit_tag_t mac;

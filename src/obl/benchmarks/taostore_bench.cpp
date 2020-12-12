@@ -23,9 +23,9 @@ using hres = std::chrono::high_resolution_clock;
 using nano = std::chrono::nanoseconds;
 using tt = std::chrono::time_point<hres, nano>;
 
-const int pow_lower = 15;
-const int pow_upper = 20;
-const int bench_size = 1 << 17;
+const int pow_lower = 6;
+const int pow_upper = 28;
+const int bench_size = 1 << 16;
 const int RUN = 8;
 struct buffer
 {
@@ -191,11 +191,11 @@ int main()
 		oram_test("path_4_3", oram);
 		delete oram;
 		
-		oram = new obl::path_oram(N, sizeof(buffer), 8, 41, 8);
-		oram_test("path_8_8", oram);
-		delete oram;
+		// oram = new obl::path_oram(N, sizeof(buffer), 8, 41, 8);
+		// oram_test("path_8_8", oram);
+		// delete oram;
 
-		for (int T_NUM = 1; T_NUM < 9; T_NUM++)
+		for (int T_NUM = 1; T_NUM < 5; T_NUM++)
 		{
 			rram = new obl::taostore_oram_v1(N, sizeof(buffer), Z, S, T_NUM);
 			serial_test("taostore_v1", T_NUM, rram);
@@ -205,13 +205,13 @@ int main()
 			serial_test("taostore_v2", T_NUM, rram);
 			delete rram;
 
-			rram = new obl::taostore_path_oram(N, sizeof(buffer), 4, 32, 3, T_NUM);
-			serial_test("taostore_path_4_3", T_NUM, rram);
-			delete rram;
+			// rram = new obl::taostore_path_oram(N, sizeof(buffer), 4, 32, 3, T_NUM);
+			// serial_test("taostore_path_4_3", T_NUM, rram);
+			// delete rram;
 
-			rram = new obl::taostore_path_oram(N, sizeof(buffer), 8, 41, 8, T_NUM);
-			serial_test("taostore_path_8_8", T_NUM, rram);
-			delete rram;
+			// rram = new obl::taostore_path_oram(N, sizeof(buffer), 8, 41, 8, T_NUM);
+			// serial_test("taostore_path_8_8", T_NUM, rram);
+			// delete rram;
 
 			rram = new obl::taostore_oram_v1(N, sizeof(buffer), Z, S, T_NUM);
 			parallel_test("taostore_v1", T_NUM, RUN, rram);
@@ -220,13 +220,13 @@ int main()
 			parallel_test("taostore_v2", T_NUM, RUN, rram);
 			delete rram;
 
-			rram = new obl::taostore_path_oram(N, sizeof(buffer), 4, 32, 3, T_NUM);
-			parallel_test("taostore_path_4_3", T_NUM, RUN, rram);
-			delete rram;
+			// rram = new obl::taostore_path_oram(N, sizeof(buffer), 4, 32, 3, T_NUM);
+			// parallel_test("taostore_path_4_3", T_NUM, RUN, rram);
+			// delete rram;
 
-			rram = new obl::taostore_path_oram(N, sizeof(buffer), 8, 41, 8, T_NUM);
-			parallel_test("taostore_path_8_8", T_NUM, RUN, rram);
-			delete rram;
+			// rram = new obl::taostore_path_oram(N, sizeof(buffer), 8, 41, 8, T_NUM);
+			// parallel_test("taostore_path_8_8", T_NUM, RUN, rram);
+			// delete rram;
 		}
 	}
 }
