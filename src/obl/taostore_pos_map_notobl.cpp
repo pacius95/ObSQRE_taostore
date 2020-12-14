@@ -34,12 +34,12 @@ namespace obl
         d_leef = leaf_abs(d_leef);
 
         pthread_mutex_lock(&map_mutex);
-        leef = position_map[bid%N];
+        leef = position_map[bid];
 
-        leef = ternary_op(leef == DUMMY_LEAF, d_leef, leef);
-        ev_leef = ternary_op(fake, leef, ev_leef);
+        leef = leef == DUMMY_LEAF ? d_leef : leef;
+        ev_leef = fake ? leef : ev_leef;
 
-        position_map[bid%N] = ev_leef;
+        position_map[bid] = ev_leef;
         memcpy(_ev_leef, &ev_leef, sizeof(leaf_id));
         pthread_mutex_unlock(&map_mutex);
 

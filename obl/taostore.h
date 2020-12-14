@@ -78,7 +78,7 @@ namespace obl
 
 		bool oram_alive;
 		std::atomic_int32_t thread_id;
-		std::atomic_uint32_t evict_path;
+		std::atomic_int32_t evict_path;
 		std::atomic_uint64_t access_counter;
 
 		//path variables
@@ -111,12 +111,13 @@ namespace obl
 		~taostore_oram();
 
 		//debug
-		int printrec(node *t, int L, int l_index);
+		int printrec(std::shared_ptr<node> t, int L, int l_index);
 		void printstash();
 		void printsubtree();
 		void print_tree();
 		void printpath(leaf_id path);
 
+		void wait_end();
 		void access(block_id bid, std::uint8_t *data_in, std::uint8_t *data_out);
 		void access(block_id bid, leaf_id lif, std::uint8_t *data_in, std::uint8_t *data_out, leaf_id next_lif){};
 
@@ -126,7 +127,6 @@ namespace obl
 
 		// only write block into the stash and perfom evictions
 		virtual void write(block_id bid, std::uint8_t *data_in, leaf_id next_lif) = 0;
-		
 	};
 	struct processing_thread_args_wrap
 	{

@@ -23,9 +23,9 @@ using hres = std::chrono::high_resolution_clock;
 using nano = std::chrono::nanoseconds;
 using tt = std::chrono::time_point<hres, nano>;
 
-const int pow_lower = 6;
+const int pow_lower = 18;
 const int pow_upper = 28;
-const int bench_size = 1 << 16;
+const int bench_size = 1 << 18;
 const int RUN = 8;
 struct buffer
 {
@@ -195,14 +195,16 @@ int main()
 		// oram_test("path_8_8", oram);
 		// delete oram;
 
-		for (int T_NUM = 1; T_NUM < 5; T_NUM++)
+		for (int T_NUM = 1; T_NUM < 9; T_NUM++)
 		{
 			rram = new obl::taostore_oram_v1(N, sizeof(buffer), Z, S, T_NUM);
 			serial_test("taostore_v1", T_NUM, rram);
+			rram->wait_end();
 			delete rram;
 
 			rram = new obl::taostore_oram_v2(N, sizeof(buffer), Z, S, T_NUM);
 			serial_test("taostore_v2", T_NUM, rram);
+			rram->wait_end();
 			delete rram;
 
 			// rram = new obl::taostore_path_oram(N, sizeof(buffer), 4, 32, 3, T_NUM);
@@ -215,9 +217,11 @@ int main()
 
 			rram = new obl::taostore_oram_v1(N, sizeof(buffer), Z, S, T_NUM);
 			parallel_test("taostore_v1", T_NUM, RUN, rram);
+			rram->wait_end();
 			delete rram;
 			rram = new obl::taostore_oram_v2(N, sizeof(buffer), Z, S, T_NUM);
 			parallel_test("taostore_v2", T_NUM, RUN, rram);
+			rram->wait_end();
 			delete rram;
 
 			// rram = new obl::taostore_path_oram(N, sizeof(buffer), 4, 32, 3, T_NUM);

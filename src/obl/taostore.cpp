@@ -34,6 +34,10 @@ namespace obl
 		stash.set_entry_size(block_size);
 		stash.reserve(this->S);
 
+		// ORAM tree allocation
+		tree.set_entry_size(bucket_size);
+		tree.reserve(capacity);
+
 		for (unsigned int i = 0; i < this->S; ++i)
 			stash[i].bid = DUMMY;
 
@@ -43,16 +47,18 @@ namespace obl
 		for (unsigned int i = 0; i < SS; i++)
 			pthread_mutex_init(&stash_locks[i], nullptr);
 
-		// ORAM tree allocation
-		tree.set_entry_size(bucket_size);
-		tree.reserve(capacity);
-
 		this->T_NUM = T_NUM;
 		this->K = next_two_power((1 << 25) / (bucket_size * L * 3));
 
 		init();
 		oram_alive = true;
 		pthread_create(&serializer_id, nullptr, serializer_wrap, (void *)this);
+	}
+
+	void taostore_oram::wait_end() {
+			int err;
+			err = threadpool_destroy(thpool, threadpool_graceful);
+			assert (err == 0);
 	}
 
 	taostore_oram::~taostore_oram()
@@ -70,16 +76,17 @@ namespace obl
 
 		free(_crypt_buffer);
 
-		for (unsigned int i = 0; i < SS; i++)
-		{
-			pthread_mutex_destroy(&stash_locks[i]);
-		}
+
 		pthread_mutex_destroy(&stash_lock);
 		pthread_mutex_destroy(&multi_set_lock);
 		pthread_cond_destroy(&serializer_cond);
 		pthread_mutex_destroy(&serializer_lck);
 		pthread_mutex_destroy(&write_back_lock);
-
+		for (unsigned int i = 0; i < SS; i++)
+		{
+			pthread_mutex_destroy(&stash_locks[i]);
+		}
+		delete [] stash_locks;
 		delete position_map;
 		//TODO cleanup
 	}
@@ -92,7 +99,7 @@ namespace obl
 		std::uint8_t empty_bucket[Z * block_size];
 
 		std::atomic_init(&thread_id, 0);
-		std::atomic_init(&evict_path, (std::uint32_t)0);
+		std::atomic_init(&evict_path, 0);
 		std::atomic_init(&access_counter, (std::uint64_t)1);
 
 		// generate random master key
@@ -131,7 +138,7 @@ namespace obl
 		// allocator = new circuit_fake_factory(Z, S);
 		// position_map = new taostore_position_map(N, sizeof(int64_t), 5, allocator);
 		position_map = new taostore_position_map_notobl(N);
-		local_subtree.init((size_t)Z * block_size, empty_bucket, L);
+		local_subtree.init(block_size * Z, empty_bucket, L);
 	}
 
 	void *taostore_oram::serializer_wrap(void *object)
@@ -194,7 +201,7 @@ namespace obl
 	void taostore_oram::multiset_lock(leaf_id path)
 	{
 
-		leaf_id l_index = 0;
+		std::int64_t l_index = 0;
 		pthread_mutex_lock(&multi_set_lock);
 		for (int i = 0; i < L; ++i)
 		{
@@ -225,6 +232,7 @@ namespace obl
 		block_id bid;
 		leaf_id ev_lid;
 		gen_rand((std::uint8_t *)&bid, sizeof(block_id));
+        bid = (bid >> 1) % N;
 
 		pthread_mutex_lock(&serializer_lck);
 		for (auto it : request_structure)
@@ -312,10 +320,10 @@ namespace obl
 	void taostore_oram::printsubtree()
 	{
 		int i;
-		i = printrec(local_subtree.root, L, 0);
+		i = printrec(local_subtree.getroot(), L, 0);
 		std::cerr << "-------------" << i << "----------------" << std::endl;
 	}
-	int taostore_oram::printrec(node *t, int l, int l_index)
+	int taostore_oram::printrec(std::shared_ptr<node>t, int l, int l_index)
 	{
 		int i = 0;
 		block_t *bl = (block_t *)t->payload;
@@ -395,7 +403,7 @@ namespace obl
 	void taostore_oram::printpath(leaf_id path)
 	{
 		std::uint64_t l_index = 0;
-		node *reference_node = local_subtree.root;
+		std::shared_ptr<node>reference_node = local_subtree.getroot();
 		block_t *bl;
 		for (int i = 0; i <= L; i++)
 		{
