@@ -23,9 +23,9 @@ using hres = std::chrono::high_resolution_clock;
 using nano = std::chrono::nanoseconds;
 using tt = std::chrono::time_point<hres, nano>;
 
-const int pow_lower = 18;
-const int pow_upper = 28;
-const int bench_size = 1 << 18;
+const int pow_lower = 20;
+const int pow_upper = 30;
+const int bench_size = 1 << 20;
 const int RUN = 8;
 struct buffer
 {

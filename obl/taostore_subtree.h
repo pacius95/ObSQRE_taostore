@@ -134,7 +134,7 @@ namespace obl
                 write_queue.try_dequeue_bulk(temp, K);
         }
 
-        void update_valid(leaf_id *_paths, int K, flex &tree, std::map<std::int64_t, std::shared_ptr<node>> &nodes_map)
+        void update_valid(leaf_id *_paths, int K, flex &tree, std::unordered_map<std::int64_t, std::shared_ptr<node>> &nodes_map)
         {
             std::shared_ptr<node> reference_node;
             std::shared_ptr<node> old_reference_node;

@@ -17,8 +17,8 @@ namespace obl
 	private:
 		void access_thread(request_t &_req);
 
-		void fetch_path(std::uint8_t *_fetched, block_id bid, leaf_id new_lid, leaf_id path, bool fake);
-		void eviction(leaf_id path);
+		std::uint64_t fetch_path(std::uint8_t *_fetched, block_id bid, leaf_id new_lid, leaf_id path, bool fake);
+		std::uint64_t eviction(leaf_id path);
 		void write_back(std::uint32_t c);
 
 	public:

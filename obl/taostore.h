@@ -15,6 +15,7 @@
 
 #include <deque>
 #include <set>
+#include <unordered_set>
 
 //threading libs
 #include <iostream>
@@ -66,7 +67,7 @@ namespace obl
 
 		std::deque<request_t *> request_structure;
 
-		std::multiset<leaf_id> path_req_multi_set;
+		std::unordered_multiset<leaf_id> path_req_multi_set;
 
 		circuit_fake_factory *allocator;
 		taostore_position_map_notobl *position_map;
@@ -93,10 +94,10 @@ namespace obl
 		static void access_thread_wrap(void *object);
 		virtual void access_thread(request_t &_req) = 0;
 
-		void read_path(request_t &req, std::uint8_t *_fetched);
+		std::uint64_t read_path(request_t &req, std::uint8_t *_fetched);
 		void answer_request(bool fake, block_id bid, std::int32_t id, std::uint8_t *_fetched);
-		virtual void fetch_path(std::uint8_t *_fetched, block_id bid, leaf_id new_lid, leaf_id path, bool fake) = 0;
-		virtual void eviction(leaf_id path) = 0;
+		virtual std::uint64_t fetch_path(std::uint8_t *_fetched, block_id bid, leaf_id new_lid, leaf_id path, bool fake) = 0;
+		virtual std::uint64_t eviction(leaf_id path) = 0;
 		virtual void write_back(std::uint32_t c) = 0;
 
 		// helper methods

@@ -41,14 +41,14 @@ namespace obl
 		for (unsigned int i = 0; i < this->S; ++i)
 			stash[i].bid = DUMMY;
 
-		this->ss = 4;
+		this->ss = 2;
 		this->SS = (S / ss) + 1;
 		stash_locks = new pthread_mutex_t[SS];
 		for (unsigned int i = 0; i < SS; i++)
 			pthread_mutex_init(&stash_locks[i], nullptr);
 
 		this->T_NUM = T_NUM;
-		this->K = next_two_power((1 << 25) / (bucket_size * L * 3));
+		this->K = next_two_power((1 << 25) / (bucket_size * L));
 
 		init();
 		oram_alive = true;
@@ -227,7 +227,7 @@ namespace obl
 		return ((processing_thread_args_wrap *)_object)->arg1->access_thread(((processing_thread_args_wrap *)_object)->request);
 	}
 
-	void taostore_oram::read_path(request_t &req, std::uint8_t *_fetched)
+	std::uint64_t taostore_oram::read_path(request_t &req, std::uint8_t *_fetched)
 	{
 		block_id bid;
 		leaf_id ev_lid;
@@ -245,7 +245,7 @@ namespace obl
 		bid = ternary_op(req.fake, bid, req.bid);
 		pthread_mutex_unlock(&serializer_lck);
 		leaf_id path = position_map->access(bid, req.fake, &ev_lid);
-		fetch_path(_fetched, bid, ev_lid, path, !req.fake);
+		return fetch_path(_fetched, bid, ev_lid, path, !req.fake);
 	}
 
 	void taostore_oram::answer_request(bool fake, block_id bid, std::int32_t id, std::uint8_t *_fetched)

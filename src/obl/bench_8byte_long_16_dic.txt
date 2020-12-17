@@ -1,0 +1,362 @@
+benchmarc block size:8 bench size: 1048576
+start circuit: 1048576
+tempo: 32.95s
+start path_4_3: 1048576
+tempo: 31.42s
+start taostore_v1 serial with N:1048576 T_NUM:1
+tempo: 39.46s
+start taostore_v2 serial with N:1048576 T_NUM:1
+tempo: 48.53s
+start taostore_v1 parallel with N:1048576 T_NUM:1 RUN: 8
+tempo: 41.34s
+start taostore_v2 parallel with N:1048576 T_NUM:1 RUN: 8
+tempo: 53.55s
+start taostore_v1 serial with N:1048576 T_NUM:2
+tempo: 27.96s
+start taostore_v2 serial with N:1048576 T_NUM:2
+tempo: 44.73s
+start taostore_v1 parallel with N:1048576 T_NUM:2 RUN: 8
+tempo: 28.7s
+start taostore_v2 parallel with N:1048576 T_NUM:2 RUN: 8
+tempo: 61.81s
+start taostore_v1 serial with N:1048576 T_NUM:3
+tempo: 24.97s
+start taostore_v2 serial with N:1048576 T_NUM:3
+tempo: 38.33s
+start taostore_v1 parallel with N:1048576 T_NUM:3 RUN: 8
+tempo: 25.47s
+start taostore_v2 parallel with N:1048576 T_NUM:3 RUN: 8
+tempo: 50.6s
+start taostore_v1 serial with N:1048576 T_NUM:4
+tempo: 23.09s
+start taostore_v2 serial with N:1048576 T_NUM:4
+tempo: 36.19s
+start taostore_v1 parallel with N:1048576 T_NUM:4 RUN: 8
+tempo: 24.1s
+start taostore_v2 parallel with N:1048576 T_NUM:4 RUN: 8
+tempo: 44.89s
+start taostore_v1 serial with N:1048576 T_NUM:5
+tempo: 41.23s
+start taostore_v2 serial with N:1048576 T_NUM:5
+tempo: 35.7s
+start taostore_v1 parallel with N:1048576 T_NUM:5 RUN: 8
+tempo: 24.34s
+start taostore_v2 parallel with N:1048576 T_NUM:5 RUN: 8
+tempo: 42.28s
+start taostore_v1 serial with N:1048576 T_NUM:6
+tempo: 44.08s
+start taostore_v2 serial with N:1048576 T_NUM:6
+tempo: 34.56s
+start taostore_v1 parallel with N:1048576 T_NUM:6 RUN: 8
+tempo: 41.32s
+start taostore_v2 parallel with N:1048576 T_NUM:6 RUN: 8
+tempo: 38.73s
+start taostore_v1 serial with N:1048576 T_NUM:7
+tempo: 44.19s
+start taostore_v2 serial with N:1048576 T_NUM:7
+tempo: 34.2s
+start taostore_v1 parallel with N:1048576 T_NUM:7 RUN: 8
+tempo: 50.67s
+start taostore_v2 parallel with N:1048576 T_NUM:7 RUN: 8
+tempo: 38.93s
+start taostore_v1 serial with N:1048576 T_NUM:8
+tempo: 46.41s
+start taostore_v2 serial with N:1048576 T_NUM:8
+tempo: 80.14s
+start taostore_v1 parallel with N:1048576 T_NUM:8 RUN: 8
+tempo: 50.64s
+start taostore_v2 parallel with N:1048576 T_NUM:8 RUN: 8
+tempo: 40.14s
+start circuit: 2097152
+tempo: 34.77s
+start path_4_3: 2097152
+tempo: 33.5s
+start taostore_v1 serial with N:2097152 T_NUM:1
+tempo: 46.78s
+start taostore_v2 serial with N:2097152 T_NUM:1
+tempo: 56.4s
+start taostore_v1 parallel with N:2097152 T_NUM:1 RUN: 8
+tempo: 50.32s
+start taostore_v2 parallel with N:2097152 T_NUM:1 RUN: 8
+tempo: 60.05s
+start taostore_v1 serial with N:2097152 T_NUM:2
+tempo: 33.71s
+start taostore_v2 serial with N:2097152 T_NUM:2
+tempo: 50.71s
+start taostore_v1 parallel with N:2097152 T_NUM:2 RUN: 8
+tempo: 34.72s
+start taostore_v2 parallel with N:2097152 T_NUM:2 RUN: 8
+tempo: 64.84s
+start taostore_v1 serial with N:2097152 T_NUM:3
+tempo: 31.43s
+start taostore_v2 serial with N:2097152 T_NUM:3
+tempo: 43.18s
+start taostore_v1 parallel with N:2097152 T_NUM:3 RUN: 8
+tempo: 31.35s
+start taostore_v2 parallel with N:2097152 T_NUM:3 RUN: 8
+tempo: 59.67s
+start taostore_v1 serial with N:2097152 T_NUM:4
+tempo: 28.6s
+start taostore_v2 serial with N:2097152 T_NUM:4
+tempo: 41.34s
+start taostore_v1 parallel with N:2097152 T_NUM:4 RUN: 8
+tempo: 30.18s
+start taostore_v2 parallel with N:2097152 T_NUM:4 RUN: 8
+tempo: 52.21s
+start taostore_v1 serial with N:2097152 T_NUM:5
+tempo: 46.03s
+start taostore_v2 serial with N:2097152 T_NUM:5
+tempo: 39.73s
+start taostore_v1 parallel with N:2097152 T_NUM:5 RUN: 8
+tempo: 29.5s
+start taostore_v2 parallel with N:2097152 T_NUM:5 RUN: 8
+tempo: 47.23s
+start taostore_v1 serial with N:2097152 T_NUM:6
+tempo: 48.54s
+start taostore_v2 serial with N:2097152 T_NUM:6
+tempo: 38.68s
+start taostore_v1 parallel with N:2097152 T_NUM:6 RUN: 8
+tempo: 43.59s
+start taostore_v2 parallel with N:2097152 T_NUM:6 RUN: 8
+tempo: 47.82s
+start taostore_v1 serial with N:2097152 T_NUM:7
+tempo: 47.29s
+start taostore_v2 serial with N:2097152 T_NUM:7
+tempo: 38.43s
+start taostore_v1 parallel with N:2097152 T_NUM:7 RUN: 8
+tempo: 53.83s
+start taostore_v2 parallel with N:2097152 T_NUM:7 RUN: 8
+tempo: 46.34s
+start taostore_v1 serial with N:2097152 T_NUM:8
+tempo: 51.16s
+start taostore_v2 serial with N:2097152 T_NUM:8
+tempo: 86.72s
+start taostore_v1 parallel with N:2097152 T_NUM:8 RUN: 8
+tempo: 56.79s
+start taostore_v2 parallel with N:2097152 T_NUM:8 RUN: 8
+tempo: 46.37s
+start circuit: 4194304
+tempo: 36.9s
+start path_4_3: 4194304
+tempo: 35.7s
+start taostore_v1 serial with N:4194304 T_NUM:1
+tempo: 54.29s
+start taostore_v2 serial with N:4194304 T_NUM:1
+tempo: 64.17s
+start taostore_v1 parallel with N:4194304 T_NUM:1 RUN: 8
+tempo: 56.66s
+start taostore_v2 parallel with N:4194304 T_NUM:1 RUN: 8
+tempo: 71.42s
+start taostore_v1 serial with N:4194304 T_NUM:2
+tempo: 38.42s
+start taostore_v2 serial with N:4194304 T_NUM:2
+tempo: 55.69s
+start taostore_v1 parallel with N:4194304 T_NUM:2 RUN: 8
+tempo: 39.32s
+start taostore_v2 parallel with N:4194304 T_NUM:2 RUN: 8
+tempo: 75.5s
+start taostore_v1 serial with N:4194304 T_NUM:3
+tempo: 37.95s
+start taostore_v2 serial with N:4194304 T_NUM:3
+tempo: 49.84s
+start taostore_v1 parallel with N:4194304 T_NUM:3 RUN: 8
+tempo: 40.84s
+start taostore_v2 parallel with N:4194304 T_NUM:3 RUN: 8
+tempo: 64.64s
+start taostore_v1 serial with N:4194304 T_NUM:4
+tempo: 34.16s
+start taostore_v2 serial with N:4194304 T_NUM:4
+tempo: 46.88s
+start taostore_v1 parallel with N:4194304 T_NUM:4 RUN: 8
+tempo: 38.03s
+start taostore_v2 parallel with N:4194304 T_NUM:4 RUN: 8
+tempo: 63.43s
+start taostore_v1 serial with N:4194304 T_NUM:5
+tempo: 34.06s
+start taostore_v2 serial with N:4194304 T_NUM:5
+tempo: 45.41s
+start taostore_v1 parallel with N:4194304 T_NUM:5 RUN: 8
+tempo: 36.14s
+start taostore_v2 parallel with N:4194304 T_NUM:5 RUN: 8
+tempo: 57.28s
+start taostore_v1 serial with N:4194304 T_NUM:6
+tempo: 48.09s
+start taostore_v2 serial with N:4194304 T_NUM:6
+tempo: 44.26s
+start taostore_v1 parallel with N:4194304 T_NUM:6 RUN: 8
+tempo: 36.98s
+start taostore_v2 parallel with N:4194304 T_NUM:6 RUN: 8
+tempo: 57.52s
+start taostore_v1 serial with N:4194304 T_NUM:7
+tempo: 51.1s
+start taostore_v2 serial with N:4194304 T_NUM:7
+tempo: 43.55s
+start taostore_v1 parallel with N:4194304 T_NUM:7 RUN: 8
+tempo: 58.37s
+start taostore_v2 parallel with N:4194304 T_NUM:7 RUN: 8
+tempo: 54.83s
+start taostore_v1 serial with N:4194304 T_NUM:8
+tempo: 56.87s
+start taostore_v2 serial with N:4194304 T_NUM:8
+tempo: 42.29s
+start taostore_v1 parallel with N:4194304 T_NUM:8 RUN: 8
+tempo: 62.26s
+start taostore_v2 parallel with N:4194304 T_NUM:8 RUN: 8
+tempo: 56.58s
+start circuit: 8388608
+tempo: 38.66s
+start path_4_3: 8388608
+tempo: 38.02s
+start taostore_v1 serial with N:8388608 T_NUM:1
+tempo: 62.57s
+start taostore_v2 serial with N:8388608 T_NUM:1
+tempo: 70.68s
+start taostore_v1 parallel with N:8388608 T_NUM:1 RUN: 8
+tempo: 66.99s
+start taostore_v2 parallel with N:8388608 T_NUM:1 RUN: 8
+tempo: 89.03s
+start taostore_v1 serial with N:8388608 T_NUM:2
+tempo: 43.96s
+start taostore_v2 serial with N:8388608 T_NUM:2
+tempo: 61.12s
+start taostore_v1 parallel with N:8388608 T_NUM:2 RUN: 8
+tempo: 46.79s
+start taostore_v2 parallel with N:8388608 T_NUM:2 RUN: 8
+tempo: 79.71s
+start taostore_v1 serial with N:8388608 T_NUM:3
+tempo: 44.34s
+start taostore_v2 serial with N:8388608 T_NUM:3
+tempo: 54.47s
+start taostore_v1 parallel with N:8388608 T_NUM:3 RUN: 8
+tempo: 45.18s
+start taostore_v2 parallel with N:8388608 T_NUM:3 RUN: 8
+tempo: 63.71s
+start taostore_v1 serial with N:8388608 T_NUM:4
+tempo: 39.51s
+start taostore_v2 serial with N:8388608 T_NUM:4
+tempo: 52.09s
+start taostore_v1 parallel with N:8388608 T_NUM:4 RUN: 8
+tempo: 46s
+start taostore_v2 parallel with N:8388608 T_NUM:4 RUN: 8
+tempo: 64.91s
+start taostore_v1 serial with N:8388608 T_NUM:5
+tempo: 41.61s
+start taostore_v2 serial with N:8388608 T_NUM:5
+tempo: 50.81s
+start taostore_v1 parallel with N:8388608 T_NUM:5 RUN: 8
+tempo: 44s
+start taostore_v2 parallel with N:8388608 T_NUM:5 RUN: 8
+tempo: 64.84s
+start taostore_v1 serial with N:8388608 T_NUM:6
+tempo: 45.38s
+start taostore_v2 serial with N:8388608 T_NUM:6
+tempo: 49.62s
+start taostore_v1 parallel with N:8388608 T_NUM:6 RUN: 8
+tempo: 42.08s
+start taostore_v2 parallel with N:8388608 T_NUM:6 RUN: 8
+tempo: 60.77s
+start taostore_v1 serial with N:8388608 T_NUM:7
+tempo: 55.26s
+start taostore_v2 serial with N:8388608 T_NUM:7
+tempo: 48.45s
+start taostore_v1 parallel with N:8388608 T_NUM:7 RUN: 8
+tempo: 43.89s
+start taostore_v2 parallel with N:8388608 T_NUM:7 RUN: 8
+tempo: 57.05s
+start taostore_v1 serial with N:8388608 T_NUM:8
+tempo: 51.18s
+start taostore_v2 serial with N:8388608 T_NUM:8
+tempo: 47.36s
+start taostore_v1 parallel with N:8388608 T_NUM:8 RUN: 8
+tempo: 47.31s
+start taostore_v2 parallel with N:8388608 T_NUM:8 RUN: 8
+tempo: 59.91s
+start circuit: 16777216
+tempo: 40.67s
+start path_4_3: 16777216
+tempo: 40.44s
+start taostore_v1 serial with N:16777216 T_NUM:1
+tempo: 69.22s
+start taostore_v2 serial with N:16777216 T_NUM:1
+tempo: 80.23s
+start taostore_v1 parallel with N:16777216 T_NUM:1 RUN: 8
+tempo: 75.45s
+start taostore_v2 parallel with N:16777216 T_NUM:1 RUN: 8
+tempo: 94.71s
+start taostore_v1 serial with N:16777216 T_NUM:2
+tempo: 51.01s
+start taostore_v2 serial with N:16777216 T_NUM:2
+tempo: 65.59s
+start taostore_v1 parallel with N:16777216 T_NUM:2 RUN: 8
+tempo: 54.24s
+start taostore_v2 parallel with N:16777216 T_NUM:2 RUN: 8
+tempo: 76.58s
+start taostore_v1 serial with N:16777216 T_NUM:3
+tempo: 50.6s
+start taostore_v2 serial with N:16777216 T_NUM:3
+tempo: 58.76s
+start taostore_v1 parallel with N:16777216 T_NUM:3 RUN: 8
+tempo: 53.32s
+start taostore_v2 parallel with N:16777216 T_NUM:3 RUN: 8
+tempo: 73.57s
+start taostore_v1 serial with N:16777216 T_NUM:4
+tempo: 47.57s
+start taostore_v2 serial with N:16777216 T_NUM:4
+tempo: 57.64s
+start taostore_v1 parallel with N:16777216 T_NUM:4 RUN: 8
+tempo: 47.95s
+start taostore_v2 parallel with N:16777216 T_NUM:4 RUN: 8
+tempo: 69.09s
+start taostore_v1 serial with N:16777216 T_NUM:5
+tempo: 47.3s
+start taostore_v2 serial with N:16777216 T_NUM:5
+tempo: 56.47s
+start taostore_v1 parallel with N:16777216 T_NUM:5 RUN: 8
+tempo: 53.52s
+start taostore_v2 parallel with N:16777216 T_NUM:5 RUN: 8
+tempo: 65.94s
+start taostore_v1 serial with N:16777216 T_NUM:6
+tempo: 48.16s
+start taostore_v2 serial with N:16777216 T_NUM:6
+tempo: 54.83s
+start taostore_v1 parallel with N:16777216 T_NUM:6 RUN: 8
+tempo: 54.79s
+start taostore_v2 parallel with N:16777216 T_NUM:6 RUN: 8
+tempo: 66.48s
+start taostore_v1 serial with N:16777216 T_NUM:7
+tempo: 48.42s
+start taostore_v2 serial with N:16777216 T_NUM:7
+tempo: 53.63s
+start taostore_v1 parallel with N:16777216 T_NUM:7 RUN: 8
+tempo: 50.36s
+start taostore_v2 parallel with N:16777216 T_NUM:7 RUN: 8
+tempo: 64.22s
+start taostore_v1 serial with N:16777216 T_NUM:8
+tempo: 54.54s
+start taostore_v2 serial with N:16777216 T_NUM:8
+tempo: 53.2s
+start taostore_v1 parallel with N:16777216 T_NUM:8 RUN: 8
+tempo: 53.02s
+start taostore_v2 parallel with N:16777216 T_NUM:8 RUN: 8
+tempo: 66.03s
+start circuit: 33554432
+tempo: 43.12s
+start path_4_3: 33554432
+tempo: 43.01s
+start taostore_v1 serial with N:33554432 T_NUM:1
+tempo: 80.87s
+start taostore_v2 serial with N:33554432 T_NUM:1
+tempo: 84.77s
+start taostore_v1 parallel with N:33554432 T_NUM:1 RUN: 8
+tempo: 87.76s
+start taostore_v2 parallel with N:33554432 T_NUM:1 RUN: 8
+tempo: 104.6s
+start taostore_v1 serial with N:33554432 T_NUM:2
+tempo: 55.37s
+start taostore_v2 serial with N:33554432 T_NUM:2
+tempo: 71.2s
+start taostore_v1 parallel with N:33554432 T_NUM:2 RUN: 8
+tempo: 75.29s
+start taostore_v2 parallel with N:33554432 T_NUM:2 RUN: 8
+tempo: 87.82s
+start taostore_v1 serial with N:33554432 T_NUM:3
