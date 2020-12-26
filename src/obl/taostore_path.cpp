@@ -32,10 +32,10 @@ namespace obl
 		block_t *bl, *bl_ev;
 		int i = 0;
 
-		std::vector<std::shared_ptr<node>> fetched_path;
+		std::vector<node *> fetched_path;
 
-		std::shared_ptr<node> reference_node;
-		std::shared_ptr<node> old_ref_node;
+		node * reference_node;
+		node * old_ref_node;
 		old_ref_node = local_subtree.getroot();
 		reference_node = local_subtree.getroot();
 
@@ -70,8 +70,8 @@ namespace obl
 			++i;
 		}
 
-		std::shared_ptr<node> leaf_pointer = old_ref_node;
-		std::shared_ptr<node> iterator;
+		node * leaf_pointer = old_ref_node;
+		node * iterator;
 		reference_node = leaf_pointer->parent;
 		leaf_pointer->unlock();
 
@@ -173,7 +173,7 @@ namespace obl
 		return timestamp;
 	}
 
-	void taostore_path_oram::download_path(leaf_id path, std::vector<std::shared_ptr<node>> &fetched_path)
+	void taostore_path_oram::download_path(leaf_id path, std::vector<node *> &fetched_path)
 	{
 		// always start from root
 		std::int64_t l_index = 0;
@@ -183,8 +183,8 @@ namespace obl
 		int i = 0;
 		block_t *bl;
 
-		std::shared_ptr<node> reference_node = local_subtree.getroot();
-		std::shared_ptr<node> old_ref_node = local_subtree.getroot();
+		node * reference_node = local_subtree.getroot();
+		node * old_ref_node = local_subtree.getroot();
 
 		fetched_path.reserve(L + 1);
 
@@ -207,7 +207,7 @@ namespace obl
 		}
 		while (i <= L && valid)
 		{
-			fetched_path.emplace_back(std::make_shared<node>(block_size * Z));
+			fetched_path.emplace_back(new node (block_size * Z));
 
 			adata = &fetched_path[i]->adata;
 			std::int64_t leftch = get_left(l_index);
@@ -265,7 +265,7 @@ namespace obl
 		// fill the other buckets with "empty" blocks
 		while (i <= L)
 		{
-			fetched_path.push_back(std::make_shared<node>(block_size * Z));
+			fetched_path.push_back(new node (block_size * Z));
 			bl = (block_t *)fetched_path[i]->payload;
 			for (unsigned int j = 0; j < Z; ++j)
 			{
@@ -309,11 +309,11 @@ namespace obl
 		fetched->bid = DUMMY;
 		fetched->lid = DUMMY;
 
-		std::vector<std::shared_ptr<node>> fetched_path;
+		std::vector<node *> fetched_path;
 
 		//fetch_path della circuit.
-		std::shared_ptr<node> reference_node;
-		std::shared_ptr<node> old_ref_node;
+		node * reference_node;
+		node * old_ref_node;
 		old_ref_node = local_subtree.getroot();
 		reference_node = local_subtree.getroot();
 
@@ -425,12 +425,12 @@ namespace obl
 	}
 	void taostore_path_oram::write_back(std::uint32_t c)
 	{
-		std::unordered_map<std::int64_t, std::shared_ptr<node>> nodes_level_i[L + 1];
+		std::unordered_map<std::int64_t, node *> nodes_level_i[L + 1];
 		std::int64_t l_index;
 		obl_aes_gcm_128bit_iv_t iv;
 		obl_aes_gcm_128bit_tag_t mac;
-		std::shared_ptr<node>reference_node;
-		std::shared_ptr<node>parent;
+		node *reference_node;
+		node *parent;
 		leaf_id * _paths = new leaf_id[K];
 		int tmp = K;
 
@@ -480,7 +480,7 @@ namespace obl
 						reference_node->parent->child_l = nullptr;
 					else
 						reference_node->parent->child_r = nullptr;
-					reference_node = nullptr;
+					delete reference_node;
 				}
 				pthread_mutex_unlock(&multi_set_lock);
 			}

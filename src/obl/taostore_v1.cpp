@@ -43,14 +43,13 @@ namespace obl
 		std::int64_t goal = -1;
 		std::int64_t goal_t = -1;
 
-		std::shared_ptr<node> reference_node;
-		std::shared_ptr<node> old_ref_node;
+		node *reference_node;
+		node *old_ref_node;
 		reference_node = local_subtree.getroot();
 		old_ref_node = local_subtree.getroot();
 
 		// multiset_lock(path);
 
-		// local_subtree.read_lock();
 		std::uint64_t timestamp = access_counter++;
 		for (unsigned int i = 0; i < SS - 1; ++i)
 		{
@@ -93,7 +92,7 @@ namespace obl
 		}
 		while (i <= L && valid)
 		{
-			(l_index & 1) ? old_ref_node->child_l = std::make_shared<node>(block_size * Z, timestamp) : old_ref_node->child_r = std::make_shared<node>(block_size * Z, timestamp);
+			(l_index & 1) ? old_ref_node->child_l = new node(block_size * Z, timestamp) : old_ref_node->child_r = new node(block_size * Z, timestamp);
 			reference_node = (l_index & 1) ? old_ref_node->child_l : old_ref_node->child_r;
 			reference_node->lock();
 
@@ -132,7 +131,7 @@ namespace obl
 
 			// MAC mismatch is a critical error
 			//assert(dec != AES_GCM_AUTH_E);
-			assert(dec == 0);
+			// assert(dec == 0);
 
 			csb[i] = ternary_op(goal >= i, _closest_src_bucket, BOTTOM);
 			std::int64_t jump = get_max_depth_bucket((block_t *)reference_node->payload, Z, path);
@@ -155,7 +154,7 @@ namespace obl
 		// fill the other buckets with "empty" blocks
 		while (i <= L)
 		{
-			(l_index & 1) ? old_ref_node->child_l = std::make_shared<node>(block_size * Z, timestamp) : old_ref_node->child_r = std::make_shared<node>(block_size * Z, timestamp);
+			(l_index & 1) ? old_ref_node->child_l = new node(block_size * Z, timestamp) : old_ref_node->child_r = new node(block_size * Z, timestamp);
 			reference_node = (l_index & 1) ? old_ref_node->child_l : old_ref_node->child_r;
 			reference_node->parent = old_ref_node;
 			reference_node->lock();
@@ -274,7 +273,6 @@ namespace obl
 			reference_node = i != L ? (path >> i) & 1 ? reference_node->child_r : reference_node->child_l : reference_node;
 		}
 		// multiset_unlock(path);
-		// local_subtree.unlock();
 
 		local_subtree.insert_write_queue(path);
 		return timestamp;
@@ -316,13 +314,12 @@ namespace obl
 		fetched->bid = DUMMY;
 		fetched->lid = DUMMY;
 
-		std::shared_ptr<node> reference_node;
-		std::shared_ptr<node> old_ref_node;
+		node *reference_node;
+		node *old_ref_node;
 
 		reference_node = local_subtree.getroot();
 		old_ref_node = local_subtree.getroot();
 
-		// local_subtree.read_lock();
 		// multiset_lock(path);
 
 		std::uint64_t timestamp = access_counter++;
@@ -349,7 +346,7 @@ namespace obl
 				old_ref_node->unlock();
 			else
 				pthread_mutex_unlock(&stash_locks[SS - 1]);
-				
+
 			reference_node->local_timestamp = timestamp;
 			bl = (block_t *)reference_node->payload;
 			for (unsigned int j = 0; j < Z; ++j)
@@ -374,7 +371,7 @@ namespace obl
 		}
 		while (i <= L && valid)
 		{
-			(l_index & 1) ? old_ref_node->child_l = std::make_shared<node>(block_size * Z, timestamp) : old_ref_node->child_r = std::make_shared<node>(block_size * Z, timestamp);
+			(l_index & 1) ? old_ref_node->child_l = new node(block_size * Z, timestamp) : old_ref_node->child_r = new node(block_size * Z, timestamp);
 			reference_node = (l_index & 1) ? old_ref_node->child_l : old_ref_node->child_r;
 			reference_node->parent = old_ref_node;
 
@@ -413,7 +410,7 @@ namespace obl
 									   (std::uint8_t *)adata,
 									   sizeof(auth_data_t));
 
-			assert(dec == 0);
+			// assert(dec == 0);
 
 			bl = (block_t *)reference_node->payload;
 			for (unsigned int j = 0; j < Z; ++j)
@@ -436,7 +433,7 @@ namespace obl
 		// fill the other buckets with "empty" blocks
 		while (i <= L)
 		{
-			(l_index & 1) ? old_ref_node->child_l = std::make_shared<node>(block_size * Z, timestamp) : old_ref_node->child_r = std::make_shared<node>(block_size * Z, timestamp);
+			(l_index & 1) ? old_ref_node->child_l = new node(block_size * Z, timestamp) : old_ref_node->child_r = new node(block_size * Z, timestamp);
 			reference_node = (l_index & 1) ? old_ref_node->child_l : old_ref_node->child_r;
 			reference_node->parent = old_ref_node;
 
@@ -456,9 +453,6 @@ namespace obl
 			++i;
 		}
 		old_ref_node->unlock();
-
-		// local_subtree.unlock();
-		// multiset_unlock(path);
 
 		fetched->lid = new_lid;
 		fetched->bid = bid;
@@ -517,27 +511,29 @@ namespace obl
 
 	void taostore_oram_v1::write_back(std::uint32_t c)
 	{
-		std::unordered_map<std::int64_t, std::shared_ptr<node>> nodes_level_i[L + 1];
+		std::unordered_map<std::int64_t, node *> nodes_level_i[L + 1];
 		std::int64_t l_index;
 		obl_aes_gcm_128bit_iv_t iv;
 		obl_aes_gcm_128bit_tag_t mac;
-		std::shared_ptr<node> reference_node;
-		std::shared_ptr<node> parent;
-		leaf_id * _paths = new leaf_id[K];
+		node *reference_node;
+		node *parent;
+		leaf_id *_paths = new leaf_id[K];
 		int tmp = K;
+		bool flag = false;
 
 		nodes_level_i[L].reserve(K);
 		local_subtree.get_pop_queue(K, _paths);
-		pthread_mutex_lock(&write_back_lock);
+		// pthread_mutex_lock(&write_back_lock);
 		local_subtree.update_valid(_paths, K, tree, nodes_level_i[L]);
 
 		// local_subtree.write_lock();
 		for (int i = L; i > 0; --i)
 		{
 			tmp = tmp / 2;
-			nodes_level_i[i-1].reserve(tmp);
+			nodes_level_i[i - 1].reserve(tmp);
 			for (auto &itx : nodes_level_i[i])
 			{
+				flag = false;
 				l_index = itx.first;
 				reference_node = itx.second;
 				// generate a new random IV
@@ -555,31 +551,41 @@ namespace obl
 								 (std::uint8_t *)&reference_node->adata,
 								 sizeof(auth_data_t));
 
-				// save "mac" + iv + reachability flags
+				// save "mac" + iv
 				std::memcpy(tree[l_index].mac, mac, sizeof(obl_aes_gcm_128bit_tag_t));
 				std::memcpy(tree[l_index].iv, iv, sizeof(obl_aes_gcm_128bit_iv_t));
 
+				parent = reference_node->parent;
 				// update the mac for the parent for the evaluation of its mac
-				std::uint8_t *target_mac = (l_index & 1) ? reference_node->parent->adata.left_mac : reference_node->parent->adata.right_mac;
+				std::uint8_t *target_mac = (l_index & 1) ? parent->adata.left_mac : parent->adata.right_mac;
 				std::memcpy(target_mac, mac, sizeof(obl_aes_gcm_128bit_tag_t));
 
-				parent = reference_node->parent;
-				if (reference_node->local_timestamp <= c * K &&
-					reference_node->child_r == nullptr && reference_node->child_l == nullptr &&
-					parent->trylock() == 0)
+				if (parent->trylock() == 0)
 				{
-					if (l_index & 1)
-						parent->child_l = nullptr;
-					else
-						parent->child_r = nullptr;
+					if (reference_node->trylock() == 0)
+					{
+						if (reference_node->local_timestamp <= c * K &&
+							reference_node->child_r == nullptr && reference_node->child_l == nullptr)
+						{
+							if (l_index & 1)
+								parent->child_l = nullptr;
+							else
+								parent->child_r = nullptr;
+							flag = true;
+						}
+						reference_node->unlock();
+					}
 					parent->unlock();
+				}
+				if (flag)
+				{
 					nodes_level_i[i - 1][get_parent(l_index)] = parent;
-					reference_node = nullptr;
+					delete reference_node;
 				}
 			}
 			nodes_level_i[i].clear();
 		}
-		pthread_mutex_unlock(&write_back_lock);
+		// pthread_mutex_unlock(&write_back_lock);
 		delete[] _paths;
 	}
 

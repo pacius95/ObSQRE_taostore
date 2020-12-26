@@ -31,16 +31,20 @@ namespace obl
     struct node
     {
         pthread_mutex_t lk = PTHREAD_MUTEX_INITIALIZER;
+        pthread_mutex_t wb_lk = PTHREAD_MUTEX_INITIALIZER;
         auth_data_t adata;
         std::uint64_t local_timestamp;
-        std::shared_ptr<node> child_l;
-        std::shared_ptr<node> child_r;
-        std::shared_ptr<node> parent;
+        node * child_l;
+        node * child_r;
+        node * parent;
         std::uint8_t *payload;
 
         node()
         {
             local_timestamp = 0;
+            child_l = nullptr;
+            child_r = nullptr;
+            parent = nullptr;
             std::memset(&adata, 0x00, sizeof(auth_data_t));
         }
         node(std::size_t size) : node()
@@ -56,9 +60,10 @@ namespace obl
         ~node()
         {
             pthread_mutex_destroy(&lk);
+            pthread_mutex_destroy(&wb_lk);
             delete[] payload;
-            child_l = nullptr;
-            child_r = nullptr;
+            delete child_l;
+            delete child_r;
         }
         int trylock()
         {
@@ -72,8 +77,24 @@ namespace obl
         {
             return pthread_mutex_unlock(&lk);
         }
+        
+        int wb_trylock()
+        {
+            return pthread_mutex_trylock(&wb_lk);
+        }
+        int wb_lock()
+        {
+            return pthread_mutex_lock(&wb_lk);
+        }
+        int wb_unlock()
+        {
+            return pthread_mutex_unlock(&wb_lk);
+        }
     };
-
+    struct write_elem {
+        leaf_id T;
+        node* ptr;
+    };
     class taostore_subtree
     {
 
@@ -82,7 +103,7 @@ namespace obl
         moodycamel::ConcurrentQueue<leaf_id> write_queue;
         pthread_rwlock_t tree_rw_lock = PTHREAD_RWLOCK_INITIALIZER;
         pthread_mutex_t write_q_lk = PTHREAD_MUTEX_INITIALIZER;
-        std::shared_ptr<node> root;
+        node * root;
         int L;
 
     public:
@@ -95,15 +116,15 @@ namespace obl
         {
             pthread_mutex_destroy(&write_q_lk);
             pthread_rwlock_destroy(&tree_rw_lock);
-            root = nullptr;
+            delete root;
         }
         void init(size_t _node_size, std::uint8_t *_data, int _L)
         {
             L = _L;
-            root = std::make_shared<node>((_node_size));
+            root = new node(_node_size);
             memcpy(root->payload, _data, _node_size);
         }
-        std::shared_ptr<node> getroot()
+        node * getroot()
         {
             return root;
         }
@@ -134,10 +155,10 @@ namespace obl
                 write_queue.try_dequeue_bulk(temp, K);
         }
 
-        void update_valid(leaf_id *_paths, int K, flex &tree, std::unordered_map<std::int64_t, std::shared_ptr<node>> &nodes_map)
+        void update_valid(leaf_id *_paths, int K, flex &tree, std::unordered_map<std::int64_t, node *> &nodes_map)
         {
-            std::shared_ptr<node> reference_node;
-            std::shared_ptr<node> old_reference_node;
+            node * reference_node;
+            node * old_reference_node;
             bool reachable;
             leaf_id paths;
             std::int64_t l_index;
@@ -161,8 +182,8 @@ namespace obl
                         reachable = reachable && reference_node->adata.valid_l;                     // this propagates reachability
                         reference_node->adata.valid_l = true;
                     }
-                    tree[l_index].reach_l = reference_node->adata.valid_l;
-                    tree[l_index].reach_r = reference_node->adata.valid_r;
+                    tree[l_index].reach_l = reference_node->adata.valid_l;//check
+                    tree[l_index].reach_r = reference_node->adata.valid_r;//check
                     old_reference_node = reference_node;
                     reference_node = (paths >> j) & 1 ? old_reference_node->child_r : old_reference_node->child_l;
 

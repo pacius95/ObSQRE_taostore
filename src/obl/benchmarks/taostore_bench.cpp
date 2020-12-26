@@ -25,11 +25,11 @@ using tt = std::chrono::time_point<hres, nano>;
 
 const int pow_lower = 20;
 const int pow_upper = 30;
-const int bench_size = 1 << 20;
-const int RUN = 8;
+const int bench_size = 1 << 18;
+const int RUN = 16;
 struct buffer
 {
-	std::uint8_t _buffer[8];
+	std::uint8_t _buffer[4000];
 	bool operator==(const buffer &rhs) const
 	{
 		return !memcmp(_buffer, rhs._buffer, sizeof(_buffer));
@@ -183,19 +183,19 @@ int main()
 	{
 		std::size_t N = 1 << p;
 
-		oram = new obl::circuit_oram(N, sizeof(buffer), 3, 8);
-		oram_test("circuit", oram);
-		delete oram;
+		// oram = new obl::circuit_oram(N, sizeof(buffer), 3, 8);
+		// oram_test("circuit", oram);
+		// delete oram;
 
-		oram = new obl::path_oram(N, sizeof(buffer), 4, 32, 3);
-		oram_test("path_4_3", oram);
-		delete oram;
+		// oram = new obl::path_oram(N, sizeof(buffer), 4, 32, 3);
+		// oram_test("path_4_3", oram);
+		// delete oram;
 		
 		// oram = new obl::path_oram(N, sizeof(buffer), 8, 41, 8);
 		// oram_test("path_8_8", oram);
 		// delete oram;
 
-		for (int T_NUM = 1; T_NUM < 9; T_NUM++)
+		for (int T_NUM = 3; T_NUM < 16; T_NUM++)
 		{
 			rram = new obl::taostore_oram_v1(N, sizeof(buffer), Z, S, T_NUM);
 			serial_test("taostore_v1", T_NUM, rram);
