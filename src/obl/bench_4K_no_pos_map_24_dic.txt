@@ -1,0 +1,89 @@
+benchmarc block size:4000 bench size: 262144
+start circuit: 1048576
+tempo: 151.2s
+start taostore_v1 serial with N:1048576 T_NUM:1
+tempo: 126s
+start taostore_v2 serial with N:1048576 T_NUM:1
+tempo: 113.2s
+start taostore_v1 parallel with N:1048576 T_NUM:1 RUN: 16
+tempo: 125.1s
+start taostore_v2 parallel with N:1048576 T_NUM:1 RUN: 16
+tempo: 113.4s
+start taostore_v1 serial with N:1048576 T_NUM:2
+tempo: 76.99s
+start taostore_v2 serial with N:1048576 T_NUM:2
+tempo: 70.37s
+start taostore_v1 parallel with N:1048576 T_NUM:2 RUN: 16
+tempo: 75.64s
+start taostore_v2 parallel with N:1048576 T_NUM:2 RUN: 16
+tempo: 74.79s
+start taostore_v1 serial with N:1048576 T_NUM:3
+tempo: 63.97s
+start taostore_v2 serial with N:1048576 T_NUM:3
+tempo: 63.07s
+start taostore_v1 parallel with N:1048576 T_NUM:3 RUN: 16
+tempo: 63.2s
+start taostore_v2 parallel with N:1048576 T_NUM:3 RUN: 16
+tempo: 65.39s
+start taostore_v1 serial with N:1048576 T_NUM:4
+tempo: 66.97s
+start taostore_v2 serial with N:1048576 T_NUM:4
+tempo: 63.48s
+start taostore_v1 parallel with N:1048576 T_NUM:4 RUN: 16
+tempo: 66.64s
+start taostore_v2 parallel with N:1048576 T_NUM:4 RUN: 16
+tempo: 67.63s
+start taostore_v1 serial with N:1048576 T_NUM:5
+tempo: 92.64s
+start taostore_v2 serial with N:1048576 T_NUM:5
+tempo: 61.43s
+start taostore_v1 parallel with N:1048576 T_NUM:5 RUN: 16
+tempo: 68.01s
+start taostore_v2 parallel with N:1048576 T_NUM:5 RUN: 16
+tempo: 65.69s
+start taostore_v1 serial with N:1048576 T_NUM:6
+tempo: 99.69s
+start taostore_v2 serial with N:1048576 T_NUM:6
+tempo: 63.35s
+start taostore_v1 parallel with N:1048576 T_NUM:6 RUN: 16
+tempo: 97.1s
+start taostore_v2 parallel with N:1048576 T_NUM:6 RUN: 16
+tempo: 62.51s
+start taostore_v1 serial with N:1048576 T_NUM:7
+tempo: 103.9s
+start taostore_v2 serial with N:1048576 T_NUM:7
+tempo: 60.83s
+start taostore_v1 parallel with N:1048576 T_NUM:7 RUN: 16
+tempo: 98.96s
+start taostore_v2 parallel with N:1048576 T_NUM:7 RUN: 16
+tempo: 60.6s
+start taostore_v1 serial with N:1048576 T_NUM:8
+tempo: 105.7s
+start taostore_v2 serial with N:1048576 T_NUM:8
+tempo: 58.71s
+start taostore_v1 parallel with N:1048576 T_NUM:8 RUN: 16
+tempo: 98.04s
+start taostore_v2 parallel with N:1048576 T_NUM:8 RUN: 16
+tempo: 61.87s
+start taostore_v1 serial with N:1048576 T_NUM:9
+tempo: 104.8s
+start taostore_v2 serial with N:1048576 T_NUM:9
+tempo: 60.77s
+start taostore_v1 parallel with N:1048576 T_NUM:9 RUN: 16
+tempo: 91.77s
+start taostore_v2 parallel with N:1048576 T_NUM:9 RUN: 16
+tempo: 60.3s
+start taostore_v1 serial with N:1048576 T_NUM:10
+tempo: 107.6s
+start taostore_v2 serial with N:1048576 T_NUM:10
+tempo: 60.01s
+start taostore_v1 parallel with N:1048576 T_NUM:10 RUN: 16
+tempo: 93.66s
+start taostore_v2 parallel with N:1048576 T_NUM:10 RUN: 16
+tempo: 59.27s
+start taostore_v1 serial with N:1048576 T_NUM:11
+tempo: 105.5s
+start taostore_v2 serial with N:1048576 T_NUM:11
+tempo: 58.72s
+start taostore_v1 parallel with N:1048576 T_NUM:11 RUN: 16
+taostore_bench: taostore.cpp:290: void obl::taostore_oram::answer_request(bool, obl::block_id, int32_t, uint8_t*): Assertion `already_evicted' failed.

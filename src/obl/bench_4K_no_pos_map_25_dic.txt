@@ -1,0 +1,52 @@
+benchmarc block size:4000 bench size: 262144
+start taostore_v2 serial with N:1048576 T_NUM:1
+tempo: 112.4s
+start taostore_v2 parallel with N:1048576 T_NUM:1 RUN: 16
+tempo: 112.2s
+start taostore_v2 serial with N:1048576 T_NUM:2
+tempo: 53.87s
+start taostore_v2 parallel with N:1048576 T_NUM:2 RUN: 16
+tempo: 53.76s
+start taostore_v2 serial with N:1048576 T_NUM:3
+tempo: 34.74s
+start taostore_v2 parallel with N:1048576 T_NUM:3 RUN: 16
+tempo: 37.56s
+start taostore_v2 serial with N:1048576 T_NUM:4
+tempo: 29.84s
+start taostore_v2 parallel with N:1048576 T_NUM:4 RUN: 16
+tempo: 35s
+start taostore_v2 serial with N:1048576 T_NUM:5
+tempo: 31.4s
+start taostore_v2 parallel with N:1048576 T_NUM:5 RUN: 16
+tempo: 29.23s
+start taostore_v2 serial with N:1048576 T_NUM:6
+tempo: 45.87s
+start taostore_v2 parallel with N:1048576 T_NUM:6 RUN: 16
+tempo: 27.75s
+start taostore_v2 serial with N:1048576 T_NUM:7
+tempo: 46.7s
+start taostore_v2 parallel with N:1048576 T_NUM:7 RUN: 16
+tempo: 25.61s
+start taostore_v2 serial with N:1048576 T_NUM:8
+tempo: 50s
+start taostore_v2 parallel with N:1048576 T_NUM:8 RUN: 16
+tempo: 26.33s
+start taostore_v2 serial with N:1048576 T_NUM:9
+tempo: 53.34s
+start taostore_v2 parallel with N:1048576 T_NUM:9 RUN: 16
+tempo: 22.79s
+start taostore_v2 serial with N:1048576 T_NUM:10
+tempo: 55.33s
+start taostore_v2 parallel with N:1048576 T_NUM:10 RUN: 16
+tempo: 22.71s
+start taostore_v2 serial with N:1048576 T_NUM:11
+tempo: 52.94s
+start taostore_v2 parallel with N:1048576 T_NUM:11 RUN: 16
+tempo: 23.96s
+start taostore_v2 serial with N:1048576 T_NUM:12
+tempo: 52.84s
+start taostore_v2 parallel with N:1048576 T_NUM:12 RUN: 16
+tempo: 20.71s
+start taostore_v2 serial with N:1048576 T_NUM:13
+tempo: 54.64s
+start taostore_v2 parallel with N:1048576 T_NUM:13 RUN: 16

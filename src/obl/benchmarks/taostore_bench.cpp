@@ -195,17 +195,17 @@ int main()
 		// oram_test("path_8_8", oram);
 		// delete oram;
 
-		for (int T_NUM = 3; T_NUM < 16; T_NUM++)
+		for (int T_NUM = 7; T_NUM < 16; T_NUM++)
 		{
-			rram = new obl::taostore_oram_v1(N, sizeof(buffer), Z, S, T_NUM);
-			serial_test("taostore_v1", T_NUM, rram);
-			rram->wait_end();
-			delete rram;
+			// rram = new obl::taostore_oram_v1(N, sizeof(buffer), Z, S, T_NUM);
+			// serial_test("taostore_v1", T_NUM, rram);
+			// rram->wait_end();
+			// delete rram;
 
-			rram = new obl::taostore_oram_v2(N, sizeof(buffer), Z, S, T_NUM);
-			serial_test("taostore_v2", T_NUM, rram);
-			rram->wait_end();
-			delete rram;
+			// rram = new obl::taostore_oram_v2(N, sizeof(buffer), Z, S, T_NUM);
+			// serial_test("taostore_v2", T_NUM, rram);
+			// rram->wait_end();
+			// delete rram;
 
 			// rram = new obl::taostore_path_oram(N, sizeof(buffer), 4, 32, 3, T_NUM);
 			// serial_test("taostore_path_4_3", T_NUM, rram);
@@ -215,10 +215,10 @@ int main()
 			// serial_test("taostore_path_8_8", T_NUM, rram);
 			// delete rram;
 
-			rram = new obl::taostore_oram_v1(N, sizeof(buffer), Z, S, T_NUM);
-			parallel_test("taostore_v1", T_NUM, RUN, rram);
-			rram->wait_end();
-			delete rram;
+			// rram = new obl::taostore_oram_v1(N, sizeof(buffer), Z, S, T_NUM);
+			// parallel_test("taostore_v1", T_NUM, RUN, rram);
+			// rram->wait_end();
+			// delete rram;
 			rram = new obl::taostore_oram_v2(N, sizeof(buffer), Z, S, T_NUM);
 			parallel_test("taostore_v2", T_NUM, RUN, rram);
 			rram->wait_end();

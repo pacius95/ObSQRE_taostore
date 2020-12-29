@@ -585,6 +585,7 @@ namespace obl
 			}
 			nodes_level_i[i].clear();
 		}
+		printsubtree();
 		// pthread_mutex_unlock(&write_back_lock);
 		delete[] _paths;
 	}

@@ -653,13 +653,14 @@ namespace obl
 				pthread_mutex_unlock(&multi_set_lock);
 				if (flag)
 				{
-						nodes_level_i[i - 1][get_parent(l_index)] = parent;
-						delete reference_node;
+					nodes_level_i[i - 1][get_parent(l_index)] = parent;
+					delete reference_node;
 				}
 			}
 			nodes_level_i[i].clear();
 		}
 		pthread_mutex_unlock(&write_back_lock);
+		printsubtree();
 		delete [] _paths;
 	}
 
