@@ -34,8 +34,6 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <unistd.h>
-#include <iostream>
-#include <ctime>
 
 #include "obl/threadpool.h"
 

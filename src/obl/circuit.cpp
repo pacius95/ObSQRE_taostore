@@ -6,11 +6,6 @@
 
 #include <cstdlib>
 #include <cstring>
-#include <chrono>
-#include <iostream>
-using hres = std::chrono::high_resolution_clock;
-using _nano = std::chrono::nanoseconds;
-using tt = std::chrono::time_point<hres, _nano>;
 
 #define DUMMY -1
 #define BOTTOM -2
@@ -145,7 +140,7 @@ namespace obl
 
 		for (i = 0; i <= L && reachable; i++)
 		{
-			auto start = hres::now();
+			// auto start = hres::now();
 
 			std::int64_t leftch = get_left(l_index);
 			std::int64_t rightch = get_right(l_index);
@@ -201,9 +196,9 @@ namespace obl
 				std::uint8_t *src = ((path >> i) & 1) ? adata[i].right_mac : adata[i].left_mac;
 				std::memcpy(reference_mac, src, sizeof(obl_aes_gcm_128bit_tag_t));
 			}
-			auto end = hres::now();
-			auto duration = end - start;
-			std::cout << "printf: " << duration.count() / 1000000000.0 << "s" << std::endl;
+			// auto end = hres::now();
+			// auto duration = end - start;
+			// std::cout << "printf: " << duration.count() / 1000000000.0 << "s" << std::endl;
 		}
 
 		// fill the other buckets with "empty" blocks
@@ -227,7 +222,7 @@ namespace obl
 		obl_aes_gcm_128bit_iv_t iv;
 		obl_aes_gcm_128bit_tag_t mac;
 		bool reachable = true;
-		auto start = hres::now();
+		// auto start = hres::now();
 
 		// update the reachability flags
 		for (int i = 0; i < L; i++)
@@ -250,9 +245,9 @@ namespace obl
 		adata[L].valid_l = false;
 		adata[L].valid_r = false;
 
-		auto end = hres::now();
-		auto duration = end - start;
-		std::cout << "printf adata: " << duration.count() / 1000000000.0 << "s" << std::endl;
+		// auto end = hres::now();
+		// auto duration = end - start;
+		// std::cout << "printf adata: " << duration.count() / 1000000000.0 << "s" << std::endl;
 		for (int i = L; i >= 0; i--)
 		{
 			// generate a new random IV

@@ -8,18 +8,15 @@
 
 #include <queue>
 #include <unordered_map>
-#include <map>
 
-#include <cstdint>
-#include <cstddef>
+#include <pthread.h>
 #include <cstdint>
 #include <cstddef>
 #include <cstdlib>
 #include <cstring>
 #include <utility>
-#include <iterator>
-#include <pthread.h>
 #include <memory>
+#include <atomic>
 
 #ifdef SGX_ENCLAVE_ENABLED
 #define flex flexible_array<bucket_t, sgx_host_allocator>
@@ -34,9 +31,9 @@ namespace obl
         pthread_mutex_t wb_lk = PTHREAD_MUTEX_INITIALIZER;
         auth_data_t adata;
         std::uint64_t local_timestamp;
-        node * child_l;
-        node * child_r;
-        node * parent;
+        node *child_l;
+        node *child_r;
+        node *parent;
         std::uint8_t *payload;
 
         node()
@@ -61,9 +58,9 @@ namespace obl
         {
             pthread_mutex_destroy(&lk);
             pthread_mutex_destroy(&wb_lk);
-            delete[] payload;
             delete child_l;
             delete child_r;
+            delete[] payload;
         }
         int trylock()
         {
@@ -77,7 +74,7 @@ namespace obl
         {
             return pthread_mutex_unlock(&lk);
         }
-        
+
         int wb_trylock()
         {
             return pthread_mutex_trylock(&wb_lk);
@@ -91,9 +88,10 @@ namespace obl
             return pthread_mutex_unlock(&wb_lk);
         }
     };
-    struct write_elem {
+    struct write_elem
+    {
         leaf_id T;
-        node* ptr;
+        node *ptr;
     };
     class taostore_subtree
     {
@@ -103,13 +101,15 @@ namespace obl
         moodycamel::ConcurrentQueue<leaf_id> write_queue;
         pthread_rwlock_t tree_rw_lock = PTHREAD_RWLOCK_INITIALIZER;
         pthread_mutex_t write_q_lk = PTHREAD_MUTEX_INITIALIZER;
-        node * root;
+        node *root;
+        std::atomic_int32_t nodes_count;
         int L;
 
     public:
         taostore_subtree()
         {
             L = 0;
+            std::atomic_init(&nodes_count, 0);
             root = nullptr;
         }
         ~taostore_subtree()
@@ -118,13 +118,25 @@ namespace obl
             pthread_rwlock_destroy(&tree_rw_lock);
             delete root;
         }
+        void newnode()
+        {
+            nodes_count++;
+        }
+        void removenode()
+        {
+            nodes_count--;
+        }
+        int get_nodes_count()
+        {
+            return nodes_count;
+        }
         void init(size_t _node_size, std::uint8_t *_data, int _L)
         {
             L = _L;
             root = new node(_node_size);
             memcpy(root->payload, _data, _node_size);
         }
-        node * getroot()
+        node *getroot()
         {
             return root;
         }
@@ -152,13 +164,13 @@ namespace obl
         // }
         void get_pop_queue(int K, leaf_id *temp)
         {
-                write_queue.try_dequeue_bulk(temp, K);
+            write_queue.try_dequeue_bulk(temp, K);
         }
 
         void update_valid(leaf_id *_paths, int K, flex &tree, std::unordered_map<std::int64_t, node *> &nodes_map)
         {
-            node * reference_node;
-            node * old_reference_node;
+            node *reference_node;
+            node *old_reference_node;
             bool reachable;
             leaf_id paths;
             std::int64_t l_index;
@@ -182,14 +194,14 @@ namespace obl
                         reachable = reachable && reference_node->adata.valid_l;                     // this propagates reachability
                         reference_node->adata.valid_l = true;
                     }
-                    tree[l_index].reach_l = reference_node->adata.valid_l;//check
-                    tree[l_index].reach_r = reference_node->adata.valid_r;//check
+                    tree[l_index].reach_l = reference_node->adata.valid_l;
+                    tree[l_index].reach_r = reference_node->adata.valid_r;
                     old_reference_node = reference_node;
                     reference_node = (paths >> j) & 1 ? old_reference_node->child_r : old_reference_node->child_l;
 
                     l_index = (l_index << 1) + 1 + ((paths >> j) & 1);
                 }
-                if (reference_node != nullptr)
+                if (reference_node != nullptr && reference_node->wb_trylock() == 0)
                 {
                     reference_node->adata.valid_l = false;
                     reference_node->adata.valid_r = false;

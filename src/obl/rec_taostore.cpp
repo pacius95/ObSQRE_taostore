@@ -18,7 +18,7 @@ namespace obl
 	recursive_taoram::recursive_taoram(std::size_t N, std::size_t B, unsigned int csize, taostore_factory *allocator)
 	{
 		this->N = N;
-		toram = (taostore_oram *)allocator->spawn_oram(this->N, B, 4);
+		toram = (taostore_oram *)allocator->spawn_oram(this->N, B);
 	}
 
 	recursive_taoram::~recursive_taoram()

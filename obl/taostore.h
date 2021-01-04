@@ -12,18 +12,15 @@
 
 #include <cstdint>
 #include <cstddef>
+#include <cstring>
 
 #include <deque>
-#include <set>
 #include <unordered_set>
 
 //threading libs
-#include <iostream>
 #include <atomic>
-#include <vector>
-#include <mutex>
-#include <thread>
 #include <pthread.h>
+
 #include <wolfcrypt/aes.h>
 
 #ifdef SGX_ENCLAVE_ENABLED
@@ -112,11 +109,11 @@ namespace obl
 		~taostore_oram();
 
 		//debug
-		int printrec(node * t, int L, int l_index);
-		void printstash();
-		void printsubtree();
-		void print_tree();
-		void printpath(leaf_id path);
+		// int printrec(node * t, int L, int l_index);
+		// void printstash();
+		// void printsubtree();
+		// void print_tree();
+		// void printpath(leaf_id path);
 
 		void wait_end();
 		void access(block_id bid, std::uint8_t *data_in, std::uint8_t *data_out);
@@ -133,12 +130,6 @@ namespace obl
 	{
 		taostore_oram *arg1;
 		taostore_request_t &request;
-	};
-	class taostore_factory
-	{
-	public:
-		virtual taostore_oram *spawn_oram(std::size_t N, std::size_t B, size_t T_NUM) = 0;
-		virtual ~taostore_factory(){};
 	};
 
 } // namespace obl

@@ -25,19 +25,16 @@ namespace obl
 		void write(block_id bid, std::uint8_t *data_in, leaf_id next_lif);
 	};
 
-	class taostore_factory_v2 : public taostore_factory
-	{
+	class taostore_factory_v2 : public oram_factory	{
 	private:
-		unsigned int Z, S;
-
+		unsigned int Z, S, T_NUM;
 	public:
-		taostore_factory_v2(unsigned int Z, unsigned int S)
-		{
+		taostore_factory_v2(unsigned int Z, unsigned int S, unsigned int T_NUM)	{
 			this->Z = Z;
 			this->S = S;
+			this->T_NUM = T_NUM;
 		}
-		taostore_oram *spawn_oram(std::size_t N, std::size_t B, std::size_t T_NUM)
-		{
+		tree_oram* spawn_oram(std::size_t N, std::size_t B)	{
 			return new taostore_oram_v2(N, B, Z, S, T_NUM);
 		}
 	};

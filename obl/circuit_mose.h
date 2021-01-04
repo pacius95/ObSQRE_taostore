@@ -6,8 +6,6 @@
 #include "obl/flexible_array.hpp"
 #include "obl/threadpool.h"
 
-#include <cstdint>
-#include <cstddef>
 #include <atomic>
 
 #include <wolfcrypt/aes.h>

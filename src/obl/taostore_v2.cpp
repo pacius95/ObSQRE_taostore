@@ -4,14 +4,6 @@
 
 #include "obl/oassert.h"
 
-#include <map>
-#include <cstdlib>
-#include <iostream>
-#include <cstring>
-#include <ctime>
-
-//#include "sgx_trts.h"
-
 #define DUMMY -1
 #define BOTTOM -2
 #define QUEUE_SIZE 256
@@ -24,9 +16,6 @@ namespace obl
 		std::int64_t l_index = 0;
 		std::vector<node *> fetched_path;
 		fetched_path.reserve(L + 1);
-
-		// for (int i = 0; i < L + 1; i++)
-		// 	fetched_path.emplace_back((block_size * Z));
 
 		int i = 0;
 
@@ -87,6 +76,7 @@ namespace obl
 			(l_index & 1) ? old_ref_node->child_l = fetched_path[i] : old_ref_node->child_r = fetched_path[i];
 			reference_node = (l_index & 1) ? old_ref_node->child_l : old_ref_node->child_r;
 			reference_node->parent = old_ref_node;
+			local_subtree.newnode();
 
 			reference_node->lock();
 
@@ -354,7 +344,7 @@ namespace obl
 		}
 		while (i <= L && valid)
 		{
-			fetched_path.emplace_back(new node (block_size * Z));
+			fetched_path.emplace_back(new node(block_size * Z));
 
 			adata = &fetched_path[i]->adata;
 			std::int64_t leftch = get_left(l_index);
@@ -412,7 +402,7 @@ namespace obl
 		// fill the other buckets with "empty" blocks
 		while (i <= L)
 		{
-			fetched_path.emplace_back(new node (block_size * Z));
+			fetched_path.emplace_back(new node(block_size * Z));
 			bl = (block_t *)fetched_path[i]->payload;
 			for (unsigned int j = 0; j < Z; ++j)
 			{
@@ -488,6 +478,7 @@ namespace obl
 			(l_index & 1) ? old_ref_node->child_l = fetched_path[i] : old_ref_node->child_r = fetched_path[i];
 			reference_node = (l_index & 1) ? old_ref_node->child_l : old_ref_node->child_r;
 			reference_node->parent = old_ref_node;
+			local_subtree.newnode();
 
 			reference_node->lock();
 			old_ref_node->unlock();
@@ -574,70 +565,53 @@ namespace obl
 		obl_aes_gcm_128bit_tag_t mac;
 		node *reference_node;
 		node *parent;
-		leaf_id * _paths = new leaf_id[K];
+		leaf_id *_paths = new leaf_id[K];
 		int tmp = K;
 
+		assert(local_subtree.get_nodes_count() * bucket_size < 2<<25);
 		nodes_level_i[L].reserve(K);
 		local_subtree.get_pop_queue(K, _paths);
-		pthread_mutex_lock(&write_back_lock);
 		local_subtree.update_valid(_paths, K, tree, nodes_level_i[L]);
-
 		for (int i = L; i > 0; --i)
 		{
 			tmp = tmp / 2;
-			nodes_level_i[i-1].reserve(tmp);
+			nodes_level_i[i - 1].reserve(tmp);
 			for (auto &itx : nodes_level_i[i])
 			{
 				flag = false;
 				l_index = itx.first;
 				reference_node = itx.second;
-				// generate a new random IV
-				gen_rand(iv, OBL_AESGCM_IV_SIZE);
-
-				// save encrypted payload
-				wc_AesGcmEncrypt(crypt_handle,
-								 tree[l_index].payload,
-								 reference_node->payload,
-								 Z * block_size,
-								 iv,
-								 OBL_AESGCM_IV_SIZE,
-								 mac,
-								 OBL_AESGCM_MAC_SIZE,
-								 (std::uint8_t *)&reference_node->adata,
-								 sizeof(auth_data_t));
-
-				// save "mac" + iv + reachability flags
-				std::memcpy(tree[l_index].mac, mac, sizeof(obl_aes_gcm_128bit_tag_t));
-				std::memcpy(tree[l_index].iv, iv, sizeof(obl_aes_gcm_128bit_iv_t));
-
-				// update the mac for the parent for the evaluation of its mac
-				std::uint8_t *target_mac = (l_index & 1) ? reference_node->parent->adata.left_mac : reference_node->parent->adata.right_mac;
-				std::memcpy(target_mac, mac, sizeof(obl_aes_gcm_128bit_tag_t));
-
 				parent = reference_node->parent;
-				// pthread_mutex_lock(&multi_set_lock);
-
-				// if (reference_node->local_timestamp <= c * K &&
-				// 	reference_node->child_r == nullptr && reference_node->child_l == nullptr && 
-				// 	path_req_multi_set.find(l_index) == path_req_multi_set.end() &&
-				//  	parent->trylock() == 0)
-				// {
-				// 	if (l_index & 1)
-				// 		parent->child_l = nullptr;
-				// 	else
-				// 		parent->child_r = nullptr;
-				// 	parent->unlock();
-				// 	nodes_level_i[i - 1][get_parent(l_index)] = parent;
-				// 	delete reference_node;
-				// }
-				// pthread_mutex_unlock(&multi_set_lock);
-				pthread_mutex_lock(&multi_set_lock);
+				
 				if (parent->trylock() == 0)
 				{
 					if (reference_node->trylock() == 0)
 					{
-						if (reference_node->local_timestamp <= c * K &&
-							reference_node->child_r == nullptr && reference_node->child_l == nullptr &&
+						// generate a new random IV
+						gen_rand(iv, OBL_AESGCM_IV_SIZE);
+
+						// save encrypted payload
+						wc_AesGcmEncrypt(crypt_handle,
+										 tree[l_index].payload,
+										 reference_node->payload,
+										 Z * block_size,
+										 iv,
+										 OBL_AESGCM_IV_SIZE,
+										 mac,
+										 OBL_AESGCM_MAC_SIZE,
+										 (std::uint8_t *)&reference_node->adata,
+										 sizeof(auth_data_t));
+
+						// save "mac" + iv + reachability flags
+						std::memcpy(tree[l_index].mac, mac, sizeof(obl_aes_gcm_128bit_tag_t));
+						std::memcpy(tree[l_index].iv, iv, sizeof(obl_aes_gcm_128bit_iv_t));
+
+						// update the mac for the parent for the evaluation of its mac
+						std::uint8_t *target_mac = (l_index & 1) ? reference_node->parent->adata.left_mac : reference_node->parent->adata.right_mac;
+						std::memcpy(target_mac, mac, sizeof(obl_aes_gcm_128bit_tag_t));
+
+						pthread_mutex_lock(&multi_set_lock);
+						if (reference_node->child_r == nullptr && reference_node->child_l == nullptr &&
 							path_req_multi_set.find(l_index) == path_req_multi_set.end())
 						{
 							if (l_index & 1)
@@ -646,22 +620,26 @@ namespace obl
 								parent->child_r = nullptr;
 							flag = true;
 						}
+						pthread_mutex_unlock(&multi_set_lock);
 						reference_node->unlock();
 					}
 					parent->unlock();
 				}
-				pthread_mutex_unlock(&multi_set_lock);
 				if (flag)
 				{
-					nodes_level_i[i - 1][get_parent(l_index)] = parent;
+					if (parent->wb_trylock() == 0)
+						nodes_level_i[i - 1][get_parent(l_index)] = parent;
+					reference_node->wb_unlock();
 					delete reference_node;
+					local_subtree.removenode();
 				}
+				else
+					reference_node->wb_unlock();
 			}
 			nodes_level_i[i].clear();
 		}
-		pthread_mutex_unlock(&write_back_lock);
-		printsubtree();
-		delete [] _paths;
+		// pthread_mutex_unlock(&write_back_lock);
+		delete[] _paths;
 	}
 
 } // namespace obl
