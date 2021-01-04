@@ -5,14 +5,6 @@
 
 #include "obl/oassert.h"
 
-#include <map>
-#include <cstdlib>
-#include <iostream>
-#include <cstring>
-#include <ctime>
-
-//#include "sgx_trts.h"
-
 #define DUMMY -1
 #define BOTTOM -2
 #define QUEUE_SIZE 256
@@ -41,7 +33,7 @@ namespace obl
 		for (unsigned int i = 0; i < this->S; ++i)
 			stash[i].bid = DUMMY;
 
-		this->ss = 3;
+		this->ss = Z;
 		this->SS = (S / ss) + 1;
 		stash_locks = new pthread_mutex_t[SS];
 		for (unsigned int i = 0; i < SS; i++)
@@ -50,7 +42,6 @@ namespace obl
 		this->T_NUM = T_NUM;
 		this->K = next_two_power((1 << 25) / (bucket_size * L));
 
-		std::cout << K << std::endl;
 		init();
 		oram_alive = true;
 		pthread_create(&serializer_id, nullptr, serializer_wrap, (void *)this);
@@ -313,7 +304,8 @@ namespace obl
 		// std::memcpy(data_out, _data_out, B);
 	}
 
-	void taostore_oram::printstash()
+//DEGUG
+/*	void taostore_oram::printstash()
 	{
 		for (unsigned int i = 0; i < S; ++i)
 			std::cerr << "stash " << i << "bid: " << (block_id)stash[i].bid << "lid :" << (leaf_id)stash[i].lid << " data: " << (std::uint64_t) * ((std::uint64_t *)stash[i].payload) << std::endl;
@@ -415,6 +407,9 @@ namespace obl
 			reference_node = (path >> i) & 1 ? reference_node->child_r : reference_node->child_l;
 			l_index = (l_index << 1) + 1 + ((path >> i) & 1);
 		}
-	} // namespace obl
+	}
+	*/
+	
+	 // namespace obl
 
 } // namespace obl

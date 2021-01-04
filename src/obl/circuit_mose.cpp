@@ -6,17 +6,17 @@
 
 #include <cstdlib>
 #include <cstring>
-#include <iostream>
-#include <chrono>
+// #include <iostream>
+// #include <chrono>
 
 #define DUMMY -1
 #define BOTTOM -2
 #define QUEUE_SIZE 256
 #define T_NUM 1
 
-using hres = std::chrono::high_resolution_clock;
-using _nano = std::chrono::nanoseconds;
-using tt = std::chrono::time_point<hres, _nano>;
+// using hres = std::chrono::high_resolution_clock;
+// using _nano = std::chrono::nanoseconds;
+// using tt = std::chrono::time_point<hres, _nano>;
 
 namespace obl
 {
@@ -305,16 +305,16 @@ namespace obl
 
             barrier = 0;
             
-		auto start = hres::now();
+		// auto start = hres::now();
             for (int i = 0; i < T_NUM; i++)
             {
                 threadpool_add(thpool, decription_wrap, (void *)&args[i], 0);
             }
             while (barrier != T_NUM);
 
-		auto end = hres::now();
-		auto duration = end - start;
-		std::cout << "printf: " << duration.count() / 1000000000.0 << "s" << std::endl;
+		// auto end = hres::now();
+		// auto duration = end - start;
+		// std::cout << "printf: " << duration.count() / 1000000000.0 << "s" << std::endl;
             //as reference we take the idx==0 adata
             reachable = (path >> v) & 1 ? adata[v].valid_r : adata[v].valid_l;
 
@@ -342,15 +342,15 @@ namespace obl
         _path = path;
 
         barrier = 0;
-		auto start = hres::now();
+		// auto start = hres::now();
         for (int i = 0; i < T_NUM; i++)
         {
             threadpool_add(thpool, update_adata_wrap, (void *)&args[i], 0);
         }
 
-		auto end = hres::now();
-		auto duration = end - start;
-		std::cout << "printf adata: " << duration.count() / 1000000000.0 << "s" << std::endl;
+		// auto end = hres::now();
+		// auto duration = end - start;
+		// std::cout << "printf adata: " << duration.count() / 1000000000.0 << "s" << std::endl;
         // pthread_mutex_lock(&cond_lock);
         while (barrier != T_NUM);
         //     pthread_cond_wait(&cond_sign, &cond_lock);

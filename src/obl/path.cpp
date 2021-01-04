@@ -7,8 +7,6 @@
 #include <cstdlib>
 #include <cstring>
 
-#include<iostream>
-
 #define DUMMY -1
 
 namespace obl {

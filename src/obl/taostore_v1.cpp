@@ -4,14 +4,6 @@
 
 #include "obl/oassert.h"
 
-#include <map>
-#include <cstdlib>
-#include <iostream>
-#include <cstring>
-#include <ctime>
-
-//#include "sgx_trts.h"
-
 #define DUMMY -1
 #define BOTTOM -2
 #define QUEUE_SIZE 256
@@ -94,6 +86,7 @@ namespace obl
 		{
 			(l_index & 1) ? old_ref_node->child_l = new node(block_size * Z, timestamp) : old_ref_node->child_r = new node(block_size * Z, timestamp);
 			reference_node = (l_index & 1) ? old_ref_node->child_l : old_ref_node->child_r;
+					local_subtree.newnode();
 			reference_node->lock();
 
 			reference_node->parent = old_ref_node;
@@ -131,7 +124,7 @@ namespace obl
 
 			// MAC mismatch is a critical error
 			//assert(dec != AES_GCM_AUTH_E);
-			// assert(dec == 0);
+			assert(dec == 0);
 
 			csb[i] = ternary_op(goal >= i, _closest_src_bucket, BOTTOM);
 			std::int64_t jump = get_max_depth_bucket((block_t *)reference_node->payload, Z, path);
@@ -156,6 +149,7 @@ namespace obl
 		{
 			(l_index & 1) ? old_ref_node->child_l = new node(block_size * Z, timestamp) : old_ref_node->child_r = new node(block_size * Z, timestamp);
 			reference_node = (l_index & 1) ? old_ref_node->child_l : old_ref_node->child_r;
+					local_subtree.newnode();
 			reference_node->parent = old_ref_node;
 			reference_node->lock();
 
@@ -373,6 +367,7 @@ namespace obl
 		{
 			(l_index & 1) ? old_ref_node->child_l = new node(block_size * Z, timestamp) : old_ref_node->child_r = new node(block_size * Z, timestamp);
 			reference_node = (l_index & 1) ? old_ref_node->child_l : old_ref_node->child_r;
+					local_subtree.newnode();
 			reference_node->parent = old_ref_node;
 
 			reference_node->lock();
@@ -410,7 +405,7 @@ namespace obl
 									   (std::uint8_t *)adata,
 									   sizeof(auth_data_t));
 
-			// assert(dec == 0);
+			assert(dec == 0);
 
 			bl = (block_t *)reference_node->payload;
 			for (unsigned int j = 0; j < Z; ++j)
@@ -436,6 +431,7 @@ namespace obl
 			(l_index & 1) ? old_ref_node->child_l = new node(block_size * Z, timestamp) : old_ref_node->child_r = new node(block_size * Z, timestamp);
 			reference_node = (l_index & 1) ? old_ref_node->child_l : old_ref_node->child_r;
 			reference_node->parent = old_ref_node;
+					local_subtree.newnode();
 
 			reference_node->lock();
 			old_ref_node->unlock();
@@ -521,12 +517,10 @@ namespace obl
 		int tmp = K;
 		bool flag = false;
 
+		assert(local_subtree.get_nodes_count() * bucket_size < 2<<25);
 		nodes_level_i[L].reserve(K);
 		local_subtree.get_pop_queue(K, _paths);
-		// pthread_mutex_lock(&write_back_lock);
 		local_subtree.update_valid(_paths, K, tree, nodes_level_i[L]);
-
-		// local_subtree.write_lock();
 		for (int i = L; i > 0; --i)
 		{
 			tmp = tmp / 2;
@@ -536,36 +530,37 @@ namespace obl
 				flag = false;
 				l_index = itx.first;
 				reference_node = itx.second;
-				// generate a new random IV
-				gen_rand(iv, OBL_AESGCM_IV_SIZE);
-
-				// save encrypted payload
-				wc_AesGcmEncrypt(crypt_handle,
-								 tree[l_index].payload,
-								 reference_node->payload,
-								 Z * block_size,
-								 iv,
-								 OBL_AESGCM_IV_SIZE,
-								 mac,
-								 OBL_AESGCM_MAC_SIZE,
-								 (std::uint8_t *)&reference_node->adata,
-								 sizeof(auth_data_t));
-
-				// save "mac" + iv
-				std::memcpy(tree[l_index].mac, mac, sizeof(obl_aes_gcm_128bit_tag_t));
-				std::memcpy(tree[l_index].iv, iv, sizeof(obl_aes_gcm_128bit_iv_t));
-
 				parent = reference_node->parent;
-				// update the mac for the parent for the evaluation of its mac
-				std::uint8_t *target_mac = (l_index & 1) ? parent->adata.left_mac : parent->adata.right_mac;
-				std::memcpy(target_mac, mac, sizeof(obl_aes_gcm_128bit_tag_t));
-
+				
 				if (parent->trylock() == 0)
 				{
 					if (reference_node->trylock() == 0)
 					{
-						if (reference_node->local_timestamp <= c * K &&
-							reference_node->child_r == nullptr && reference_node->child_l == nullptr)
+						// generate a new random IV
+						gen_rand(iv, OBL_AESGCM_IV_SIZE);
+
+						// save encrypted payload
+						wc_AesGcmEncrypt(crypt_handle,
+										 tree[l_index].payload,
+										 reference_node->payload,
+										 Z * block_size,
+										 iv,
+										 OBL_AESGCM_IV_SIZE,
+										 mac,
+										 OBL_AESGCM_MAC_SIZE,
+										 (std::uint8_t *)&reference_node->adata,
+										 sizeof(auth_data_t));
+
+						// save "mac" + iv + reachability flags
+						std::memcpy(tree[l_index].mac, mac, sizeof(obl_aes_gcm_128bit_tag_t));
+						std::memcpy(tree[l_index].iv, iv, sizeof(obl_aes_gcm_128bit_iv_t));
+
+						// update the mac for the parent for the evaluation of its mac
+						std::uint8_t *target_mac = (l_index & 1) ? reference_node->parent->adata.left_mac : reference_node->parent->adata.right_mac;
+						std::memcpy(target_mac, mac, sizeof(obl_aes_gcm_128bit_tag_t));
+
+						if (reference_node->child_r == nullptr && reference_node->child_l == nullptr &&
+							path_req_multi_set.find(l_index) == path_req_multi_set.end())
 						{
 							if (l_index & 1)
 								parent->child_l = nullptr;
@@ -579,13 +574,17 @@ namespace obl
 				}
 				if (flag)
 				{
-					nodes_level_i[i - 1][get_parent(l_index)] = parent;
+					if (parent->wb_trylock() == 0)
+						nodes_level_i[i - 1][get_parent(l_index)] = parent;
+					reference_node->wb_unlock();
 					delete reference_node;
+					local_subtree.removenode();
 				}
+				else
+					reference_node->wb_unlock();
 			}
 			nodes_level_i[i].clear();
 		}
-		printsubtree();
 		// pthread_mutex_unlock(&write_back_lock);
 		delete[] _paths;
 	}

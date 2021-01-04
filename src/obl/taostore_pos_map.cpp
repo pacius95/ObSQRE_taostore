@@ -2,8 +2,6 @@
 #include "obl/rec.h"
 #include "obl/primitives.h"
 
-#include <iostream>
-
 #define DUMMY_LEAF -1
 
 namespace obl

@@ -4,14 +4,6 @@
 
 #include "obl/oassert.h"
 
-#include <map>
-#include <cstdlib>
-#include <iostream>
-#include <cstring>
-#include <ctime>
-
-//#include "sgx_trts.h"
-
 #define DUMMY -1
 #define BOTTOM -2
 #define QUEUE_SIZE 256

@@ -9,20 +9,6 @@
 #include "obl/taostore_pos_map.h"
 #include "obl/threadpool.h"
 
-#include <cstdint>
-#include <cstddef>
-
-#include <deque>
-#include <set>
-
-//threading libs
-#include <iostream>
-#include <atomic>
-#include <vector>
-#include <mutex>
-#include <thread>
-#include <pthread.h>
-//#include <sgx_spinlock.h>
 #include <wolfcrypt/aes.h>
 
 #ifdef SGX_ENCLAVE_ENABLED
