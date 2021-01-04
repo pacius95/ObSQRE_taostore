@@ -125,7 +125,7 @@ namespace obl
         obl_aes_gcm_128bit_iv_t iv;
         auth_data_t empty_auth;
         std::uint8_t empty_bucket[Z * block_size];
-		std::atomic_init(&barrier, 0);
+		std::atomic_init(&barrier, (uint8_t)0);
 
         // generate random master key
         gen_rand(master_key, OBL_AESGCM_KEY_SIZE);
@@ -310,7 +310,7 @@ namespace obl
             {
                 threadpool_add(thpool, decription_wrap, (void *)&args[i], 0);
             }
-            while (barrier != T_NUM);
+            while (barrier != T_NUM){};
 
 		// auto end = hres::now();
 		// auto duration = end - start;
@@ -352,7 +352,7 @@ namespace obl
 		// auto duration = end - start;
 		// std::cout << "printf adata: " << duration.count() / 1000000000.0 << "s" << std::endl;
         // pthread_mutex_lock(&cond_lock);
-        while (barrier != T_NUM);
+            while (barrier != T_NUM){};
         //     pthread_cond_wait(&cond_sign, &cond_lock);
         // pthread_mutex_unlock(&cond_lock);
         
@@ -364,7 +364,7 @@ namespace obl
                 threadpool_add(thpool, encription_wrap, (void *)&args[i], 0);
             }
             // pthread_mutex_lock(&cond_lock);
-            while (barrier != T_NUM);
+            while (barrier != T_NUM){};
             //     pthread_cond_wait(&cond_sign, &cond_lock);
             // pthread_mutex_unlock(&cond_lock);
 

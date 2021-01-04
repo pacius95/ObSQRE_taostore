@@ -38,7 +38,7 @@ namespace obl
 		void write(block_id bid, std::uint8_t *data_in, leaf_id next_lif);
 	};
 
-	class taostore_path_factory : public taostore_factory
+	class taostore_path_factory : public oram_factory
 	{
 	private:
 		unsigned int Z, S, A, T_NUM;
@@ -51,7 +51,7 @@ namespace obl
 			this->A = A;
 			this->T_NUM = T_NUM;
 		}
-		taostore_oram *spawn_oram(std::size_t N, std::size_t B)
+		tree_oram *spawn_oram(std::size_t N, std::size_t B)
 		{
 			// since path oram has the largest stash size, improve it
 			unsigned int real_S = N < S ? N : S;

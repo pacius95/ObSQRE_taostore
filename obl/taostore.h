@@ -131,12 +131,6 @@ namespace obl
 		taostore_oram *arg1;
 		taostore_request_t &request;
 	};
-	class taostore_factory
-	{
-	public:
-		virtual taostore_oram *spawn_oram(std::size_t N, std::size_t B, size_t T_NUM) = 0;
-		virtual ~taostore_factory(){};
-	};
 
 } // namespace obl
 
