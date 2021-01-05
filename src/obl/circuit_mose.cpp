@@ -12,7 +12,7 @@
 #define DUMMY -1
 #define BOTTOM -2
 #define QUEUE_SIZE 256
-#define T_NUM 1
+#define T_NUM 4
 
 // using hres = std::chrono::high_resolution_clock;
 // using _nano = std::chrono::nanoseconds;
@@ -91,7 +91,7 @@ namespace obl
         next_dst_bucket = new std::int64_t[L + 2];
 
         // allocate data struct for integrity checking
-        adata = new auth_data_t[(L+1) * T_NUM];
+        adata = new auth_data_t[(L + 1) * T_NUM];
 
         args = new mose_args[T_NUM];
         for (int i = 0; i < T_NUM; i++)
@@ -125,7 +125,7 @@ namespace obl
         obl_aes_gcm_128bit_iv_t iv;
         auth_data_t empty_auth;
         std::uint8_t empty_bucket[Z * block_size];
-		std::atomic_init(&barrier, (uint8_t)0);
+        std::atomic_init(&barrier, (uint8_t)0);
 
         // generate random master key
         gen_rand(master_key, OBL_AESGCM_KEY_SIZE);
@@ -304,17 +304,19 @@ namespace obl
             rightch = get_right(l_index);
 
             barrier = 0;
-            
-		// auto start = hres::now();
+
+            // auto start = hres::now();
             for (int i = 0; i < T_NUM; i++)
             {
                 threadpool_add(thpool, decription_wrap, (void *)&args[i], 0);
             }
-            while (barrier != T_NUM){};
+            while (barrier != T_NUM)
+            {
+            };
 
-		// auto end = hres::now();
-		// auto duration = end - start;
-		// std::cout << "printf: " << duration.count() / 1000000000.0 << "s" << std::endl;
+            // auto end = hres::now();
+            // auto duration = end - start;
+            // std::cout << "printf: " << duration.count() / 1000000000.0 << "s" << std::endl;
             //as reference we take the idx==0 adata
             reachable = (path >> v) & 1 ? adata[v].valid_r : adata[v].valid_l;
 
@@ -342,31 +344,36 @@ namespace obl
         _path = path;
 
         barrier = 0;
-		// auto start = hres::now();
+        // auto start = hres::now();
         for (int i = 0; i < T_NUM; i++)
         {
             threadpool_add(thpool, update_adata_wrap, (void *)&args[i], 0);
         }
 
-		// auto end = hres::now();
-		// auto duration = end - start;
-		// std::cout << "printf adata: " << duration.count() / 1000000000.0 << "s" << std::endl;
-        // pthread_mutex_lock(&cond_lock);
-            while (barrier != T_NUM){};
-        //     pthread_cond_wait(&cond_sign, &cond_lock);
-        // pthread_mutex_unlock(&cond_lock);
-        
+        while (barrier != T_NUM)
+        {
+        };
+        // auto end = hres::now();
+        // auto duration = end - start;
+        // std::cout << "printf adata: " << duration.count() / 1000000000.0 << "s" << std::endl;
+
         for (v = L; v >= 0; v--)
         {
             barrier = 0;
+            // auto start = hres::now();
             for (int i = 0; i < T_NUM; i++)
             {
                 threadpool_add(thpool, encription_wrap, (void *)&args[i], 0);
             }
             // pthread_mutex_lock(&cond_lock);
-            while (barrier != T_NUM){};
+            while (barrier != T_NUM)
+            {
+            };
             //     pthread_cond_wait(&cond_sign, &cond_lock);
             // pthread_mutex_unlock(&cond_lock);
+            // auto end = hres::now();
+            // auto duration = end - start;
+            // std::cout << "printf adata: " << duration.count() / 1000000000.0 << "s" << std::endl;
 
             tree[l_index].reach_l = adata[v].valid_l;
             tree[l_index].reach_r = adata[v].valid_r;

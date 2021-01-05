@@ -8,9 +8,9 @@
 #include <chrono>
 #include <ctime>
 
-#define P 16
+#define P 12
 #define N (1 << P)
-#define benc_size (1 << 17)
+#define benc_size (1 << 14)
 #define RUN 4
 
 using hres = std::chrono::high_resolution_clock;
@@ -23,7 +23,7 @@ using tt = std::chrono::time_point<hres, _nano>;
 using namespace std;
 struct buffer
 {
-	std::uint8_t _buffer[24000];
+	std::uint8_t _buffer[16000];
 	bool operator==(const buffer &rhs) const
 	{
 		return !memcmp(_buffer, rhs._buffer, sizeof(_buffer));

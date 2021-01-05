@@ -2,6 +2,7 @@ enclave {
 	// include the base .edl files here
 	from "base/attestation.edl" import *;
 	from "base/host_alloc.edl" import *;
+	from "base/sgx_pthread.edl" import *;
 
 	trusted {
 		include "sgx_error.h"

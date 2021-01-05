@@ -406,7 +406,7 @@ namespace obl
 
 		assert(already_evicted);
 
-		std::uint32_t evict_leaf = std::atomic_fetch_add(&evict_path, (uint32_t)1);
+		leaf_id evict_leaf = evict_path++;
 		eviction(2 * evict_leaf);
 		eviction(2 * evict_leaf + 1);
 
@@ -499,5 +499,6 @@ namespace obl
 		}
 		// pthread_mutex_unlock(&write_back_lock);
 		delete[] _paths;
+	}
 
 } // namespace obl

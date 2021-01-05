@@ -23,9 +23,9 @@ using hres = std::chrono::high_resolution_clock;
 using nano = std::chrono::nanoseconds;
 using tt = std::chrono::time_point<hres, nano>;
 
-const int pow_lower = 20;
-const int pow_upper = 30;
-const int bench_size = 1 << 18;
+const int pow_lower = 15;
+const int pow_upper = 15;
+const int bench_size = 1 << 17;
 const int RUN = 16;
 struct buffer
 {
@@ -179,7 +179,7 @@ int main()
 	obl::tree_oram *oram;
 
 	std::cout << "benchmarc block size:" << sizeof(buffer) << " bench size: " << bench_size << std::endl;
-	for (int p = pow_lower; p < pow_upper; p=p+2)
+	for (int p = pow_lower; p <= pow_upper; p=p+5)
 	{
 		std::size_t N = 1 << p;
 
@@ -195,7 +195,7 @@ int main()
 		// oram_test("path_8_8", oram);
 		// delete oram;
 
-		for (int T_NUM = 4; T_NUM <= 16; T_NUM=T_NUM+2)
+		for (int T_NUM = 1; T_NUM <= 3; T_NUM=T_NUM+2)
 		{
 			//rram = new obl::taostore_oram_v1(N, sizeof(buffer), Z, S, T_NUM);
 			//serial_test("taostore_v1", T_NUM, rram);

@@ -4,12 +4,12 @@ CXX = g++
 # release flags
 #CFLAGS = -Wall $(INC) -pthread -march=native -mrdrnd -mrdseed -mpopcnt -O2
 # debug flags
-CFLAGS =  -Wall $(INC) -march=sandybridge -mrdseed -mrdrnd -mpopcnt -mavx2 -O3
+CFLAGS =  -Wall $(INC) -march=sandybridge -mrdseed -mrdrnd -mpopcnt -mavx2 -O2
 CXXFLAGS = -std=c++11
 
-LDFLAGS = ../../libs/libwolfssl.a -L$(SGX_SDK)/lib64 -lpthread
+LDFLAGS = ../../libs/libwolfssl.a -L$(SGX_SDK)/lib64 -lsgx_tcrypto -lpthread
 
-INCDIR = ../../ ../../includes /usr/include $(SGX_SDK)/include
+INCDIR = ../../ ../../includes $(SGX_SDK)/include
 INC = $(addprefix -I, $(INCDIR))
 
 FILESRCS = $(wildcard ./*.c*)
@@ -41,7 +41,7 @@ static: $(STATICLIB)
 
 # target specific variables
 enclave_static: CFLAGS += -DSGX_ENCLAVE_ENABLED -fPIC
-enclave_static: CXXFLAGS += -I/opt/sgxsdk/include -I/opt/sgxsdk/include/libcxx -I/opt/sgxsdk/include/tlibc
+enclave_static: CFLAGS += -I$(SGX_SDK)/include -I$(SGX_SDK)/include/libcxx -I$(SGX_SDK)/include/tlibc
 enclave_static: $(STATICLIB)
 
 $(STATICLIB): $(OBJECTS)

@@ -8,7 +8,9 @@ enum obl_oram_t {
 	OBL_PATH_ORAM,
 	CIRCUIT_ORAM,
 	RING_ORAM,
-	PATH_ORAM
+	PATH_ORAM,
+	TAOSTORE_V1,
+	TAOSTORE_V2
 };
 
 struct subtol_config_t {
