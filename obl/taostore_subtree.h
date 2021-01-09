@@ -99,7 +99,6 @@ namespace obl
     private:
         // std::queue<leaf_id> write_queue; //paths and leaf pointers
         moodycamel::ConcurrentQueue<leaf_id> write_queue;
-        pthread_rwlock_t tree_rw_lock = PTHREAD_RWLOCK_INITIALIZER;
         pthread_mutex_t write_q_lk = PTHREAD_MUTEX_INITIALIZER;
         node *root;
         std::atomic_int32_t nodes_count;
@@ -115,7 +114,6 @@ namespace obl
         ~taostore_subtree()
         {
             pthread_mutex_destroy(&write_q_lk);
-            pthread_rwlock_destroy(&tree_rw_lock);
             delete root;
         }
         void newnode()
