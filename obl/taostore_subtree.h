@@ -211,19 +211,6 @@ namespace obl
                 }
             }
         }
-
-        int read_lock()
-        {
-            return pthread_rwlock_rdlock(&tree_rw_lock);
-        }
-        int write_lock()
-        {
-            return pthread_rwlock_wrlock(&tree_rw_lock);
-        }
-        int unlock()
-        {
-            return pthread_rwlock_unlock(&tree_rw_lock);
-        }
     };
 
 } // namespace obl
