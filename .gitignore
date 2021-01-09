@@ -5,8 +5,6 @@ libs/*
 **/*.txt
 **/*/Makefile
 bench/*
-obl/ring.h
-obl/so_ring.h
 .vscode/*
 src/obl/benchmarks/bench_8byte_out_modifica_stash
 src/obl/benchmarks/bench_8byte_out_modifica_1
