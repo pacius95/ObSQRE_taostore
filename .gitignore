@@ -5,8 +5,6 @@ libs/*
 **/*.txt
 **/*/Makefile
 bench/*
-src/obl/ring.cpp
-src/obl/so_ring.cpp
 obl/ring.h
 obl/so_ring.h
 .vscode/*
