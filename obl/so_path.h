@@ -13,32 +13,33 @@
 #include <wolfcrypt/aes.h>
 
 #ifdef SGX_ENCLAVE_ENABLED
-	#include "obl/sgx_host_allocator.hpp"
+#include "obl/sgx_host_allocator.hpp"
 #endif
 
-namespace obl {
+namespace obl
+{
 	struct so_path_block_t;
 	struct so_path_bucket_t;
 
-	class so_path_oram: public tree_oram
+	class so_path_oram : public tree_oram
 	{
 	private:
 		typedef so_path_block_t block_t;
 		typedef so_path_bucket_t bucket_t;
-	
-		std::size_t block_size; // aligned block size
+
+		std::size_t block_size;	 // aligned block size
 		std::size_t bucket_size; // aligned/padded encrypted bucket size
 
 		// stash
 		std::list<std::unique_ptr<block_t>> stash;
 		unsigned int S; // stash size
 
-		// content of the ORAM
-		#ifdef SGX_ENCLAVE_ENABLED
-			flexible_array<bucket_t, sgx_host_allocator> tree;
-		#else
-			flexible_array<bucket_t> tree;
-		#endif
+// content of the ORAM
+#ifdef SGX_ENCLAVE_ENABLED
+		flexible_array<bucket_t, sgx_host_allocator> tree;
+#else
+		flexible_array<bucket_t> tree;
+#endif
 
 		// fetched_path
 		flexible_array<block_t> fetched_path;
@@ -72,21 +73,26 @@ namespace obl {
 		void write(block_id bid, std::uint8_t *data_in, leaf_id next_lif);
 	};
 
-	class so_path_factory: public oram_factory {
+	class so_path_factory : public oram_factory
+	{
 	private:
 		unsigned int Z, S;
+
 	public:
-		so_path_factory(unsigned int Z, unsigned int S) {
+		so_path_factory(unsigned int Z, unsigned int S)
+		{
 			this->Z = Z;
 			this->S = S;
 		}
 
-		tree_oram* spawn_oram(std::size_t N, std::size_t B) {
+		tree_oram *spawn_oram(std::size_t N, std::size_t B)
+		{
 			// since path oram has the largest stash size, improve it
 			unsigned int real_S = N < S ? N : S;
 			return new so_path_oram(N, B, Z, real_S);
 		}
+		bool is_taostore() { return false; }
 	};
-}
+} // namespace obl
 
 #endif // SO_PATH_ORAM_H

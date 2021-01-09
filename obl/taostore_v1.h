@@ -41,6 +41,7 @@ namespace obl
 		{
 			return new taostore_oram_v1(N, B, Z, S, T_NUM);
 		}
+		bool is_taostore(){ return true; }
 	};
 } // namespace obl
 

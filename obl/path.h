@@ -11,35 +11,36 @@
 #include <wolfcrypt/aes.h>
 
 #ifdef SGX_ENCLAVE_ENABLED
-	#include "obl/sgx_host_allocator.hpp"
+#include "obl/sgx_host_allocator.hpp"
 #endif
 
-namespace obl {
+namespace obl
+{
 	struct path_block_t;
 	struct path_bucket_t;
 
-	class path_oram: public tree_oram
+	class path_oram : public tree_oram
 	{
 	private:
 		typedef path_block_t block_t;
 		typedef path_bucket_t bucket_t;
-	
-		std::size_t block_size; // aligned block size
+
+		std::size_t block_size;	 // aligned block size
 		std::size_t bucket_size; // aligned/padded encrypted bucket size
-		
+
 		std::uint64_t det_eviction; // used to implement Gentry's deterministic eviction procedure
-		unsigned int A; // eviction rate
-	
+		unsigned int A;				// eviction rate
+
 		// stash
 		flexible_array<block_t> stash;
 		unsigned int S; // stash size
 
-		// content of the ORAM
-		#ifdef SGX_ENCLAVE_ENABLED
-			flexible_array<bucket_t, sgx_host_allocator> tree;
-		#else
-			flexible_array<bucket_t> tree;
-		#endif
+// content of the ORAM
+#ifdef SGX_ENCLAVE_ENABLED
+		flexible_array<bucket_t, sgx_host_allocator> tree;
+#else
+		flexible_array<bucket_t> tree;
+#endif
 
 		// fetched_path
 		flexible_array<block_t> fetched_path;
@@ -56,10 +57,10 @@ namespace obl {
 
 		std::int64_t fetch_path(leaf_id path);
 		void wb_path(obl::leaf_id path, std::int64_t leaf);
-		
+
 		void evict_path(obl::leaf_id path);
-		void insert_block_and_evict_path(obl::leaf_id path, block_t * fetched);
-	
+		void insert_block_and_evict_path(obl::leaf_id path, block_t *fetched);
+
 		// split operation variables
 		std::int64_t leaf_idx_split;
 
@@ -76,22 +77,27 @@ namespace obl {
 		void write(block_id bid, std::uint8_t *data_in, leaf_id next_lif);
 	};
 
-	class path_factory: public oram_factory {
+	class path_factory : public oram_factory
+	{
 	private:
 		unsigned int Z, S, A;
+
 	public:
-		path_factory(unsigned int Z, unsigned int S, unsigned int A) {
+		path_factory(unsigned int Z, unsigned int S, unsigned int A)
+		{
 			this->Z = Z;
 			this->S = S;
 			this->A = A;
 		}
 
-		tree_oram* spawn_oram(std::size_t N, std::size_t B) {
+		tree_oram *spawn_oram(std::size_t N, std::size_t B)
+		{
 			// since path oram has the largest stash size, improve it
 			unsigned int real_S = N < S ? N : S;
 			return new path_oram(N, B, Z, real_S, A);
 		}
+		bool is_taostore() { return false; }
 	};
-}
+} // namespace obl
 
 #endif // PATH_ORAM_H

@@ -27,6 +27,9 @@ public:
 	~opt_allocator() {
 		delete inner_allocator;
 	}
+	bool is_taostore() {
+		inner_allocator->is_taostore();
+	}
 };
 
 #endif // OPT_ALLOC_HPP

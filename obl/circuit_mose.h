@@ -62,7 +62,7 @@ namespace obl
         pthread_mutex_t cond_lock = PTHREAD_MUTEX_INITIALIZER;
         std::atomic_uint8_t barrier;
 
-        mose_args* args;
+        mose_args *args;
         unsigned int *chunk_sizes;
         unsigned int *chunk_idx;
         leaf_id _path;
@@ -131,6 +131,7 @@ namespace obl
         {
             return new circuit_mose(N, B, Z, S);
         }
+        bool is_taostore() { return false; }
     };
 
 } // namespace obl

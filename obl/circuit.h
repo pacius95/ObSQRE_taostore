@@ -98,6 +98,7 @@ namespace obl
 		tree_oram* spawn_oram(std::size_t N, std::size_t B) {
 			return new circuit_oram(N, B, Z, S);
 		}
+		bool is_taostore() {return false;}
 	};
 
 }

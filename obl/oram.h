@@ -50,6 +50,7 @@ namespace obl {
 	public:
 		virtual tree_oram* spawn_oram(std::size_t N, std::size_t B) = 0;
 		virtual ~oram_factory() { };
+		virtual bool is_taostore() = 0;
 	};
 
 }

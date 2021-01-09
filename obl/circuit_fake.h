@@ -11,7 +11,7 @@
 #include <wolfcrypt/aes.h>
 
 #ifdef SGX_ENCLAVE_ENABLED
-	#include "obl/sgx_host_allocator.hpp"
+#include "obl/sgx_host_allocator.hpp"
 #endif
 
 namespace obl
@@ -20,25 +20,25 @@ namespace obl
 	struct circuit_block_t;
 	struct circuit_bucket_t;
 
-	class circuit_fake: public tree_oram
+	class circuit_fake : public tree_oram
 	{
 	private:
 		typedef circuit_block_t block_t;
 		typedef circuit_bucket_t bucket_t;
-	
-		std::size_t block_size; // aligned block size
+
+		std::size_t block_size;	 // aligned block size
 		std::size_t bucket_size; // aligned/padded encrypted bucket size
 
 		// stash
 		flexible_array<block_t> stash;
 		unsigned int S; // stash size
 
-		// content of the ORAM
-		#ifdef SGX_ENCLAVE_ENABLED
-			flexible_array<bucket_t, sgx_host_allocator> tree;
-		#else
-			flexible_array<bucket_t> tree;
-		#endif
+// content of the ORAM
+#ifdef SGX_ENCLAVE_ENABLED
+		flexible_array<bucket_t, sgx_host_allocator> tree;
+#else
+		flexible_array<bucket_t> tree;
+#endif
 
 		// fetched_path
 		flexible_array<block_t> fetched_path;
@@ -89,20 +89,25 @@ namespace obl
 		void write(block_id bid, std::uint8_t *data_in, leaf_id next_lif);
 	};
 
-	class circuit_fake_factory: public oram_factory {
+	class circuit_fake_factory : public oram_factory
+	{
 	private:
 		unsigned int Z, S;
+
 	public:
-		circuit_fake_factory(unsigned int Z, unsigned int S) {
+		circuit_fake_factory(unsigned int Z, unsigned int S)
+		{
 			this->Z = Z;
 			this->S = S;
 		}
 
-		circuit_fake* spawn_oram(std::size_t N, std::size_t B) {
+		circuit_fake *spawn_oram(std::size_t N, std::size_t B)
+		{
 			return new circuit_fake(N, B, Z, S);
 		}
+		bool is_taostore() { return false; }
 	};
 
-}
+} // namespace obl
 
 #endif // CIRCUIT_FAKE_H

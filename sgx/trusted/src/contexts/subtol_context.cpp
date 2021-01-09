@@ -13,7 +13,12 @@ void subtol_context_t::load_sa(unsigned int csize, unsigned int sa_block)
 	std::int32_t *enc_buff = new std::int32_t[sa_block * buffer_size];
 	std::int32_t *dec_buff = new std::int32_t[sa_block];
 	
-	suffix_array = new obl::recursive_oram(rec_oram_blocks, rec_oram_block_size, csize, allocator);
+
+	if (allocator->is_taostore())
+		 suffix_array = new obl::recursive_taoram(rec_oram_blocks, rec_oram_block_size, csize, allocator);
+	else
+		suffix_array = new obl::recursive_oram(rec_oram_blocks, rec_oram_block_size, csize, allocator);
+		
 	sa_bundle_size = sa_block;
 	sa_total_blocks = rec_oram_blocks;
 	current_start_index = 0;

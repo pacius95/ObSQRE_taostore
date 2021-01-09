@@ -37,6 +37,7 @@ namespace obl
 		tree_oram* spawn_oram(std::size_t N, std::size_t B)	{
 			return new taostore_oram_v2(N, B, Z, S, T_NUM);
 		}
+		bool is_taostore() {return true;}
 	};
 } // namespace obl
 

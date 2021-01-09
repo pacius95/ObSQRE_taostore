@@ -57,6 +57,7 @@ namespace obl
 			unsigned int real_S = N < S ? N : S;
 			return new taostore_path_oram(N, B, Z, real_S, A, T_NUM);
 		}
+		bool is_taostore() { return true; }
 	};
 } // namespace obl
 

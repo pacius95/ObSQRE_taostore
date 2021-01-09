@@ -3,6 +3,7 @@
 
 #include "obl/oram.h"
 #include "obl/rec.h"
+#include "obl/rec_taostore.h"
 
 #include <ipp/ippcp.h>
 #include <cstdint>
