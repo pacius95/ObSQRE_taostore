@@ -2,7 +2,6 @@
 #define OBL_REC_POSITION_MAP_H
 
 #include "obl/oram.h"
-#include "obl/rec.h"
 #include "obl/circuit_fake.h"
 #include <pthread.h>
 //#include <sgx_spinlock.h>

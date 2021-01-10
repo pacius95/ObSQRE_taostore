@@ -17,7 +17,7 @@ void subtol_context_t::load_sa(unsigned int csize, unsigned int sa_block)
 	if (allocator->is_taostore())
 		suffix_array = new obl::recursive_taoram(rec_oram_blocks, rec_oram_block_size, csize, allocator);
 	else
-		suffix_array = new obl::recursive_oram(rec_oram_blocks, rec_oram_block_size, csize, allocator);
+		suffix_array = new obl::recursive_oram_standard(rec_oram_blocks, rec_oram_block_size, csize, allocator);
 		
 	sa_bundle_size = sa_block;
 	sa_total_blocks = rec_oram_blocks;

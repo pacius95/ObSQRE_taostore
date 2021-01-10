@@ -13,6 +13,7 @@ namespace obl
 	class recursive_taoram : public recursive_oram
 	{
 	private:
+		std::size_t N;
 		taostore_oram * toram;
 
 	public:
