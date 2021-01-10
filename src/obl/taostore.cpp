@@ -5,6 +5,10 @@
 
 #include "obl/oassert.h"
 
+#ifdef SGX_ENCLAVE_ENABLED
+	#define printf(a,b) (ocall_stdout(a,b));
+#endif
+
 #define DUMMY -1
 #define BOTTOM -2
 #define QUEUE_SIZE 256
@@ -41,6 +45,8 @@ namespace obl
 
 		this->T_NUM = T_NUM;
 		this->K = next_two_power((1 << 25) / (bucket_size * L));
+
+		printf("%s", "SI");
 
 		init();
 		oram_alive = true;
@@ -125,12 +131,15 @@ namespace obl
 		tree[0].reach_l = false;
 		tree[0].reach_r = false;
 
+		printf("%s", "SI");
 		thpool = threadpool_create(T_NUM, QUEUE_SIZE, 0);
 
-		// allocator = new circuit_fake_factory(Z, S);
-		// position_map = new taostore_position_map(N, sizeof(int64_t), 5, allocator);
-		position_map = new taostore_position_map_notobl(N);
+		allocator = new circuit_fake_factory(Z, S);
+		position_map = new taostore_position_map(N, sizeof(int64_t), 5, allocator);
+		// position_map = new taostore_position_map_notobl(N);
+		printf("%s", "SI");
 		local_subtree.init(block_size * Z, empty_bucket, L);
+		printf("%s", "SI");
 	}
 
 	void *taostore_oram::serializer_wrap(void *object)
@@ -288,19 +297,23 @@ namespace obl
 		std::int32_t _id = thread_id++;
 		request_t _req = {data_in, bid, false, false, data_out, false, false, _id, PTHREAD_MUTEX_INITIALIZER, PTHREAD_COND_INITIALIZER};
 
+		printf("%s", "access req");
 		struct processing_thread_args_wrap obj_wrap = {this, _req};
 
 		int err = threadpool_add(thpool, access_thread_wrap, (void *)&obj_wrap, 0);
 		assert(err == 0);
 
+		printf("%s", "thpool_add");
 		//wait on the conditional var
 		pthread_mutex_lock(&_req.cond_mutex);
 		while (!_req.res_ready)
 		{
 			pthread_cond_wait(&_req.serializer_res_ready, &_req.cond_mutex);
+			printf("%s", "cond_wait");
 		}
 		pthread_mutex_unlock(&_req.cond_mutex);
 
+		printf("%s", "end");
 		// std::memcpy(data_out, _data_out, B);
 	}
 

@@ -8,6 +8,7 @@
 // extern declarations for host malloc and free
 extern "C" sgx_status_t host_alloc(void **out, std::size_t s);
 extern "C" sgx_status_t host_free(void *in);
+extern "C" sgx_status_t ocall_stdout(const char* format_str, const char *str);
 
 class sgx_host_allocator {
 public:

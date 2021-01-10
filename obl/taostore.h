@@ -67,8 +67,9 @@ namespace obl
 		std::unordered_multiset<leaf_id> path_req_multi_set;
 
 		circuit_fake_factory *allocator;
-		taostore_position_map_notobl *position_map;
-
+		// taostore_position_map_notobl *position_map;
+		taostore_position_map *position_map;
+		
 		// crypto stuff
 		obl_aes_gcm_128bit_tag_t merkle_root;
 		void *_crypt_buffer;
