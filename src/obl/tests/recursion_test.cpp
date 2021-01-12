@@ -1,5 +1,7 @@
 #include "obl/circuit.h"
 #include "obl/path.h"
+#include "obl/rec_taostore.h"
+#include "obl/taostore_v1.h"
 #include "obl/rec.h"
 #include "obl/primitives.h"
 
@@ -38,8 +40,10 @@ int main()
 	_nano duration;
 	uint32_t rnd_bid;
 
-	obl::coram_factory of(3, 8);
-	obl::recursive_oram rram(N, sizeof(buffer), 5, &of);
+	obl::taostore_factory_v1 of(3, 8, 4);
+
+	obl::recursive_oram* rram;
+	rram = new obl::recursive_taoram(N, sizeof(buffer), 5, &of);
 
 	mirror_data.reserve(N);
 
@@ -47,7 +51,7 @@ int main()
 	{
 		obl::gen_rand((std::uint8_t *)&value, sizeof(buffer));
 
-		rram.access(i, (std::uint8_t *)&value, (std::uint8_t *)&value_out);
+		rram->access(i, (std::uint8_t *)&value, (std::uint8_t *)&value_out);
 		mirror_data[i] = value;
 	}
 
@@ -59,7 +63,7 @@ int main()
 		{
 			obl::gen_rand((std::uint8_t *)&rnd_bid, sizeof(obl::block_id));
 			rnd_bid = (rnd_bid >> 1) % N;
-			rram.access(rnd_bid, nullptr, (std::uint8_t *)&value_out);
+			rram->access(rnd_bid, nullptr, (std::uint8_t *)&value_out);
 			assert(value_out == mirror_data[rnd_bid]);
 		}
 
