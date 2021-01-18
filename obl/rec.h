@@ -1,6 +1,8 @@
 #ifndef OBL_REC_H
 #define OBL_REC_H
 
+#include "obl/oram.h"
+
 #include <cstddef>
 
 namespace obl

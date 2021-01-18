@@ -1,4 +1,4 @@
-#include "obl/circuit_mose.h"
+#include "obl/mose.h"
 #include "obl/primitives.h"
 
 #include <iostream>
@@ -19,6 +19,7 @@ using tt = std::chrono::time_point<hres, _nano>;
 
 #define S 8
 #define Z 3
+#define T_NUM 4
 
 using namespace std;
 struct buffer
@@ -34,7 +35,7 @@ int main()
 	vector<obl::leaf_id> position_map;
 	vector<buffer> mirror_data;
 
-	obl::circuit_mose rram(N, sizeof(buffer), Z, S);
+	obl::mose rram(N, sizeof(buffer), Z, S, T_NUM);
 	buffer value, value_out;
 	position_map.reserve(N);
 	mirror_data.reserve(N);

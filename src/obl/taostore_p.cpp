@@ -1,5 +1,5 @@
 #include "obl/utils.h"
-#include "obl/taostore.h"
+#include "obl/taostore_p.h"
 #include "obl/primitives.h"
 #include "obl/taostore_subtree.h"
 
@@ -15,8 +15,7 @@
 
 namespace obl
 {
-
-	taostore_oram::taostore_oram(std::size_t N, std::size_t B, unsigned int Z, unsigned int S, unsigned int T_NUM) : tree_oram(N, B, Z)
+	taostore_oram_parallel::taostore_oram_parallel(std::size_t N, std::size_t B, unsigned int Z, unsigned int S, unsigned int T_NUM) : tree_oram(N, B, Z)
 	{
 		// align structs to 8-bytes
 		/*
@@ -45,20 +44,29 @@ namespace obl
 			pthread_mutex_init(&stash_locks[i], nullptr);
 
 		this->T_NUM = T_NUM;
-		this->K = next_two_power((1 << 25) / ((bucket_size + sizeof(node)) * L));
+		this->K = next_two_power((1 << 25) / (bucket_size * L));
 
 		init();
+		oram_alive = true;
+		pthread_create(&serializer_id, nullptr, serializer_wrap, (void *)this);
 	}
 
-	void taostore_oram::wait_end()
+	void taostore_oram_parallel::wait_end()
 	{
 		int err;
 		err = threadpool_destroy(thpool, threadpool_graceful);
 		assert(err == 0);
 	}
 
-	taostore_oram::~taostore_oram()
+	taostore_oram_parallel::~taostore_oram_parallel()
 	{
+		pthread_mutex_lock(&serializer_lck);
+		oram_alive = false;
+		pthread_cond_broadcast(&serializer_cond);
+		pthread_mutex_unlock(&serializer_lck);
+
+		pthread_join(serializer_id, nullptr);
+
 		std::memset(_crypt_buffer, 0x00, sizeof(Aes) + 16);
 
 		std::memset(&stash[0], 0x00, block_size * S);
@@ -67,21 +75,26 @@ namespace obl
 
 		pthread_mutex_destroy(&stash_lock);
 		pthread_mutex_destroy(&multi_set_lock);
+		pthread_cond_destroy(&serializer_cond);
+		pthread_mutex_destroy(&serializer_lck);
+		pthread_mutex_destroy(&write_back_lock);
 		for (unsigned int i = 0; i < SS; i++)
 		{
 			pthread_mutex_destroy(&stash_locks[i]);
 		}
 		delete[] stash_locks;
+		delete position_map;
 		//TODO cleanup
 	}
 
-	void taostore_oram::init()
+	void taostore_oram_parallel::init()
 	{
 		obl_aes_gcm_128bit_key_t master_key;
 		obl_aes_gcm_128bit_iv_t iv;
 		auth_data_t empty_auth;
 		std::uint8_t empty_bucket[Z * block_size];
 
+		std::atomic_init(&thread_id, 0);
 		std::atomic_init(&evict_path, 0);
 		std::atomic_init(&access_counter, (std::uint64_t)1);
 
@@ -118,10 +131,42 @@ namespace obl
 
 		thpool = threadpool_create(T_NUM, QUEUE_SIZE, 0);
 
+		allocator = new circuit_fake_factory(Z, S);
+		position_map = new taostore_position_map(N, sizeof(int64_t), 5, allocator);
+		// position_map = new taostore_position_map_notobl(N);
 		local_subtree.init(block_size * Z, empty_bucket, L);
 	}
 
-	bool taostore_oram::has_free_block(block_t *bl, int len)
+	void *taostore_oram_parallel::serializer_wrap(void *object)
+	{
+		return ((taostore_oram_parallel *)object)->serializer();
+	}
+
+	void *taostore_oram_parallel::serializer()
+	{
+		for (;;)
+		{
+			pthread_mutex_lock(&serializer_lck);
+			while (request_structure.size() == 0 && oram_alive)
+				pthread_cond_wait(&serializer_cond, &serializer_lck);
+
+			if (request_structure.size() == 0 && oram_alive == false)
+				break;
+
+			while (request_structure.size() != 0 && request_structure.front()->handled && request_structure.front()->data_ready)
+			{
+				pthread_mutex_lock(&request_structure.front()->cond_mutex);
+				request_structure.front()->res_ready = true;
+				pthread_mutex_unlock(&request_structure.front()->cond_mutex);
+				pthread_cond_signal(&request_structure.front()->serializer_res_ready);
+				request_structure.pop_front();
+			}
+			pthread_mutex_unlock(&serializer_lck);
+		}
+		pthread_exit(NULL);
+	}
+
+	bool taostore_oram_parallel::has_free_block(block_t *bl, int len)
 	{
 		bool free_block = false;
 
@@ -134,7 +179,7 @@ namespace obl
 		return free_block;
 	}
 
-	std::int64_t taostore_oram::get_max_depth_bucket(block_t *bl, int len, leaf_id path)
+	std::int64_t taostore_oram_parallel::get_max_depth_bucket(block_t *bl, int len, leaf_id path)
 	{
 		std::int64_t max_d = -1;
 
@@ -149,7 +194,7 @@ namespace obl
 		return max_d;
 	}
 
-	void taostore_oram::multiset_lock(leaf_id path)
+	void taostore_oram_parallel::multiset_lock(leaf_id path)
 	{
 
 		std::int64_t l_index = 0;
@@ -162,7 +207,7 @@ namespace obl
 		pthread_mutex_unlock(&multi_set_lock);
 	}
 
-	void taostore_oram::multiset_unlock(leaf_id path)
+	void taostore_oram_parallel::multiset_unlock(leaf_id path)
 	{
 		leaf_id l_index = 0;
 		pthread_mutex_lock(&multi_set_lock);
@@ -173,25 +218,79 @@ namespace obl
 		}
 		pthread_mutex_unlock(&multi_set_lock);
 	}
-
-	void taostore_oram::access_thread_wrap(void *_object)
+	void taostore_oram_parallel::access_thread_wrap(void *_object)
 	{
 		return ((processing_thread_args_wrap *)_object)->arg1->access_thread(((processing_thread_args_wrap *)_object)->request);
 	}
 
-	void taostore_oram::access_write_thread_wrap(void *_object)
+	std::uint64_t taostore_oram_parallel::read_path(request_t &req, std::uint8_t *_fetched)
 	{
-		return ((processing_thread_args_wrap *)_object)->arg1->write_thread(((processing_thread_args_wrap *)_object)->request);
+		block_id bid;
+		leaf_id ev_lid;
+		gen_rand((std::uint8_t *)&bid, sizeof(block_id));
+		bid = (bid >> 1) % N;
+
+		pthread_mutex_lock(&serializer_lck);
+		for (auto it : request_structure)
+		{
+			bool cond = it->bid == req.bid && it->handled == false && it->fake == false;
+			req.fake = req.fake | cond;
+		}
+		request_structure.push_back(&req);
+
+		bid = ternary_op(req.fake, bid, req.bid);
+		pthread_mutex_unlock(&serializer_lck);
+		leaf_id path = position_map->access(bid, req.fake, &ev_lid);
+		return fetch_path(_fetched, bid, ev_lid, path, !req.fake);
 	}
 
-	void taostore_oram::writeback_thread_wrap(void *_object)
+	void taostore_oram_parallel::answer_request(bool fake, block_id bid, std::int32_t id, std::uint8_t *_fetched)
 	{
-		return ((taostore_oram *)_object)->write_back();
+		block_t *fetched = (block_t *)_fetched;
+		bool hit;
+		bool already_evicted = false;
+
+		pthread_mutex_lock(&stash_locks[0]);
+		pthread_mutex_lock(&serializer_lck);
+		for (auto it : request_structure)
+		{
+			hit = !fake & (it->bid == bid);
+			//update flags
+			it->handled = it->handled || it->id == id;
+			it->data_ready = it->data_ready | hit;
+			replace(hit, it->data_out, fetched->payload, B);
+			if (it->data_in != nullptr)
+				replace(hit, fetched->payload, it->data_in, B);
+		}
+		pthread_mutex_unlock(&serializer_lck);
+		pthread_cond_signal(&serializer_cond);
+
+		for (unsigned int i = 0; i < SS - 1; ++i)
+		{
+			for (unsigned int j = 0; j < ss; ++j)
+			{
+				block_id sbid = stash[i * ss + j].bid;
+				swap(!fake & !already_evicted & (sbid == DUMMY), _fetched, (std::uint8_t *)&stash[i * ss + j], block_size);
+				already_evicted = fake | already_evicted | (sbid == DUMMY);
+			}
+			pthread_mutex_lock(&stash_locks[i + 1]);
+			pthread_mutex_unlock(&stash_locks[i]);
+		}
+		for (unsigned int i = 0; i < S % ss; ++i)
+		{
+			block_id sbid = stash[(SS - 1) * ss + i].bid;
+			swap(!fake & !already_evicted & (sbid == DUMMY), _fetched, (std::uint8_t *)&stash[(SS - 1) * ss + i], block_size);
+			already_evicted = fake | already_evicted | (sbid == DUMMY);
+		}
+		pthread_mutex_unlock(&stash_locks[SS - 1]);
+		assert(already_evicted);
 	}
 
-	void taostore_oram::access(block_id bid, leaf_id lif, std::uint8_t *data_in, std::uint8_t *data_out, leaf_id next_lif)
+	void taostore_oram_parallel::access(block_id bid, std::uint8_t *data_in, std::uint8_t *data_out)
 	{
-		request_t _req = {data_in, bid, false, false, data_out, false, false, 0, lif, next_lif, PTHREAD_MUTEX_INITIALIZER, PTHREAD_COND_INITIALIZER};
+		// std::uint8_t _data_out[B];
+		std::int32_t _id = thread_id++;
+		request_t _req = {data_in, bid, false, false, data_out, false, false, _id, 0, 0, PTHREAD_MUTEX_INITIALIZER, PTHREAD_COND_INITIALIZER};
 
 		struct processing_thread_args_wrap obj_wrap = {this, _req};
 
@@ -206,62 +305,7 @@ namespace obl
 		}
 		pthread_mutex_unlock(&_req.cond_mutex);
 
-		return;
-	}
-
-	void taostore_oram::access_r(block_id bid, leaf_id lif, std::uint8_t *data_out)
-	{
-		std::uint8_t _fetched[block_size];
-		block_t *fetched = (block_t *)_fetched;
-		std::uint64_t access_counter_1;
-
-		access_counter_1 = fetch_path(_fetched, bid, lif);
-		memcpy(data_out, fetched->payload, B);
-
-		if (access_counter_1 % K == 0)
-		{
-			int err = threadpool_add(thpool, writeback_thread_wrap, (void *)this, 0);
-			assert(err == 0);
-		}
-
-		return;
-	}
-	void taostore_oram::access_w(block_id bid, leaf_id lif, std::uint8_t *data_in, leaf_id next_lif)
-	{
-		request_t _req = {data_in, bid, false, false, nullptr, false, false, 0, lif, next_lif, PTHREAD_MUTEX_INITIALIZER, PTHREAD_COND_INITIALIZER};
-
-		struct processing_thread_args_wrap obj_wrap = {this, _req};
-
-		int err = threadpool_add(thpool, access_write_thread_wrap, (void *)&obj_wrap, 0);
-		assert(err == 0);
-
-		//wait on the conditional var
-		pthread_mutex_lock(&_req.cond_mutex);
-		while (!_req.res_ready)
-		{
-			pthread_cond_wait(&_req.serializer_res_ready, &_req.cond_mutex);
-		}
-		pthread_mutex_unlock(&_req.cond_mutex);
-		return;
-	}
-
-	void taostore_oram::write(block_id bid, std::uint8_t *data_in, leaf_id next_lif)
-	{
-		request_t _req = {data_in, bid,false,false, nullptr, false,false,0, 0, next_lif, PTHREAD_MUTEX_INITIALIZER, PTHREAD_COND_INITIALIZER};
-
-		struct processing_thread_args_wrap obj_wrap = {this, _req};
-
-		int err = threadpool_add(thpool, access_write_thread_wrap, (void *)&obj_wrap, 0);
-		assert(err == 0);
-
-		//wait on the conditional var
-		pthread_mutex_lock(&_req.cond_mutex);
-		while (!_req.res_ready)
-		{
-			pthread_cond_wait(&_req.serializer_res_ready, &_req.cond_mutex);
-		}
-		pthread_mutex_unlock(&_req.cond_mutex);
-		return;
+		// std::memcpy(data_out, _data_out, B);
 	}
 
 	//DEGUG

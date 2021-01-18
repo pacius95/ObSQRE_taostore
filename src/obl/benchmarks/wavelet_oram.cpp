@@ -12,6 +12,7 @@
 #include "obl/primitives.h"
 
 #include "obl/rec.h"
+#include "obl/rec_standard.h"
 #include "obl/circuit.h"
 
 const int test_iters = 1024;
@@ -52,7 +53,7 @@ int main()
 
 		for(int csize = 4; csize <= 8; csize++)
 		{
-			obl::recursive_oram recoram(N, B, csize, &circ);
+			obl::recursive_oram_standard recoram(N, B, csize, &circ);
 
 			// Now using full initialization
 			for(unsigned int i = 0; i < N; i++)

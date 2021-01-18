@@ -5,8 +5,8 @@ import sys
 # for object serialization
 import pickle
 
-#URL_BASE = 'http://compilergroup-srv.elet.polimi.it:49000'
-URL_BASE = 'http://127.0.0.1:49000'
+URL_BASE = 'http://compilergroup-srv.elet.polimi.it:49000'
+#URL_BASE = 'http://127.0.0.1:49000'
 SPID = 'FAA97D6CB2501FD5753E55F399AEF8A3'
 # subtol specific ack/nack strings for msg4
 ACK_STRING = b'trusted subtol enclave'
