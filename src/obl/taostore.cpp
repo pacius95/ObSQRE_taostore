@@ -11,7 +11,6 @@
 
 #define DUMMY -1
 #define BOTTOM -2
-#define QUEUE_SIZE 256
 
 namespace obl
 {
@@ -45,34 +44,12 @@ namespace obl
 			pthread_mutex_init(&stash_locks[i], nullptr);
 
 		this->T_NUM = T_NUM;
-		this->K = next_two_power((1 << 25) / ((bucket_size + sizeof(node)) * L));
-
+		this->subtree_node_size = bucket_size + sizeof(node);
+		if ((subtree_node_size * L * T_NUM) > ENCLAVE_MEM)
+			this->K = 1;
+		else 
+			this->K = next_two_power(ENCLAVE_MEM / (subtree_node_size * L * T_NUM));
 		init();
-	}
-
-	void taostore_oram::wait_end()
-	{
-		int err;
-		err = threadpool_destroy(thpool, threadpool_graceful);
-		assert(err == 0);
-	}
-
-	taostore_oram::~taostore_oram()
-	{
-		std::memset(_crypt_buffer, 0x00, sizeof(Aes) + 16);
-
-		std::memset(&stash[0], 0x00, block_size * S);
-
-		free(_crypt_buffer);
-
-		pthread_mutex_destroy(&stash_lock);
-		pthread_mutex_destroy(&multi_set_lock);
-		for (unsigned int i = 0; i < SS; i++)
-		{
-			pthread_mutex_destroy(&stash_locks[i]);
-		}
-		delete[] stash_locks;
-		//TODO cleanup
 	}
 
 	void taostore_oram::init()
@@ -184,6 +161,11 @@ namespace obl
 		return ((processing_thread_args_wrap *)_object)->arg1->write_thread(((processing_thread_args_wrap *)_object)->request);
 	}
 
+	void taostore_oram::access_read_thread_wrap(void *_object)
+	{
+		return ((processing_thread_args_wrap *)_object)->arg1->read_thread(((processing_thread_args_wrap *)_object)->request);
+	}
+
 	void taostore_oram::writeback_thread_wrap(void *_object)
 	{
 		return ((taostore_oram *)_object)->write_back();
@@ -191,7 +173,7 @@ namespace obl
 
 	void taostore_oram::access(block_id bid, leaf_id lif, std::uint8_t *data_in, std::uint8_t *data_out, leaf_id next_lif)
 	{
-		request_t _req = {data_in, bid, false, false, data_out, false, false, 0, lif, next_lif, PTHREAD_MUTEX_INITIALIZER, PTHREAD_COND_INITIALIZER};
+		request_t _req = {data_in, lif, next_lif, data_out, bid, false, PTHREAD_MUTEX_INITIALIZER, PTHREAD_COND_INITIALIZER};
 
 		struct processing_thread_args_wrap obj_wrap = {this, _req};
 
@@ -211,24 +193,24 @@ namespace obl
 
 	void taostore_oram::access_r(block_id bid, leaf_id lif, std::uint8_t *data_out)
 	{
-		std::uint8_t _fetched[block_size];
-		block_t *fetched = (block_t *)_fetched;
-		std::uint64_t access_counter_1;
+		request_t _req = {nullptr, lif, 0, data_out, bid, false, PTHREAD_MUTEX_INITIALIZER, PTHREAD_COND_INITIALIZER};
+		struct processing_thread_args_wrap obj_wrap = {this, _req};
 
-		access_counter_1 = fetch_path(_fetched, bid, lif);
-		memcpy(data_out, fetched->payload, B);
+		int err = threadpool_add(thpool, access_read_thread_wrap, (void *)&obj_wrap, 0);
+		assert(err == 0);
 
-		if (access_counter_1 % K == 0)
+		pthread_mutex_lock(&_req.cond_mutex);
+		while (!_req.res_ready)
 		{
-			int err = threadpool_add(thpool, writeback_thread_wrap, (void *)this, 0);
-			assert(err == 0);
+			pthread_cond_wait(&_req.serializer_res_ready, &_req.cond_mutex);
 		}
+		pthread_mutex_unlock(&_req.cond_mutex);
 
 		return;
 	}
 	void taostore_oram::access_w(block_id bid, leaf_id lif, std::uint8_t *data_in, leaf_id next_lif)
 	{
-		request_t _req = {data_in, bid, false, false, nullptr, false, false, 0, lif, next_lif, PTHREAD_MUTEX_INITIALIZER, PTHREAD_COND_INITIALIZER};
+		request_t _req = {data_in, lif, next_lif, nullptr, bid, false, PTHREAD_MUTEX_INITIALIZER, PTHREAD_COND_INITIALIZER};
 
 		struct processing_thread_args_wrap obj_wrap = {this, _req};
 
@@ -242,13 +224,13 @@ namespace obl
 			pthread_cond_wait(&_req.serializer_res_ready, &_req.cond_mutex);
 		}
 		pthread_mutex_unlock(&_req.cond_mutex);
+
 		return;
 	}
 
 	void taostore_oram::write(block_id bid, std::uint8_t *data_in, leaf_id next_lif)
 	{
-		request_t _req = {data_in, bid,false,false, nullptr, false,false,0, 0, next_lif, PTHREAD_MUTEX_INITIALIZER, PTHREAD_COND_INITIALIZER};
-
+		request_t _req = {data_in, 0, next_lif, nullptr, bid, false, PTHREAD_MUTEX_INITIALIZER, PTHREAD_COND_INITIALIZER};
 		struct processing_thread_args_wrap obj_wrap = {this, _req};
 
 		int err = threadpool_add(thpool, access_write_thread_wrap, (void *)&obj_wrap, 0);
@@ -261,6 +243,7 @@ namespace obl
 			pthread_cond_wait(&_req.serializer_res_ready, &_req.cond_mutex);
 		}
 		pthread_mutex_unlock(&_req.cond_mutex);
+
 		return;
 	}
 

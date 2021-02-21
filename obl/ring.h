@@ -12,7 +12,7 @@
 #include "sgx_tcrypto.h"
 
 #ifdef SGX_ENCLAVE_ENABLED
-	#include "sgx_host_allocator.hpp"
+#include "sgx_host_allocator.hpp"
 #endif
 
 namespace obl
@@ -20,14 +20,14 @@ namespace obl
 	struct ring_block_t;
 	struct ring_bucket_t;
 
-	class ring_oram: public tree_oram
+	class ring_oram : public tree_oram
 	{
 	private:
 		typedef ring_block_t block_t;
 		typedef ring_bucket_t bucket_t;
-	
+
 		std::uint64_t det_eviction; // used to implement Gentry's deterministic eviction procedure
-		unsigned int A; // eviction rate
+		unsigned int A;				// eviction rate
 
 		// sizing of the blocks/buckets
 		unsigned int S;
@@ -35,12 +35,12 @@ namespace obl
 		std::size_t metadata_size;
 		std::size_t bucket_size; // aligned/padded encrypted bucket size
 
-		// content of the ORAM
-		#ifdef SGX_ENCLAVE_ENABLED
-			flexible_array<bucket_t, sgx_host_allocator> tree;
-		#else
-			flexible_array<bucket_t> tree;
-		#endif
+// content of the ORAM
+#ifdef SGX_ENCLAVE_ENABLED
+		flexible_array<bucket_t, sgx_host_allocator> tree;
+#else
+		flexible_array<bucket_t> tree;
+#endif
 
 		// eviction buffers
 		flexible_array<block_t> eviction_path;
@@ -81,25 +81,30 @@ namespace obl
 		void access_w(block_id bid, leaf_id lif, std::uint8_t *data_in, leaf_id next_lif);
 
 		void write(block_id bid, std::uint8_t *data_in, leaf_id next_lif);
+
 	};
 
-	class roram_factory: public oram_factory {
+	class roram_factory : public oram_factory
+	{
 	private:
 		unsigned int Z, S, stash_size, A;
+
 	public:
-		roram_factory(unsigned int Z, unsigned int S, unsigned int A, unsigned int stash_size) {
+		roram_factory(unsigned int Z, unsigned int S, unsigned int A, unsigned int stash_size)
+		{
 			this->Z = Z;
 			this->S = S;
 			this->A = A;
 			this->stash_size = stash_size;
 		}
 
-		tree_oram* spawn_oram(std::size_t N, std::size_t B) {
+		tree_oram *spawn_oram(std::size_t N, std::size_t B)
+		{
 			return new ring_oram(N, B, Z, S, A, stash_size);
 		}
 		bool is_taostore() { return false; }
 	};
 
-}
+} // namespace obl
 
 #endif // RING_ORAM_H

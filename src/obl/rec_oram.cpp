@@ -3,7 +3,8 @@
 
 #define DUMMY_LEAF -1
 
-namespace obl {
+namespace obl
+{
 
 	constexpr leaf_id sign_bit = (1ULL << (sizeof(leaf_id) * 8 - 1)) - 1;
 
@@ -21,67 +22,82 @@ namespace obl {
 
 		rmap_csize = 1 << csize;
 		rmap_bits = csize;
-		
+
 		// evaluate rmap_opt
 		rmap_opt = __builtin_ctzll(C) % csize;
-		if(rmap_opt == 0) // non-critical branch
+		if (rmap_opt == 0) // non-critical branch
 			rmap_opt = csize;
 
 		rmap_levs = 0;
-		while(capacity > 1)
+		while (capacity > 1)
 		{
 			capacity >>= csize;
 			++rmap_levs;
 		}
 		// peel away the very first level of recursion which is absorbed into pos_map
 		--rmap_levs;
-		
+
 		// if there is only one level, it is already optimized
 		/*if(rmap_levs == 1)
 			rmap_bits = rmap_opt;*/
 
-		if(rmap_levs > 0)
+		std::uint32_t *temp_N = new std::uint32_t[rmap_levs];
+		std::uint32_t *temp_size = new std::uint32_t[rmap_levs];
+		rmap_locks = new pthread_mutex_t[rmap_levs + 1];
+		if (rmap_levs > 0)
 		{
-			rmap = new tree_oram*[rmap_levs];
+			rmap = new tree_oram *[rmap_levs];
 			std::size_t rec_N = 1;
 
-			for(int i = 0; i < rmap_levs; i++)
+			for (int i = 0; i < rmap_levs; i++)
 			{
 				int tmp_rmap;
-				
-				if(i == rmap_levs - 2)
+
+				if (i == rmap_levs - 2)
 					tmp_rmap = rmap_opt;
 				else
 					tmp_rmap = rmap_bits;
-				
-				if(i == rmap_levs - 1)
+
+				if (i == rmap_levs - 1)
 					rec_N <<= rmap_opt;
 				else
 					rec_N <<= rmap_bits;
-				
-				rmap[i] = allocator->spawn_oram(rec_N, sizeof(leaf_id) * (1 << tmp_rmap));				
+
+				pthread_mutex_init(&rmap_locks[i], NULL);
+				temp_N[i] = rec_N;
+				temp_size[i] = sizeof(leaf_id) * (1 << tmp_rmap);
+				// rmap[i] = allocator->spawn_oram(rec_N, sizeof(leaf_id) * (1 << tmp_rmap));
 			}
 		}
 		else
 			rmap = nullptr;
 
+		pthread_mutex_init(&rmap_locks[rmap_levs], NULL);
+
 		pos_map = new leaf_id[rmap_csize];
-		for(int i = 0; i < rmap_csize; i++)
+		for (int i = 0; i < rmap_csize; i++)
 			pos_map[i] = DUMMY_LEAF;
 
 		oram = allocator->spawn_oram(this->N, B);
+		for (int i = rmap_levs-1; i >=0; i--)
+			rmap[i] = allocator->spawn_oram(temp_N[i],temp_size[i]);
 	}
 
 	recursive_oram_standard::~recursive_oram_standard()
 	{
+
 		delete[] pos_map;
 		delete oram;
 
-		if(rmap != nullptr)
+		if (rmap != nullptr)
 		{
-			for(int i = 0; i < rmap_levs; i++)
+			for (int i = 0; i < rmap_levs; i++)
+			{
 				delete rmap[i];
-
+				pthread_mutex_destroy(&rmap_locks[i]);
+			}
+			pthread_mutex_destroy(&rmap_locks[rmap_levs]);
+			delete[] rmap_locks;
 			delete[] rmap;
 		}
 	}
@@ -90,7 +106,7 @@ namespace obl {
 	{
 		leaf_id leef = DUMMY_LEAF;
 
-		for(int i = 0; i < rmap_csize; i++)
+		for (int i = 0; i < rmap_csize; i++)
 		{
 			leaf_id tmp = map[i];
 
@@ -118,56 +134,57 @@ namespace obl {
 		block_id rem_bid;
 		// recursive block for the intermediate ORAMs used to store the position map
 		block_id rec_bid = 0;
-		
+
 		// to inject optimization
 		int local_bits = rmap_levs == 1 ? rmap_opt : rmap_bits;
 
 		/* Access the constant size position map */
-		gen_rand((std::uint8_t*) &ev_leef, sizeof(leaf_id));
-		gen_rand((std::uint8_t*) &dummy_leef, sizeof(leaf_id));
+		gen_rand((std::uint8_t *)&ev_leef, sizeof(leaf_id));
+		gen_rand((std::uint8_t *)&dummy_leef, sizeof(leaf_id));
 		ev_leef = leaf_abs(ev_leef);
 		dummy_leef = leaf_abs(dummy_leef);
 
 		ch_len = C >> local_bits;
 		// fix to compile with O3
-		if(ch_len == 0)
+		if (ch_len == 0)
 			ch_len = 1;
-		
+
 		rem_bid = bid;
 		n_bid = rem_bid >> __builtin_ctzll(ch_len);
 
+		pthread_mutex_lock(&rmap_locks[0]);
 		leef = scan_map(pos_map, n_bid, ev_leef, to_initialize);
 
 		to_initialize |= leef == DUMMY_LEAF;
 		leef = ternary_op(!to_initialize, leef, dummy_leef);
 
 		/* Access recursive ORAMs */
-		for(int i = 0; i < rmap_levs; i++)
+		for (int i = 0; i < rmap_levs; i++)
 		{
 			leaf_id ev_leef_p, leef_p;
-			gen_rand((std::uint8_t*) &ev_leef_p, sizeof(leaf_id));
-			gen_rand((std::uint8_t*) &dummy_leef, sizeof(leaf_id));
+			gen_rand((std::uint8_t *)&ev_leef_p, sizeof(leaf_id));
+			gen_rand((std::uint8_t *)&dummy_leef, sizeof(leaf_id));
 			ev_leef_p = leaf_abs(ev_leef_p);
 			dummy_leef = leaf_abs(dummy_leef);
 
 			// this holds the sequence of "branches" travelled so far in the position map
 			rec_bid = (rec_bid << local_bits) | n_bid;
 			rem_bid = rem_bid - n_bid * ch_len;
-			
+
 			// is the current iteration to optimize?
-			if(i == rmap_levs - 2)
+			if (i == rmap_levs - 2)
 				local_bits = rmap_opt;
 			else
 				local_bits = rmap_bits;
-			
+
 			ch_len = ch_len >> local_bits;
-			if(ch_len == 0)
+			if (ch_len == 0)
 				ch_len = 1;
-			
+
 			n_bid = rem_bid >> __builtin_ctzll(ch_len);
 
 			// read the position map
-			rmap[i]->access_r(rec_bid, leef, (std::uint8_t*) tmp_pos_map);
+			rmap[i]->access_r(rec_bid, leef, (std::uint8_t *)tmp_pos_map);
 
 			// scan the chunk of the recursive position map
 			leef_p = scan_map(tmp_pos_map, n_bid, ev_leef_p, to_initialize);
@@ -176,12 +193,14 @@ namespace obl {
 			leef_p = ternary_op(!to_initialize, leef_p, dummy_leef);
 
 			// evict
-			rmap[i]->access_w(rec_bid, leef, (std::uint8_t*) tmp_pos_map, ev_leef);
+			rmap[i]->access_w(rec_bid, leef, (std::uint8_t *)tmp_pos_map, ev_leef);
+			pthread_mutex_lock(&rmap_locks[i + 1]);
+			pthread_mutex_unlock(&rmap_locks[i]);
 
 			ev_leef = ev_leef_p;
 			leef = leef_p;
 		}
-
 		oram->access(bid, leef, data_in, data_out, ev_leef);
+		pthread_mutex_unlock(&rmap_locks[rmap_levs]);
 	}
-}
+} // namespace obl

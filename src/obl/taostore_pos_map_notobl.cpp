@@ -40,9 +40,8 @@ namespace obl
         ev_leef = fake ? leef : ev_leef;
 
         position_map[bid] = ev_leef;
-        memcpy(_ev_leef, &ev_leef, sizeof(leaf_id));
         pthread_mutex_unlock(&map_mutex);
-
+        memcpy(_ev_leef, &ev_leef, sizeof(leaf_id));
 
         return leef;
     }

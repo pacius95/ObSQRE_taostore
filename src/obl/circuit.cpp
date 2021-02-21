@@ -222,7 +222,6 @@ namespace obl
 		obl_aes_gcm_128bit_iv_t iv;
 		obl_aes_gcm_128bit_tag_t mac;
 		bool reachable = true;
-		// auto start = hres::now();
 
 		// update the reachability flags
 		for (int i = 0; i < L; i++)

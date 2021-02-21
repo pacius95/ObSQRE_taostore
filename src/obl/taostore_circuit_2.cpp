@@ -6,10 +6,30 @@
 
 #define DUMMY -1
 #define BOTTOM -2
-#define QUEUE_SIZE 256
 
 namespace obl
 {
+
+    taostore_circuit_2::~taostore_circuit_2()
+    {
+        int err;
+        err = threadpool_destroy(thpool, threadpool_graceful);
+        assert(err == 0);
+
+        std::memset(_crypt_buffer, 0x00, sizeof(Aes) + 16);
+
+        std::memset(&stash[0], 0x00, block_size * S);
+
+        free(_crypt_buffer);
+
+        pthread_mutex_destroy(&multi_set_lock);
+        for (unsigned int i = 0; i < SS; i++)
+        {
+            pthread_mutex_destroy(&stash_locks[i]);
+        }
+        delete[] stash_locks;
+        //TODO cleanup
+    }
 
 	std::uint64_t taostore_circuit_2::eviction(leaf_id path)
 	{
@@ -216,10 +236,10 @@ namespace obl
 
 		pthread_mutex_lock(&_req.cond_mutex);
 		_req.res_ready = true;
-		pthread_mutex_unlock(&_req.cond_mutex);
-		pthread_cond_signal(&_req.serializer_res_ready);
-
 		pthread_mutex_lock(&stash_locks[0]);
+		pthread_cond_signal(&_req.serializer_res_ready);
+		pthread_mutex_unlock(&_req.cond_mutex);
+
 		for (unsigned int i = 0; i < SS - 1; ++i)
 		{
 			for (unsigned int j = 0; j < ss; ++j)
@@ -240,12 +260,17 @@ namespace obl
 		pthread_mutex_unlock(&stash_locks[SS - 1]);
 		assert(already_evicted);
 
+		if (access_counter_1 % K == 0)
+			write_back(); 
+			
 		evict_leaf = evict_path++;
 
 		access_counter_2 = eviction(2 * evict_leaf);
 		access_counter_3 = eviction(2 * evict_leaf + 1);
 
-		if (access_counter_1 % K == 0 || access_counter_2 % K == 0 || access_counter_3 % K == 0)
+		if (access_counter_2 % K == 0)
+			write_back();
+		if (access_counter_3 % K == 0)
 			write_back();
 	}
 
@@ -449,19 +474,19 @@ namespace obl
 
 		leaf_id evict_leaf;
 		bool already_evicted = false;
-		std::uint64_t ts2;
-		std::uint64_t ts3;
+		std::uint64_t access_counter_1;
+		std::uint64_t access_counter_2;
 
 		fetched->bid = _req.bid;
 		fetched->lid = _req.next_lif;
-		memcpy(fetched->payload, _req.data_in, B);
+		std::memcpy(fetched->payload, _req.data_in, B);
 
 		pthread_mutex_lock(&_req.cond_mutex);
 		_req.res_ready = true;
-		pthread_mutex_unlock(&_req.cond_mutex);
-		pthread_cond_signal(&_req.serializer_res_ready);
-
 		pthread_mutex_lock(&stash_locks[0]);
+		pthread_cond_signal(&_req.serializer_res_ready);
+		pthread_mutex_unlock(&_req.cond_mutex);
+
 		for (unsigned int i = 0; i < SS - 1; ++i)
 		{
 			for (unsigned int j = 0; j < ss; ++j)
@@ -485,13 +510,34 @@ namespace obl
 
 		evict_leaf = evict_path++;
 
-		ts2 = eviction(2 * evict_leaf);
-		ts3 = eviction(2 * evict_leaf + 1);
+		access_counter_1 = eviction(2 * evict_leaf);
+		access_counter_2 = eviction(2 * evict_leaf + 1);
 
-		if (ts2 % K == 0 || ts3 % K == 0)
+		if (access_counter_1 % K == 0)
+			write_back(); 
+		if (access_counter_2 % K == 0)
 			write_back();
 	}
 
+    void taostore_circuit_2::read_thread(request_t &_req)
+    {
+        std::uint8_t _fetched[block_size];
+        block_t *fetched = (block_t *)_fetched;
+
+        std::uint64_t access_counter_1;
+
+        access_counter_1 = fetch_path(_fetched, _req.bid, _req.lif);
+
+        std::memcpy(_req.data_out, fetched->payload, B);
+
+        pthread_mutex_lock(&_req.cond_mutex);
+        _req.res_ready = true;
+        pthread_cond_signal(&_req.serializer_res_ready);
+        pthread_mutex_unlock(&_req.cond_mutex);
+
+        if (access_counter_1 % K == 0)
+            write_back();
+    }
 	void taostore_circuit_2::write_back()
 	{
 		std::unordered_map<std::int64_t, node *> nodes_level_i[L + 1];
@@ -504,7 +550,7 @@ namespace obl
 		leaf_id *_paths = new leaf_id[K];
 		int tmp = K;
 
-		assert(local_subtree.get_nodes_count() * (sizeof(node) + bucket_size) < 2 << 25);
+		assert(local_subtree.get_nodes_count() * this->subtree_node_size < MEM_BOUND);
 		nodes_level_i[L].reserve(K);
 		local_subtree.get_pop_queue(K, _paths);
 		local_subtree.update_valid(_paths, K, tree, nodes_level_i[L]);
@@ -542,9 +588,9 @@ namespace obl
 
 					// update the mac for the parent for the evaluation of its mac
 					std::uint8_t *target_mac = (l_index & 1) ? parent->adata.left_mac : parent->adata.right_mac;
-					std::memcpy(target_mac, mac, sizeof(obl_aes_gcm_128bit_tag_t));
 					if (parent->trylock() == 0)
 					{
+						std::memcpy(target_mac, mac, sizeof(obl_aes_gcm_128bit_tag_t));
 						pthread_mutex_lock(&multi_set_lock);
 						if (reference_node->child_r == nullptr && reference_node->child_l == nullptr &&
 							path_req_multi_set.find(l_index) == path_req_multi_set.end())
@@ -573,8 +619,7 @@ namespace obl
 			}
 			nodes_level_i[i].clear();
 		}
-		// pthread_mutex_unlock(&write_back_lock);
 		delete[] _paths;
 	}
-
+	
 } // namespace obl

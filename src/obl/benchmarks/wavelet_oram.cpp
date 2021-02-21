@@ -10,12 +10,12 @@
 #include <utility>
 
 #include "obl/primitives.h"
-
+#include "obl/taostore_factory.hpp"
 #include "obl/rec.h"
 #include "obl/rec_standard.h"
 #include "obl/circuit.h"
 
-const int test_iters = 1024;
+const int test_iters = (1<<15);
 
 // if you store in sepate ORAMs, you don't need *3
 //const int gbit_size = (1 << 27) * 3;
@@ -32,7 +32,7 @@ using tt = std::chrono::time_point<hres, nano>;
 int main()
 {
 	obl::coram_factory circ(3, 8); // default parametrization for circuit oram
-
+	obl::taostore_circuit_factory tao(3,8,4);
 	srand(time(NULL));
 
 	// data blocks
@@ -53,7 +53,7 @@ int main()
 
 		for(int csize = 4; csize <= 8; csize++)
 		{
-			obl::recursive_oram_standard recoram(N, B, csize, &circ);
+			obl::recursive_oram_standard recoram(N, B, csize, &tao);
 
 			// Now using full initialization
 			for(unsigned int i = 0; i < N; i++)

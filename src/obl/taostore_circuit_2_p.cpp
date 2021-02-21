@@ -6,11 +6,38 @@
 
 #define DUMMY -1
 #define BOTTOM -2
-#define QUEUE_SIZE 256
 
 namespace obl
 {
+	taostore_circuit_2_parallel::~taostore_circuit_2_parallel()
+	{
+		int err;
+		err = threadpool_destroy(thpool, threadpool_graceful);
+		assert(err == 0);
+		
+		pthread_mutex_lock(&serializer_lck);
+		oram_alive = false;
+		pthread_cond_broadcast(&serializer_cond);
+		pthread_mutex_unlock(&serializer_lck);
 
+		pthread_join(serializer_id, nullptr);
+
+		std::memset(_crypt_buffer, 0x00, sizeof(Aes) + 16);
+
+		std::memset(&stash[0], 0x00, block_size * S);
+
+		free(_crypt_buffer);
+
+		pthread_mutex_destroy(&multi_set_lock);
+		pthread_cond_destroy(&serializer_cond);
+		pthread_mutex_destroy(&serializer_lck);
+		for (unsigned int i = 0; i < SS; i++)
+		{
+			pthread_mutex_destroy(&stash_locks[i]);
+		}
+		delete[] stash_locks;
+		delete position_map;
+	}
 	std::uint64_t taostore_circuit_2_parallel::eviction(leaf_id path)
 	{
 		std::int64_t l_index = 0;
@@ -41,6 +68,7 @@ namespace obl
 		multiset_lock(path);
 
 		download_path(path, fetched_path);
+
 		for (unsigned int i = 0; i < SS - 1; ++i)
 		{
 			pthread_mutex_lock(&stash_locks[i]);
@@ -139,24 +167,25 @@ namespace obl
 		std::uint8_t _hold[block_size];
 		block_t *hold = (block_t *)_hold;
 		hold->bid = DUMMY;
+		hold->lid = DUMMY;
 
 		bool fill_hold = ndb[-1] != BOTTOM;
 
-		for (unsigned int i = 0; i < SS - 1; ++i)
-		{
-			for (unsigned int j = 0; j < ss; ++j)
-			{
-				bool deepest_block = (get_max_depth(stash[i * ss + j].lid, path, L) == ljd[-1]) & fill_hold & (stash[i * ss + j].bid != DUMMY);
-				swap(deepest_block, _hold, (std::uint8_t *)&stash[i * ss + j], block_size);
-			}
-			pthread_mutex_unlock(&stash_locks[i]);
-		}
-		for (unsigned int i = 0; i < S % ss; ++i)
-		{
-			bool deepest_block = (get_max_depth(stash[(SS - 1) * ss + i].lid, path, L) == ljd[-1]) & fill_hold & (stash[(SS - 1) * ss + i].bid != DUMMY);
-			swap(deepest_block, _hold, (std::uint8_t *)&stash[(SS - 1) * ss + i], block_size);
-		}
-		pthread_mutex_unlock(&stash_locks[SS - 1]);
+        for (unsigned int i = 0; i < SS - 1; ++i)
+        {
+            for (unsigned int j = 0; j < ss; ++j)
+            {
+                bool deepest_block = (get_max_depth(stash[i * ss + j].lid, path, L) == ljd[-1]) & fill_hold & (stash[i * ss + j].bid != DUMMY);
+                swap(deepest_block, _hold, (std::uint8_t *)&stash[i * ss + j], block_size);
+            }
+            pthread_mutex_unlock(&stash_locks[i]);
+        }
+        for (unsigned int i = 0; i < S % ss; ++i)
+        {
+            bool deepest_block = (get_max_depth(stash[(SS - 1) * ss + i].lid, path, L) == ljd[-1]) & fill_hold & (stash[(SS - 1) * ss + i].bid != DUMMY);
+            swap(deepest_block, _hold, (std::uint8_t *)&stash[(SS - 1) * ss + i], block_size);
+        }
+        pthread_mutex_unlock(&stash_locks[SS - 1]);
 
 		dst = ndb[-1];
 
@@ -193,118 +222,30 @@ namespace obl
 		//END EVICTION
 	}
 
-	void taostore_circuit_2_parallel::access_thread(request_t &_req)
+	void taostore_circuit_2_parallel::access_thread(request_p_t &_req)
 	{
 		std::uint8_t _fetched[block_size];
 		std::int32_t evict_leaf;
-		std::uint64_t ts1;
-		std::uint64_t ts2;
-		std::uint64_t ts3;
+        std::uint64_t access_counter_1;
+        std::uint64_t access_counter_2;
+        std::uint64_t access_counter_3;
 
-		ts1 = read_path(_req, _fetched);
+        access_counter_1 = read_path(_req, _fetched);
 
 		answer_request(_req.fake, _req.bid, _req.id, _fetched);
 
 		evict_leaf = evict_path++;
 
-		ts2 = eviction(2 * evict_leaf);
-		ts3 = eviction(2 * evict_leaf + 1);
+        access_counter_2 = eviction(2 * evict_leaf);
+        access_counter_3 = eviction(2 * evict_leaf + 1);
 
-		if (ts1 % K == 0 || ts2 % K == 0 || ts3 % K == 0)
-			write_back(ts3 / K);
+		if (access_counter_1 % K == 0)
+			write_back(); 
+		if (access_counter_2 % K == 0)
+			write_back();
+		if (access_counter_3 % K == 0)
+			write_back();
 	}
-	// void taostore_circuit_2_parallel::download_path(leaf_id path, std::vector<node *> fetched_path)
-	// {
-	// 	// always start from root
-	// 	std::int64_t l_index = 0;
-	// 	block_t *bl;
-	// 	int i;
-
-	// 	// start verifying the mac stored in the root, from the SAFE part of the memory
-	// 	obl_aes_gcm_128bit_tag_t reference_mac;
-	// 	/*
-	// 		the additional method init (to be refined in the SGX deployment) actually inits
-	// 		the root node in a proper way, storing the correct "accessed" flags inside
-	// 		the root bucket. So the mac there contained in the root will always be valid
-	// 	*/
-	// 	bool reachable = (path & 1) ? tree[l_index].reach_r : tree[l_index].reach_l;
-	// 	// evaluate the next encrypted bucket index in the binary heap
-	// 	l_index = (l_index << 1) + 1 + ((path)&1);
-
-	// 	if (reachable)
-	// 	{
-	// 		std::uint8_t *src = tree[l_index].mac;
-	// 		std::memcpy(reference_mac, src, sizeof(obl_aes_gcm_128bit_tag_t));
-	// 	}
-
-	// 	for (i = 1; i <= L && reachable; i++)
-	// 	{
-
-	// 		std::int64_t leftch = get_left(l_index);
-	// 		std::int64_t rightch = get_right(l_index);
-
-	// 		// this data will be authenticated data in the GCM mode
-	// 		// dump from encrypted bucket header
-	// 		fetched_path[i]->adata.valid_l = tree[l_index].reach_l;
-	// 		fetched_path[i]->adata.valid_r = tree[l_index].reach_r;
-
-	// 		// dump left and right child mac if valid, otherwise pad with 0s
-	// 		if (fetched_path[i]->adata.valid_l)
-	// 			std::memcpy(fetched_path[i]->adata.left_mac, tree[leftch].mac, sizeof(obl_aes_gcm_128bit_tag_t));
-
-	// 		if (fetched_path[i]->adata.valid_r)
-	// 			std::memcpy(fetched_path[i]->adata.right_mac, tree[rightch].mac, sizeof(obl_aes_gcm_128bit_tag_t));
-
-	// 		// if they are not valid, authentication data for the corresponding mac would be 0x00..0
-	// 		// however this was already covered by the memset before the loop
-
-	// 		// decrypt using the IV
-	// 		wc_AesGcmDecrypt(crypt_handle,
-	// 						 fetched_path[i]->payload,
-	// 						 tree[l_index].payload,
-	// 						 Z * block_size,
-	// 						 tree[l_index].iv,
-	// 						 OBL_AESGCM_IV_SIZE,
-	// 						 reference_mac,
-	// 						 OBL_AESGCM_MAC_SIZE,
-	// 						 (std::uint8_t *)&fetched_path[i]->adata,
-	// 						 sizeof(auth_data_t));
-
-	// 		// MAC mismatch is a critical error
-	// 		//assert(dec != AES_GCM_AUTH_E);
-	// 		// assert(dec == 0);
-
-	// 		/*
-	// 			NB: this doesn't need to be oblivious since an attacker might always see
-	// 			the sequences of accesses to the buckets and understand whether or not a
-	// 			bucket has already been accessed
-	// 			NB 2: fetch this from data which was dumped and authenticated, and taken
-	// 			from PROTECTED MEMORY. This should avoid some kind of attacks
-	// 		*/
-	// 		reachable = (path >> i) & 1 ? fetched_path[i]->adata.valid_r : fetched_path[i]->adata.valid_l;
-	// 		// evaluate the next encrypted bucket index in the binary heap
-	// 		l_index = (l_index << 1) + 1 + ((path >> i) & 1);
-
-	// 		if (reachable)
-	// 		{
-	// 			std::uint8_t *src = ((path >> i) & 1) ? fetched_path[i]->adata.right_mac : fetched_path[i]->adata.left_mac;
-	// 			std::memcpy(reference_mac, src, sizeof(obl_aes_gcm_128bit_tag_t));
-	// 		}
-	// 	}
-
-	// 	// fill the other buckets with "empty" blocks
-	// 	while (i <= L)
-	// 	{
-
-	// 		bl = (block_t *)fetched_path[i]->payload;
-	// 		for (unsigned int j = 0; j < Z; ++j)
-	// 		{
-	// 			bl->bid = DUMMY;
-	// 			bl = (block_t *)((std::uint8_t *)bl + block_size);
-	// 		}
-	// 		++i;
-	// 	}
-	// }
 
 	void taostore_circuit_2_parallel::download_path(leaf_id path, std::vector<node *> &fetched_path)
 	{
@@ -430,13 +371,14 @@ namespace obl
 		multiset_lock(path);
 
 		download_path(path, fetched_path);
+
 		pthread_mutex_lock(&stash_locks[0]);
 		for (unsigned int i = 0; i < SS - 1; ++i)
 		{
 			for (unsigned int j = 0; j < ss; ++j)
 			{
 				block_id sbid = stash[i * ss + j].bid;
-				swap(not_fake && bid == sbid, _fetched, (std::uint8_t *)&stash[i * ss + j], block_size);
+				swap(not_fake & (bid == sbid), _fetched, (std::uint8_t *)&stash[i * ss + j], block_size);
 			}
 			pthread_mutex_lock(&stash_locks[i + 1]);
 			pthread_mutex_unlock(&stash_locks[i]);
@@ -444,7 +386,7 @@ namespace obl
 		for (unsigned int i = 0; i < S % ss; ++i)
 		{
 			block_id sbid = stash[(SS - 1) * ss + i].bid;
-			swap(not_fake && bid == sbid, _fetched, (std::uint8_t *)&stash[(SS - 1) * ss + i], block_size);
+			swap(not_fake & (bid == sbid), _fetched, (std::uint8_t *)&stash[(SS - 1) * ss + i], block_size);
 		}
 		for (i = 0; i <= L && reference_node != nullptr; ++i)
 		{
@@ -489,8 +431,8 @@ namespace obl
 			l_index = (l_index << 1) + 1 + ((path >> i) & 1);
 			++i;
 		}
-
 		old_ref_node->unlock();
+		
 		multiset_unlock(path);
 
 		fetched->lid = new_lid;
@@ -516,7 +458,6 @@ namespace obl
 
 		// evict the created block to the stash
 		bool already_evicted = false;
-
 		pthread_mutex_lock(&stash_locks[0]);
 		for (unsigned int i = 0; i < SS - 1; ++i)
 		{
@@ -546,14 +487,14 @@ namespace obl
 		paths = access_counter++;
 
 		if (paths % K == 0)
-			write_back(paths / K);
+			write_back();
 	}
 
-	void taostore_circuit_2_parallel::write_back(std::uint32_t c)
+	void taostore_circuit_2_parallel::write_back()
 	{
 		std::unordered_map<std::int64_t, node *> nodes_level_i[L + 1];
 		std::int64_t l_index;
-		bool flag;
+		bool flag = false;
 		obl_aes_gcm_128bit_iv_t iv;
 		obl_aes_gcm_128bit_tag_t mac;
 		node *reference_node;
@@ -561,7 +502,7 @@ namespace obl
 		leaf_id *_paths = new leaf_id[K];
 		int tmp = K;
 
-		assert(local_subtree.get_nodes_count() * bucket_size < 2<<25);
+		assert(local_subtree.get_nodes_count() * this->subtree_node_size < MEM_BOUND);
 		nodes_level_i[L].reserve(K);
 		local_subtree.get_pop_queue(K, _paths);
 		local_subtree.update_valid(_paths, K, tree, nodes_level_i[L]);
@@ -575,34 +516,33 @@ namespace obl
 				l_index = itx.first;
 				reference_node = itx.second;
 				parent = reference_node->parent;
-				
-				if (parent->trylock() == 0)
+
+				if (reference_node->trylock() == 0)
 				{
-					if (reference_node->trylock() == 0)
+					// generate a new random IV
+					gen_rand(iv, OBL_AESGCM_IV_SIZE);
+
+					// save encrypted payload
+					wc_AesGcmEncrypt(crypt_handle,
+									 tree[l_index].payload,
+									 reference_node->payload,
+									 Z * block_size,
+									 iv,
+									 OBL_AESGCM_IV_SIZE,
+									 mac,
+									 OBL_AESGCM_MAC_SIZE,
+									 (std::uint8_t *)&reference_node->adata,
+									 sizeof(auth_data_t));
+
+					// save "mac" + iv + reachability flags
+					std::memcpy(tree[l_index].mac, mac, sizeof(obl_aes_gcm_128bit_tag_t));
+					std::memcpy(tree[l_index].iv, iv, sizeof(obl_aes_gcm_128bit_iv_t));
+
+					// update the mac for the parent for the evaluation of its mac
+					std::uint8_t *target_mac = (l_index & 1) ? reference_node->parent->adata.left_mac : reference_node->parent->adata.right_mac;
+					if (parent->trylock() == 0)
 					{
-						// generate a new random IV
-						gen_rand(iv, OBL_AESGCM_IV_SIZE);
-
-						// save encrypted payload
-						wc_AesGcmEncrypt(crypt_handle,
-										 tree[l_index].payload,
-										 reference_node->payload,
-										 Z * block_size,
-										 iv,
-										 OBL_AESGCM_IV_SIZE,
-										 mac,
-										 OBL_AESGCM_MAC_SIZE,
-										 (std::uint8_t *)&reference_node->adata,
-										 sizeof(auth_data_t));
-
-						// save "mac" + iv + reachability flags
-						std::memcpy(tree[l_index].mac, mac, sizeof(obl_aes_gcm_128bit_tag_t));
-						std::memcpy(tree[l_index].iv, iv, sizeof(obl_aes_gcm_128bit_iv_t));
-
-						// update the mac for the parent for the evaluation of its mac
-						std::uint8_t *target_mac = (l_index & 1) ? reference_node->parent->adata.left_mac : reference_node->parent->adata.right_mac;
 						std::memcpy(target_mac, mac, sizeof(obl_aes_gcm_128bit_tag_t));
-
 						pthread_mutex_lock(&multi_set_lock);
 						if (reference_node->child_r == nullptr && reference_node->child_l == nullptr &&
 							path_req_multi_set.find(l_index) == path_req_multi_set.end())
@@ -614,9 +554,9 @@ namespace obl
 							flag = true;
 						}
 						pthread_mutex_unlock(&multi_set_lock);
-						reference_node->unlock();
+						parent->unlock();
 					}
-					parent->unlock();
+					reference_node->unlock();
 				}
 				if (flag)
 				{
@@ -631,7 +571,6 @@ namespace obl
 			}
 			nodes_level_i[i].clear();
 		}
-		// pthread_mutex_unlock(&write_back_lock);
 		delete[] _paths;
 	}
 

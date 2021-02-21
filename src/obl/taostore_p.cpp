@@ -42,49 +42,18 @@ namespace obl
 		stash_locks = new pthread_mutex_t[SS];
 		for (unsigned int i = 0; i < SS; i++)
 			pthread_mutex_init(&stash_locks[i], nullptr);
+		
 
 		this->T_NUM = T_NUM;
-		this->K = next_two_power((1 << 25) / (bucket_size * L));
+		this->subtree_node_size = bucket_size + sizeof(node);
+		if ((subtree_node_size * L * T_NUM) > ENCLAVE_MEM)
+			this->K = 1;
+		else 
+			this->K = next_two_power(ENCLAVE_MEM / (subtree_node_size * L * T_NUM));
 
 		init();
 		oram_alive = true;
 		pthread_create(&serializer_id, nullptr, serializer_wrap, (void *)this);
-	}
-
-	void taostore_oram_parallel::wait_end()
-	{
-		int err;
-		err = threadpool_destroy(thpool, threadpool_graceful);
-		assert(err == 0);
-	}
-
-	taostore_oram_parallel::~taostore_oram_parallel()
-	{
-		pthread_mutex_lock(&serializer_lck);
-		oram_alive = false;
-		pthread_cond_broadcast(&serializer_cond);
-		pthread_mutex_unlock(&serializer_lck);
-
-		pthread_join(serializer_id, nullptr);
-
-		std::memset(_crypt_buffer, 0x00, sizeof(Aes) + 16);
-
-		std::memset(&stash[0], 0x00, block_size * S);
-
-		free(_crypt_buffer);
-
-		pthread_mutex_destroy(&stash_lock);
-		pthread_mutex_destroy(&multi_set_lock);
-		pthread_cond_destroy(&serializer_cond);
-		pthread_mutex_destroy(&serializer_lck);
-		pthread_mutex_destroy(&write_back_lock);
-		for (unsigned int i = 0; i < SS; i++)
-		{
-			pthread_mutex_destroy(&stash_locks[i]);
-		}
-		delete[] stash_locks;
-		delete position_map;
-		//TODO cleanup
 	}
 
 	void taostore_oram_parallel::init()
@@ -131,9 +100,10 @@ namespace obl
 
 		thpool = threadpool_create(T_NUM, QUEUE_SIZE, 0);
 
-		allocator = new circuit_fake_factory(Z, S);
-		position_map = new taostore_position_map(N, sizeof(int64_t), 5, allocator);
-		// position_map = new taostore_position_map_notobl(N);
+		allocator = new coram_factory(3,8);
+		// allocator = new taostore_circuit_factory(Z,S);
+		// position_map = new taostore_position_map(N, sizeof(int64_t), 6, allocator);
+		position_map = new taostore_position_map_notobl(N);
 		local_subtree.init(block_size * Z, empty_bucket, L);
 	}
 
@@ -157,8 +127,8 @@ namespace obl
 			{
 				pthread_mutex_lock(&request_structure.front()->cond_mutex);
 				request_structure.front()->res_ready = true;
-				pthread_mutex_unlock(&request_structure.front()->cond_mutex);
 				pthread_cond_signal(&request_structure.front()->serializer_res_ready);
+				pthread_mutex_unlock(&request_structure.front()->cond_mutex);
 				request_structure.pop_front();
 			}
 			pthread_mutex_unlock(&serializer_lck);
@@ -220,10 +190,10 @@ namespace obl
 	}
 	void taostore_oram_parallel::access_thread_wrap(void *_object)
 	{
-		return ((processing_thread_args_wrap *)_object)->arg1->access_thread(((processing_thread_args_wrap *)_object)->request);
+		return ((processing_thread_args_wrap_p *)_object)->arg1->access_thread(((processing_thread_args_wrap_p *)_object)->request);
 	}
 
-	std::uint64_t taostore_oram_parallel::read_path(request_t &req, std::uint8_t *_fetched)
+	std::uint64_t taostore_oram_parallel::read_path(request_p_t &req, std::uint8_t *_fetched)
 	{
 		block_id bid;
 		leaf_id ev_lid;
@@ -237,9 +207,9 @@ namespace obl
 			req.fake = req.fake | cond;
 		}
 		request_structure.push_back(&req);
-
 		bid = ternary_op(req.fake, bid, req.bid);
 		pthread_mutex_unlock(&serializer_lck);
+
 		leaf_id path = position_map->access(bid, req.fake, &ev_lid);
 		return fetch_path(_fetched, bid, ev_lid, path, !req.fake);
 	}
@@ -256,14 +226,14 @@ namespace obl
 		{
 			hit = !fake & (it->bid == bid);
 			//update flags
-			it->handled = it->handled || it->id == id;
+			it->handled = it->handled | (it->id == id);
 			it->data_ready = it->data_ready | hit;
 			replace(hit, it->data_out, fetched->payload, B);
 			if (it->data_in != nullptr)
 				replace(hit, fetched->payload, it->data_in, B);
 		}
-		pthread_mutex_unlock(&serializer_lck);
 		pthread_cond_signal(&serializer_cond);
+		pthread_mutex_unlock(&serializer_lck);
 
 		for (unsigned int i = 0; i < SS - 1; ++i)
 		{
@@ -288,11 +258,10 @@ namespace obl
 
 	void taostore_oram_parallel::access(block_id bid, std::uint8_t *data_in, std::uint8_t *data_out)
 	{
-		// std::uint8_t _data_out[B];
 		std::int32_t _id = thread_id++;
-		request_t _req = {data_in, bid, false, false, data_out, false, false, _id, 0, 0, PTHREAD_MUTEX_INITIALIZER, PTHREAD_COND_INITIALIZER};
+		request_p_t _req = {data_in, bid, false, false, data_out, false, false, _id, 0, 0, PTHREAD_MUTEX_INITIALIZER, PTHREAD_COND_INITIALIZER};
 
-		struct processing_thread_args_wrap obj_wrap = {this, _req};
+		struct processing_thread_args_wrap_p obj_wrap = {this, _req};
 
 		int err = threadpool_add(thpool, access_thread_wrap, (void *)&obj_wrap, 0);
 		assert(err == 0);
@@ -305,7 +274,6 @@ namespace obl
 		}
 		pthread_mutex_unlock(&_req.cond_mutex);
 
-		// std::memcpy(data_out, _data_out, B);
 	}
 
 	//DEGUG

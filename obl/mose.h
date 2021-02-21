@@ -5,6 +5,7 @@
 #include "obl/oram.h"
 #include "obl/flexible_array.hpp"
 #include "obl/threadpool.h"
+#include "obl/circuit.h"
 
 #include <atomic>
 
@@ -18,7 +19,6 @@
 namespace obl
 {
     struct mose_args;
-    struct mose_args_2;
 
     class mose : public tree_oram
     {
@@ -88,7 +88,14 @@ namespace obl
 
         tree_oram *spawn_oram(std::size_t N, std::size_t B)
         {
-            return new mose(N, B, Z, S, T_NUM);
+            if (B >= (1 << 10))
+            {
+                return new mose(N, B, Z, S, T_NUM);
+            }
+            else
+            {
+                return new circuit_oram(N, B, Z, S);
+            }
         }
         bool is_taostore() { return false; }
     };

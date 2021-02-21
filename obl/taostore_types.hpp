@@ -31,6 +31,18 @@ namespace obl
     struct taostore_request_t
     {
         std::uint8_t *data_in;
+        leaf_id lif;
+        leaf_id next_lif;
+        std::uint8_t *data_out;
+        block_id bid;
+        bool res_ready;
+        pthread_mutex_t cond_mutex;
+        pthread_cond_t serializer_res_ready;
+    };
+
+    struct taostore_p_request_t
+    {
+        std::uint8_t *data_in;
         block_id bid;
         bool fake;
         bool handled;
@@ -47,6 +59,7 @@ namespace obl
     typedef taostore_block_t block_t;
     typedef taostore_bucket_t bucket_t;
     typedef taostore_request_t request_t;
+    typedef taostore_p_request_t request_p_t;
 
     struct node
     {
@@ -76,11 +89,11 @@ namespace obl
 
         ~node()
         {
-            pthread_mutex_destroy(&lk);
             pthread_mutex_destroy(&wb_lk);
+            pthread_mutex_destroy(&lk);
+            delete[] payload;
             delete child_l;
             delete child_r;
-            delete[] payload;
         }
         int trylock()
         {

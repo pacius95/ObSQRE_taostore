@@ -15,11 +15,12 @@ namespace obl
 	class taostore_circuit_1_parallel : public taostore_oram_parallel
 	{
 	private:
-		void access_thread(request_t &_req);
+		~taostore_circuit_1_parallel();
+		void access_thread(request_p_t &_req);
 
 		std::uint64_t fetch_path(std::uint8_t *_fetched, block_id bid, leaf_id new_lid, leaf_id path, bool fake);
 		std::uint64_t eviction(leaf_id path);
-		void write_back(std::uint32_t c);
+		void write_back();
 
 	public:
 		taostore_circuit_1_parallel(std::size_t N, std::size_t B, unsigned int Z, unsigned int S, unsigned int T_NUM) : taostore_oram_parallel(N, B, Z, S, T_NUM){};

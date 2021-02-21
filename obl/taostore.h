@@ -5,8 +5,6 @@
 #include "obl/oram.h"
 #include "obl/taostore_types.hpp"
 #include "obl/flexible_array.hpp"
-#include "obl/taostore_pos_map.h"
-#include "obl/taostore_pos_map_notobl.h"
 #include "obl/taostore_subtree.h"
 #include "obl/threadpool.h"
 
@@ -45,7 +43,7 @@ namespace obl
 		unsigned int ss;
 		unsigned int SS;
 		pthread_mutex_t *stash_locks;
-
+		std::size_t subtree_node_size;
 		taostore_subtree local_subtree;
 
 // content of the ORAM
@@ -54,9 +52,8 @@ namespace obl
 #else
 		flexible_array<bucket_t> tree;
 #endif
-		pthread_mutex_t stash_lock = PTHREAD_MUTEX_INITIALIZER;
-		pthread_mutex_t multi_set_lock = PTHREAD_MUTEX_INITIALIZER;
 
+		pthread_mutex_t multi_set_lock = PTHREAD_MUTEX_INITIALIZER;
 		threadpool_t *thpool;
 
 		std::unordered_multiset<leaf_id> path_req_multi_set;
@@ -78,10 +75,12 @@ namespace obl
 
 		static void access_thread_wrap(void *object);
 		virtual void access_thread(taostore_request_t &_req) = 0;
-		static void writeback_thread_wrap(void *object);
 		static void access_write_thread_wrap(void *object);
 		virtual void write_thread(taostore_request_t &_req) = 0;
+		static void access_read_thread_wrap(void *object);
+		virtual void read_thread(taostore_request_t &_req) = 0;
 
+		static void writeback_thread_wrap(void *object);
 		virtual std::uint64_t fetch_path(std::uint8_t *_fetched, block_id bid, leaf_id path) = 0;
 		virtual std::uint64_t eviction(leaf_id path) = 0;
 		virtual void write_back() = 0;
@@ -95,16 +94,8 @@ namespace obl
 
 	public:
 		taostore_oram(std::size_t N, std::size_t B, unsigned int Z, unsigned int S, unsigned int T_NUM);
-		~taostore_oram();
+		~taostore_oram(){};
 
-		//debug
-		// int printrec(node * t, int L, int l_index);
-		// void printstash();
-		// void printsubtree();
-		// void print_tree();
-		// void printpath(leaf_id path);
-
-		void wait_end();
 		void access(block_id bid, leaf_id lif, std::uint8_t *data_in, std::uint8_t *data_out, leaf_id next_lif);
 
 		// split fetch and eviction phases of the access method

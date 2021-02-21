@@ -15,7 +15,7 @@ namespace obl
         return x & sign_bit;
     }
 
-    taostore_position_map::taostore_position_map(std::size_t N, std::size_t B, unsigned int csize, circuit_fake_factory *allocator)
+    taostore_position_map::taostore_position_map(std::size_t N, std::size_t B, unsigned int csize, oram_factory *allocator)
     {
         this->N = N;
         this->C = next_two_power(this->N);
@@ -47,7 +47,7 @@ namespace obl
             rmap_locks[i] = PTHREAD_MUTEX_INITIALIZER;
         if (rmap_levs > 0)
         {
-            rmap = new circuit_fake *[rmap_levs];
+            rmap = new tree_oram *[rmap_levs];
             std::size_t rec_N = 1;
 
             for (int i = 0; i < rmap_levs; i++)
@@ -173,7 +173,7 @@ namespace obl
             n_bid = rem_bid >> __builtin_ctzll(ch_len);
 
             // read the position map
-            rmap[i]->access_r(rec_bid, leef, (std::uint8_t *)tmp_pos_map, fake);
+            rmap[i]->access_r(rec_bid, leef, (std::uint8_t *)tmp_pos_map);
 
             // scan the chunk of the recursive position map
             leef_p = scan_map(tmp_pos_map, n_bid, ev_leef_p, to_initialize, fake);
@@ -183,16 +183,15 @@ namespace obl
 
             ev_leef = ternary_op(fake, leef, ev_leef);
             // evict
-            rmap[i]->access_w(rec_bid, leef, (std::uint8_t *)tmp_pos_map, ev_leef, fake);
-
-            pthread_mutex_lock(&rmap_locks[i + 1]);
+            rmap[i]->access_w(rec_bid, leef, (std::uint8_t *)tmp_pos_map, ev_leef);
+            if (i != rmap_levs-1)
+                pthread_mutex_lock(&rmap_locks[i + 1]);
             pthread_mutex_unlock(&rmap_locks[i]);
             ev_leef = ev_leef_p;
             leef = leef_p;
         }
         ev_leef = ternary_op(fake, leef, ev_leef);
         *_ev_leef = ev_leef;
-        pthread_mutex_unlock(&rmap_locks[rmap_levs]);
 
         return leef;
     }

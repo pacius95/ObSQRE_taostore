@@ -32,7 +32,6 @@ namespace obl
 
     private:
         moodycamel::ConcurrentQueue<leaf_id> write_queue;
-        pthread_mutex_t write_q_lk = PTHREAD_MUTEX_INITIALIZER;
         node *root;
         std::atomic_int32_t nodes_count;
         int L;
@@ -60,6 +59,8 @@ namespace obl
         void insert_write_queue(leaf_id T);
         void get_pop_queue(int K, leaf_id *temp);
         void update_valid(leaf_id *_paths, int K, flex &tree, std::unordered_map<std::int64_t, node *> &nodes_map);
+        void update_valid_2(leaf_id *_paths, int K, flex &tree, std::unordered_map<std::int64_t, node *> &nodes_map);
+ 
     };
 
 } // namespace obl

@@ -2,6 +2,7 @@
 #define OBL_REC_STD_H
 
 #include "obl/oram.h"
+#include "obl/taostore.h"
 #include "obl/rec.h"
 
 #include <cstddef>
@@ -25,6 +26,7 @@ namespace obl
 
 		tree_oram **rmap;
 		tree_oram *oram;
+		pthread_mutex_t* rmap_locks;
 
 		leaf_id *pos_map;
 

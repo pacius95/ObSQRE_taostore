@@ -13,8 +13,10 @@ namespace obl
 	class taostore_circuit_2 : public taostore_oram
 	{
 	private:
+		~taostore_circuit_2();
 		void access_thread(request_t &_req);
 		void write_thread(request_t &_req);
+		void read_thread(request_t &_req);
 		
 		void download_path(leaf_id path, std::vector<node *> &fetched_path);
 		std::uint64_t fetch_path(std::uint8_t *_fetched, block_id bid, leaf_id path);

@@ -14,7 +14,7 @@ namespace obl
 {
     struct mose_args
     {
-        mose *arg1;
+        obl::mose *arg1;
         unsigned int i;
     };
 
@@ -35,12 +35,12 @@ namespace obl
         //this is possible if GCM doesn't need 8 byte aligned data
         for (unsigned int i = 0; i < T_NUM; i++)
             chunk_sizes[i] = (this->B / T_NUM);
-        for (unsigned int i = 0; this->B % T_NUM; i++)
-            chunk_sizes[i] += 1;
-
+        // for (unsigned int i = 0; this->B % T_NUM; i++)
+        //     chunk_sizes[i] += 1;
+        chunk_sizes[0] += this->B % T_NUM;
         chunk_idx[0] = 0;
         for (unsigned int i = 1; i < T_NUM; i++)
-            chunk_idx[i] += chunk_idx[i - 1] + chunk_sizes[i - 1];
+            chunk_idx[i] = chunk_idx[i - 1] + chunk_sizes[i - 1];
 
         rram = new tree_oram *[T_NUM];
 
@@ -56,6 +56,14 @@ namespace obl
 
     mose::~mose()
     {
+        int err;
+        err = threadpool_destroy(thpool, threadpool_graceful);
+        assert(err == 0);
+        pthread_cond_destroy(&cond_sign);
+        pthread_mutex_destroy(&cond_lock);
+        delete block_idx;
+        delete chunk_sizes;
+        delete chunk_idx;
         for (unsigned int i = 0; i < T_NUM; i++)
             delete rram[i];
     }
@@ -70,11 +78,14 @@ namespace obl
             rram[i]->access(bid, lif, data_in, data_out + chunk_idx[i], next_lif);
         else
             rram[i]->access(bid, lif, data_in + chunk_idx[i], data_out + chunk_idx[i], next_lif);
-        pthread_mutex_lock(&cond_lock);
+
         barrier++;
         if (barrier == T_NUM)
+        {
+            pthread_mutex_lock(&cond_lock);
             pthread_cond_signal(&cond_sign);
-        pthread_mutex_unlock(&cond_lock);
+            pthread_mutex_unlock(&cond_lock);
+        }
     }
 
     void mose::access_r_wrap(void *object)
@@ -112,9 +123,15 @@ namespace obl
     }
     void mose::write_thread(int i)
     {
-
         rram[i]->write(bid, data_in + chunk_idx[i], next_lif);
+
         barrier++;
+        if (barrier == T_NUM)
+        {
+            pthread_mutex_lock(&cond_lock);
+            pthread_cond_signal(&cond_sign);
+            pthread_mutex_unlock(&cond_lock);
+        }
     }
     void mose::access(block_id bid, leaf_id lif, std::uint8_t *data_in, std::uint8_t *data_out, leaf_id next_lif)
     {

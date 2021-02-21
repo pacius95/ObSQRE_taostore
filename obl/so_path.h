@@ -71,6 +71,7 @@ namespace obl
 		void access_w(block_id bid, leaf_id lif, std::uint8_t *data_in, leaf_id next_lif);
 
 		void write(block_id bid, std::uint8_t *data_in, leaf_id next_lif);
+
 	};
 
 	class so_path_factory : public oram_factory

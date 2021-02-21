@@ -6,8 +6,6 @@
 #include "obl/taostore.h"
 #include "obl/taostore_types.hpp"
 #include "obl/flexible_array.hpp"
-#include "obl/taostore_pos_map.h"
-#include "obl/threadpool.h"
 
 namespace obl
 {
@@ -15,10 +13,12 @@ namespace obl
 	class taostore_circuit_1 : public taostore_oram
 	{
 	private:
+		~taostore_circuit_1();
 		void access_thread(request_t &_req);
 		void write_thread(request_t &_req);
-		
-        std::uint64_t fetch_path(std::uint8_t *_fetched, block_id bid, leaf_id path);
+		void read_thread(request_t &_req);
+
+		std::uint64_t fetch_path(std::uint8_t *_fetched, block_id bid, leaf_id path);
 		std::uint64_t eviction(leaf_id path);
 		void write_back();
 
@@ -26,21 +26,30 @@ namespace obl
 		taostore_circuit_1(std::size_t N, std::size_t B, unsigned int Z, unsigned int S, unsigned int T_NUM) : taostore_oram(N, B, Z, S, T_NUM){};
 	};
 
-	class taostore_circuit_1_factory : public oram_factory	{
+	class taostore_circuit_1_factory : public oram_factory
+	{
 	private:
 		unsigned int Z, S, T_NUM;
+
 	public:
-		taostore_circuit_1_factory(unsigned int Z, unsigned int S, unsigned int T_NUM)	{
+		taostore_circuit_1_factory(unsigned int Z, unsigned int S)
+		{
 			this->Z = Z;
 			this->S = S;
-			this->T_NUM = T_NUM;
 		}
 
 		tree_oram *spawn_oram(std::size_t N, std::size_t B)
 		{
+			if (N <= (1 << 7))
+				this->T_NUM = 1;
+			if (N > (1 << 11) && N <= (1 << 15))
+				this->T_NUM = 2;
+			if (N > (1 << 15))
+				this->T_NUM = 3;
+
 			return new taostore_circuit_1(N, B, Z, S, T_NUM);
 		}
-		bool is_taostore(){ return true; }
+		bool is_taostore() { return true; }
 	};
 } // namespace obl
 
