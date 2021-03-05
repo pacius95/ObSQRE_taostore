@@ -37,7 +37,7 @@ namespace obl
 		for (unsigned int i = 0; i < this->S; ++i)
 			stash[i].bid = DUMMY;
 
-		this->ss = Z;
+		this->ss = this->Z;
 		this->SS = (S / ss) + 1;
 		stash_locks = new pthread_mutex_t[SS];
 		for (unsigned int i = 0; i < SS; i++)

@@ -14,7 +14,7 @@ namespace obl
 		int err;
 		err = threadpool_destroy(thpool, threadpool_graceful);
 		assert(err == 0);
-		
+
 		pthread_mutex_lock(&serializer_lck);
 		oram_alive = false;
 		pthread_cond_broadcast(&serializer_cond);
@@ -171,21 +171,21 @@ namespace obl
 
 		bool fill_hold = ndb[-1] != BOTTOM;
 
-        for (unsigned int i = 0; i < SS - 1; ++i)
-        {
-            for (unsigned int j = 0; j < ss; ++j)
-            {
-                bool deepest_block = (get_max_depth(stash[i * ss + j].lid, path, L) == ljd[-1]) & fill_hold & (stash[i * ss + j].bid != DUMMY);
-                swap(deepest_block, _hold, (std::uint8_t *)&stash[i * ss + j], block_size);
-            }
-            pthread_mutex_unlock(&stash_locks[i]);
-        }
-        for (unsigned int i = 0; i < S % ss; ++i)
-        {
-            bool deepest_block = (get_max_depth(stash[(SS - 1) * ss + i].lid, path, L) == ljd[-1]) & fill_hold & (stash[(SS - 1) * ss + i].bid != DUMMY);
-            swap(deepest_block, _hold, (std::uint8_t *)&stash[(SS - 1) * ss + i], block_size);
-        }
-        pthread_mutex_unlock(&stash_locks[SS - 1]);
+		for (unsigned int i = 0; i < SS - 1; ++i)
+		{
+			for (unsigned int j = 0; j < ss; ++j)
+			{
+				bool deepest_block = (get_max_depth(stash[i * ss + j].lid, path, L) == ljd[-1]) & fill_hold & (stash[i * ss + j].bid != DUMMY);
+				swap(deepest_block, _hold, (std::uint8_t *)&stash[i * ss + j], block_size);
+			}
+			pthread_mutex_unlock(&stash_locks[i]);
+		}
+		for (unsigned int i = 0; i < S % ss; ++i)
+		{
+			bool deepest_block = (get_max_depth(stash[(SS - 1) * ss + i].lid, path, L) == ljd[-1]) & fill_hold & (stash[(SS - 1) * ss + i].bid != DUMMY);
+			swap(deepest_block, _hold, (std::uint8_t *)&stash[(SS - 1) * ss + i], block_size);
+		}
+		pthread_mutex_unlock(&stash_locks[SS - 1]);
 
 		dst = ndb[-1];
 
@@ -211,8 +211,9 @@ namespace obl
 
 				bl = (block_t *)((std::uint8_t *)bl + block_size);
 			}
+			reference_node->valid = false;
 			reference_node->unlock();
-			reference_node = i != L ? (path >> i) & 1 ? reference_node->child_r : reference_node->child_l : reference_node;
+			reference_node = (path >> i) & 1 ? reference_node->child_r : reference_node->child_l;
 		}
 		multiset_unlock(path);
 
@@ -226,21 +227,21 @@ namespace obl
 	{
 		std::uint8_t _fetched[block_size];
 		std::int32_t evict_leaf;
-        std::uint64_t access_counter_1;
-        std::uint64_t access_counter_2;
-        std::uint64_t access_counter_3;
+		std::uint64_t access_counter_1;
+		std::uint64_t access_counter_2;
+		std::uint64_t access_counter_3;
 
-        access_counter_1 = read_path(_req, _fetched);
+		access_counter_1 = read_path(_req, _fetched);
 
 		answer_request(_req.fake, _req.bid, _req.id, _fetched);
 
 		evict_leaf = evict_path++;
 
-        access_counter_2 = eviction(2 * evict_leaf);
-        access_counter_3 = eviction(2 * evict_leaf + 1);
+		access_counter_2 = eviction(2 * evict_leaf);
+		access_counter_3 = eviction(2 * evict_leaf + 1);
 
 		if (access_counter_1 % K == 0)
-			write_back(); 
+			write_back();
 		if (access_counter_2 % K == 0)
 			write_back();
 		if (access_counter_3 % K == 0)
@@ -391,6 +392,7 @@ namespace obl
 		for (i = 0; i <= L && reference_node != nullptr; ++i)
 		{
 			reference_node->lock();
+			old_ref_node->valid = false;
 			if (i != 0)
 				old_ref_node->unlock();
 			else
@@ -408,6 +410,7 @@ namespace obl
 
 			l_index = (l_index << 1) + 1 + ((path >> i) & 1);
 		}
+		old_ref_node->valid = false;
 
 		while (i <= L)
 		{
@@ -432,7 +435,7 @@ namespace obl
 			++i;
 		}
 		old_ref_node->unlock();
-		
+
 		multiset_unlock(path);
 
 		fetched->lid = new_lid;
@@ -517,34 +520,36 @@ namespace obl
 				reference_node = itx.second;
 				parent = reference_node->parent;
 
+				// generate a new random IV
+				gen_rand(iv, OBL_AESGCM_IV_SIZE);
+
+				reference_node->valid = true;
+				// save encrypted payload
+				wc_AesGcmEncrypt(crypt_handle,
+								 tree[l_index].payload,
+								 reference_node->payload,
+								 Z * block_size,
+								 iv,
+								 OBL_AESGCM_IV_SIZE,
+								 mac,
+								 OBL_AESGCM_MAC_SIZE,
+								 (std::uint8_t *)&reference_node->adata,
+								 sizeof(auth_data_t));
+
+				// save "mac" + iv + reachability flags
+				std::memcpy(tree[l_index].mac, mac, sizeof(obl_aes_gcm_128bit_tag_t));
+				std::memcpy(tree[l_index].iv, iv, sizeof(obl_aes_gcm_128bit_iv_t));
+
+				// update the mac for the parent for the evaluation of its mac
+				std::uint8_t *target_mac = (l_index & 1) ? reference_node->parent->adata.left_mac : reference_node->parent->adata.right_mac;
+
 				if (reference_node->trylock() == 0)
 				{
-					// generate a new random IV
-					gen_rand(iv, OBL_AESGCM_IV_SIZE);
-
-					// save encrypted payload
-					wc_AesGcmEncrypt(crypt_handle,
-									 tree[l_index].payload,
-									 reference_node->payload,
-									 Z * block_size,
-									 iv,
-									 OBL_AESGCM_IV_SIZE,
-									 mac,
-									 OBL_AESGCM_MAC_SIZE,
-									 (std::uint8_t *)&reference_node->adata,
-									 sizeof(auth_data_t));
-
-					// save "mac" + iv + reachability flags
-					std::memcpy(tree[l_index].mac, mac, sizeof(obl_aes_gcm_128bit_tag_t));
-					std::memcpy(tree[l_index].iv, iv, sizeof(obl_aes_gcm_128bit_iv_t));
-
-					// update the mac for the parent for the evaluation of its mac
-					std::uint8_t *target_mac = (l_index & 1) ? reference_node->parent->adata.left_mac : reference_node->parent->adata.right_mac;
 					if (parent->trylock() == 0)
 					{
 						std::memcpy(target_mac, mac, sizeof(obl_aes_gcm_128bit_tag_t));
 						pthread_mutex_lock(&multi_set_lock);
-						if (reference_node->child_r == nullptr && reference_node->child_l == nullptr &&
+						if (reference_node->valid == true && reference_node->child_r == nullptr && reference_node->child_l == nullptr &&
 							path_req_multi_set.find(l_index) == path_req_multi_set.end())
 						{
 							if (l_index & 1)
