@@ -5,12 +5,13 @@
 
 #include <pthread.h>
 #include <cstring>
+#include <atomic>
 #include <cstdint>
 
 namespace obl
 {
-	typedef std::int32_t leaf_id;
-	typedef std::int32_t block_id;
+    typedef std::int32_t leaf_id;
+    typedef std::int32_t block_id;
 
     struct taostore_block_t
     {
@@ -63,12 +64,13 @@ namespace obl
 
     struct node
     {
-        pthread_mutex_t lk = PTHREAD_MUTEX_INITIALIZER;
+        pthread_rwlock_t lk = PTHREAD_RWLOCK_INITIALIZER;
         pthread_mutex_t wb_lk = PTHREAD_MUTEX_INITIALIZER;
         auth_data_t adata;
         node *child_l;
         node *child_r;
         node *parent;
+        std::atomic<bool> valid;
         std::uint8_t *payload;
 
         node()
@@ -76,6 +78,7 @@ namespace obl
             child_l = nullptr;
             child_r = nullptr;
             parent = nullptr;
+            valid = false;
             std::memset(&adata, 0x00, sizeof(auth_data_t));
         }
         node(std::size_t size) : node()
@@ -90,22 +93,26 @@ namespace obl
         ~node()
         {
             pthread_mutex_destroy(&wb_lk);
-            pthread_mutex_destroy(&lk);
+            pthread_rwlock_destroy(&lk);
             delete[] payload;
             delete child_l;
             delete child_r;
         }
         int trylock()
         {
-            return pthread_mutex_trylock(&lk);
+            return pthread_rwlock_trywrlock(&lk);
         }
         int lock()
         {
-            return pthread_mutex_lock(&lk);
+            return pthread_rwlock_wrlock(&lk);
+        }
+        int r_lock()
+        {
+            return pthread_rwlock_rdlock(&lk);
         }
         int unlock()
         {
-            return pthread_mutex_unlock(&lk);
+            return pthread_rwlock_unlock(&lk);
         }
 
         int wb_trylock()

@@ -42,8 +42,7 @@ namespace obl
 		unsigned int S; // stash size
 		unsigned int ss;
 		unsigned int SS;
-		pthread_mutex_t *stash_locks;
-		pthread_rwlock_t *stash_rw_locks;
+		pthread_rwlock_t *stash_locks;
 
 		taostore_subtree local_subtree;
 
@@ -58,7 +57,6 @@ namespace obl
 		pthread_mutex_t serializer_lck = PTHREAD_MUTEX_INITIALIZER;	 //lock della request structure
 		pthread_cond_t serializer_cond = PTHREAD_COND_INITIALIZER;	 //cond associata al serializer
 		pthread_mutex_t multi_set_lock = PTHREAD_MUTEX_INITIALIZER;
-		pthread_mutex_t wb_lock = PTHREAD_MUTEX_INITIALIZER;
 
 		std::size_t subtree_node_size;
 		threadpool_t *thpool;

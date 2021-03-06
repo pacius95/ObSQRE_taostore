@@ -28,6 +28,7 @@ namespace obl
 		// stash allocation
 		this->S = S;
 		stash.set_entry_size(block_size);
+
 		stash.reserve(this->S);
 
 		// ORAM tree allocation
@@ -39,9 +40,9 @@ namespace obl
 
 		this->ss = this->Z;
 		this->SS = (S / ss) + 1;
-		stash_locks = new pthread_mutex_t[SS];
+		stash_locks = new pthread_rwlock_t[SS];
 		for (unsigned int i = 0; i < SS; i++)
-			pthread_mutex_init(&stash_locks[i], nullptr);
+			pthread_rwlock_init(&stash_locks[i], nullptr);
 		
 
 		this->T_NUM = T_NUM;
@@ -220,7 +221,7 @@ namespace obl
 		bool hit;
 		bool already_evicted = false;
 
-		pthread_mutex_lock(&stash_locks[0]);
+		pthread_rwlock_wrlock(&stash_locks[0]);
 		pthread_mutex_lock(&serializer_lck);
 		for (auto it : request_structure)
 		{
@@ -243,8 +244,8 @@ namespace obl
 				swap(!fake & !already_evicted & (sbid == DUMMY), _fetched, (std::uint8_t *)&stash[i * ss + j], block_size);
 				already_evicted = fake | already_evicted | (sbid == DUMMY);
 			}
-			pthread_mutex_lock(&stash_locks[i + 1]);
-			pthread_mutex_unlock(&stash_locks[i]);
+			pthread_rwlock_wrlock(&stash_locks[i + 1]);
+			pthread_rwlock_unlock(&stash_locks[i]);
 		}
 		for (unsigned int i = 0; i < S % ss; ++i)
 		{
@@ -252,7 +253,7 @@ namespace obl
 			swap(!fake & !already_evicted & (sbid == DUMMY), _fetched, (std::uint8_t *)&stash[(SS - 1) * ss + i], block_size);
 			already_evicted = fake | already_evicted | (sbid == DUMMY);
 		}
-		pthread_mutex_unlock(&stash_locks[SS - 1]);
+		pthread_rwlock_unlock(&stash_locks[SS - 1]);
 		assert(already_evicted);
 	}
 
