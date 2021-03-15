@@ -15,7 +15,7 @@ namespace obl
         return x & sign_bit;
     }
 
-    taostore_position_map::taostore_position_map(std::size_t N, std::size_t B, unsigned int csize, oram_factory *allocator)
+    taostore_position_map::taostore_position_map(std::size_t N, unsigned int csize, oram_factory *allocator)
     {
         this->N = N;
         this->C = next_two_power(this->N);

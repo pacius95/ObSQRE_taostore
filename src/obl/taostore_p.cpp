@@ -103,8 +103,8 @@ namespace obl
 
 		allocator = new coram_factory(3,8);
 		// allocator = new taostore_circuit_factory(Z,S);
-		// position_map = new taostore_position_map(N, sizeof(int64_t), 6, allocator);
-		position_map = new taostore_position_map_notobl(N);
+		position_map = new taostore_position_map(N, 5, allocator);
+		// position_map = new taostore_position_map_notobl(N);
 		local_subtree.init(block_size * Z, empty_bucket, L);
 	}
 
@@ -221,7 +221,6 @@ namespace obl
 		bool hit;
 		bool already_evicted = false;
 
-		pthread_rwlock_wrlock(&stash_locks[0]);
 		pthread_mutex_lock(&serializer_lck);
 		for (auto it : request_structure)
 		{
@@ -233,6 +232,7 @@ namespace obl
 			if (it->data_in != nullptr)
 				replace(hit, fetched->payload, it->data_in, B);
 		}
+		pthread_rwlock_wrlock(&stash_locks[0]);
 		pthread_cond_signal(&serializer_cond);
 		pthread_mutex_unlock(&serializer_lck);
 

@@ -41,7 +41,7 @@ int main()
 	tt start, end;
 	_nano duration;
 	uint32_t rnd_bid;
-	for (unsigned int k = 17; k < T_NUM; k++)
+	for (unsigned int k = 1; k < T_NUM; k++)
 	{
 		rram = new obl::mose(N, sizeof(buffer), Z, S, k);
 
@@ -71,7 +71,7 @@ int main()
 		}
 		end = hres::now();
 		duration = end - start;
-		std::cout << "mose" << "," << N << "," << sizeof(buffer) << "," << k << "," << bench_size << "," << duration.count() << std::endl;
+		std::cout << "mose" << "," << N << "," << sizeof(buffer) << "," << k*6 << "," << bench_size << "," << duration.count() << std::endl;
 		delete rram;
 	}
 return 0;

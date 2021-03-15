@@ -5,8 +5,8 @@
 #include <cstdint>
 #include <cstddef>
 
-#define ENCLAVE_MEM (1<<23)
-#define MEM_BOUND (1<<24)
+#define ENCLAVE_MEM (1<<25)
+#define MEM_BOUND (1<<26)
 #define QUEUE_SIZE 256
 
 std::uint64_t next_two_power(std::uint64_t v);

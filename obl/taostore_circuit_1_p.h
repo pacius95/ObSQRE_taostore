@@ -33,8 +33,11 @@ namespace obl
 		unsigned int Z, S, T_NUM;
 	public:
 		taostore_circuit_1_parallel_factory(unsigned int Z, unsigned int S, unsigned int T_NUM)	{
+			if (T_NUM > S)
+				this->S = T_NUM;
+			else
+				this->S = S;
 			this->Z = Z;
-			this->S = S;
 			this->T_NUM = T_NUM;
 		}
 

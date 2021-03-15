@@ -20,6 +20,8 @@ namespace obl
     {
         this->N = N;
         position_map.reserve(N);
+        for (int i = 0; i < N; i++)
+            position_map[i] = DUMMY_LEAF;
     }
 
     leaf_id taostore_position_map_notobl::access(block_id bid, bool fake, leaf_id *_ev_leef)
@@ -33,14 +35,14 @@ namespace obl
         ev_leef = leaf_abs(ev_leef);
         d_leef = leaf_abs(d_leef);
 
-        pthread_mutex_lock(&map_mutex);
+        // pthread_mutex_lock(&map_mutex);
         leef = position_map[bid];
 
         leef = leef == DUMMY_LEAF ? d_leef : leef;
         ev_leef = fake ? leef : ev_leef;
 
         position_map[bid] = ev_leef;
-        pthread_mutex_unlock(&map_mutex);
+        // pthread_mutex_unlock(&map_mutex);
         memcpy(_ev_leef, &ev_leef, sizeof(leaf_id));
 
         return leef;

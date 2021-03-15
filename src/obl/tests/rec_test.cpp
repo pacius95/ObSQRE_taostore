@@ -22,7 +22,7 @@
 #define P 20
 #define N (1 << P)
 #define bench_size (1 << 18)
-#define RUN 8
+#define RUN 16
 
 using hres = std::chrono::high_resolution_clock;
 using _nano = std::chrono::nanoseconds;
@@ -90,8 +90,7 @@ void *parallel_test(std::string oname, unsigned int T_NUM, obl::recursive_oram *
 	work_args args[RUN];
 	pthread_t workers[RUN];
 	unsigned int T = T_NUM;
-	if (T_NUM >= RUN)
-		T_NUM = RUN;
+	T_NUM = RUN;
 
 	for (unsigned int i = 0; i < T_NUM; i++)
 	{
@@ -123,10 +122,10 @@ int main()
 	//PARALLEL TEST
 	obl::recursive_oram_standard *rram;
 	obl::recursive_parallel *pram;
-	for (unsigned int T_NUM = 9; T_NUM <= 8; T_NUM++)
+	for (unsigned int T_NUM = 1; T_NUM <= 8; T_NUM++)
 	{
 		obl::coram_factory of(3, 8);
-		rram = new obl::recursive_oram_standard(N, sizeof(buffer), 6, &of);
+		rram = new obl::recursive_oram_standard(N, sizeof(buffer), 5, &of);
 		parallel_test("rec_circuit", T_NUM, rram);
 
 		delete rram;

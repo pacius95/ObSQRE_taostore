@@ -8,7 +8,7 @@
 #include <chrono>
 #include <ctime>
 
-#define P 16
+#define P 24
 #define N (1 << P)
 #define benc_size (1 << 17)
 #define RUN 4
@@ -23,7 +23,7 @@ using tt = std::chrono::time_point<hres, _nano>;
 using namespace std;
 struct buffer
 {
-	std::uint8_t _buffer[24000];
+	std::uint8_t _buffer[512];
 	bool operator==(const buffer &rhs) const
 	{
 		return !memcmp(_buffer, rhs._buffer, sizeof(_buffer));
@@ -48,7 +48,11 @@ int main()
 		obl::gen_rand((std::uint8_t *)&next_leef, sizeof(obl::leaf_id));
 		obl::gen_rand((std::uint8_t *)&value, sizeof(buffer));
 
+		start = hres::now();
 		rram.write(i, (std::uint8_t *)&value, next_leef);
+		end = hres::now();
+		duration = end - start;
+		std::cout << "----------------"<< i <<":---------" << duration.count() / 1000.0 << "mms" << std::endl;
 		mirror_data[i] = value;
 		position_map[i] = next_leef;
 	}

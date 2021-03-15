@@ -50,8 +50,8 @@ namespace obl
             args[i] = {this, i};
 
         for (unsigned int i = 0; i < T_NUM; i++)
-            // rram[i] = new circuit_oram(N, chunk_sizes[i], Z, S);
-            rram[i] = new taostore_circuit_2(N, chunk_sizes[i], Z, S, 4);
+            rram[i] = new circuit_oram(N, chunk_sizes[i], Z, S);
+            // rram[i] = new taostore_circuit_2(N, chunk_sizes[i], Z, S, 4);
 
         thpool = threadpool_create(T_NUM, QUEUE_SIZE, 0);
     }

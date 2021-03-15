@@ -85,11 +85,6 @@ namespace obl
         {
             payload = new std::uint8_t[size];
         }
-        node(std::size_t size, std::uint64_t timestamp) : node()
-        {
-            payload = new std::uint8_t[size];
-        }
-
         ~node()
         {
             pthread_mutex_destroy(&wb_lk);

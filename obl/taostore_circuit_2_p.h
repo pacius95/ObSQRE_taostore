@@ -15,7 +15,7 @@ namespace obl
 	
 		~taostore_circuit_2_parallel();
 		void access_thread(request_p_t &_req);
-
+		void synch_subtree(leaf_id path, std::vector<node *> &fetched_path);
 		void download_path(leaf_id path, std::vector<node *> &fetched_path);
 		std::uint64_t fetch_path(std::uint8_t *_fetched, block_id bid, leaf_id new_lid, leaf_id path, bool fake);
 		std::uint64_t eviction(leaf_id path);
@@ -32,8 +32,11 @@ namespace obl
 		unsigned int Z, S, T_NUM;
 	public:
 		taostore_circuit_2_parallel_factory(unsigned int Z, unsigned int S, unsigned int T_NUM)	{
+			if (T_NUM > S)
+				this->S = T_NUM;
+			else
+				this->S = S;
 			this->Z = Z;
-			this->S = S;
 			this->T_NUM = T_NUM;
 		}
 		tree_oram* spawn_oram(std::size_t N, std::size_t B)	{

@@ -153,7 +153,7 @@ namespace obl
 			dst = ternary_op(new_dst, i, dst);
 			src = ternary_op(new_dst, closest_src, src);
 
-			reference_node = i ? reference_node->parent : reference_node;
+			reference_node = reference_node->parent;
 		}
 
 		// now the stash
@@ -168,7 +168,7 @@ namespace obl
 		block_t *hold = (block_t *)_hold;
 		hold->bid = DUMMY;
 		hold->lid = DUMMY;
-
+		reference_node = local_subtree.getroot();
 		bool fill_hold = ndb[-1] != BOTTOM;
 
 		for (unsigned int i = 0; i < SS - 1; ++i)
@@ -234,20 +234,62 @@ namespace obl
 		access_counter_1 = read_path(_req, _fetched);
 
 		answer_request(_req.fake, _req.bid, _req.id, _fetched);
+	
+		if (access_counter_1 % K == 0)
+			write_back();
 
 		evict_leaf = evict_path++;
 
 		access_counter_2 = eviction(2 * evict_leaf);
-		access_counter_3 = eviction(2 * evict_leaf + 1);
-
-		if (access_counter_1 % K == 0)
-			write_back();
 		if (access_counter_2 % K == 0)
 			write_back();
+
+		access_counter_3 = eviction(2 * evict_leaf + 1);
+
 		if (access_counter_3 % K == 0)
 			write_back();
 	}
 
+	void taostore_circuit_2_parallel::synch_subtree(leaf_id path, std::vector<node *> &fetched_path)
+	{
+		std::int64_t l_index = 0;
+		int i = 0;
+
+		node *reference_node;
+		node *old_ref_node;
+		reference_node = local_subtree.getroot();
+
+		for (i = 0; i <= L && reference_node != nullptr; ++i)
+		{
+			reference_node->lock();
+			if (i != 0)
+				old_ref_node->unlock();
+
+			old_ref_node = reference_node;
+
+			reference_node = (path >> i) & 1 ? reference_node->child_r : reference_node->child_l;
+
+			l_index = (l_index << 1) + 1 + ((path >> i) & 1);
+		}
+
+		while (i <= L)
+		{
+			(l_index & 1) ? old_ref_node->child_l = fetched_path[i] : old_ref_node->child_r = fetched_path[i];
+			reference_node = (l_index & 1) ? old_ref_node->child_l : old_ref_node->child_r;
+			reference_node->parent = old_ref_node;
+			local_subtree.newnode();
+
+			reference_node->lock();
+			old_ref_node->unlock();
+
+			old_ref_node = reference_node;
+
+			l_index = (l_index << 1) + 1 + ((path >> i) & 1);
+			++i;
+		}
+		old_ref_node->unlock();
+
+	}
 	void taostore_circuit_2_parallel::download_path(leaf_id path, std::vector<node *> &fetched_path)
 	{
 		// always start from root
@@ -354,7 +396,6 @@ namespace obl
 	std::uint64_t taostore_circuit_2_parallel::fetch_path(std::uint8_t *_fetched, block_id bid, leaf_id new_lid, leaf_id path, bool not_fake)
 	{
 		// always start from root
-		std::int64_t l_index = 0;
 		int i = 0;
 		block_t *bl;
 		block_t *fetched = (block_t *)_fetched;
@@ -372,6 +413,7 @@ namespace obl
 		multiset_lock(path);
 
 		download_path(path, fetched_path);
+		synch_subtree(path, fetched_path);
 
 		pthread_rwlock_rdlock(&stash_locks[0]);
 		for (unsigned int i = 0; i < SS - 1; ++i)
@@ -389,7 +431,7 @@ namespace obl
 			block_id sbid = stash[(SS - 1) * ss + i].bid;
 			swap(not_fake & (bid == sbid), _fetched, (std::uint8_t *)&stash[(SS - 1) * ss + i], block_size);
 		}
-		for (i = 0; i <= L && reference_node != nullptr; ++i)
+		for (i = 0; i <= L; ++i)
 		{
 			reference_node->r_lock();
 			old_ref_node->valid = false;
@@ -406,34 +448,9 @@ namespace obl
 			}
 			old_ref_node = reference_node;
 
-			reference_node = (path >> i) & 1 ? old_ref_node->child_r : old_ref_node->child_l;
-
-			l_index = (l_index << 1) + 1 + ((path >> i) & 1);
+			reference_node = (path >> i) & 1 ? reference_node->child_r : reference_node->child_l;
 		}
 		old_ref_node->valid = false;
-
-		while (i <= L)
-		{
-			(l_index & 1) ? old_ref_node->child_l = fetched_path[i] : old_ref_node->child_r = fetched_path[i];
-			reference_node = (l_index & 1) ? old_ref_node->child_l : old_ref_node->child_r;
-			reference_node->parent = old_ref_node;
-			local_subtree.newnode();
-
-			reference_node->r_lock();
-			old_ref_node->unlock();
-
-			bl = (block_t *)reference_node->payload;
-			for (unsigned int j = 0; j < Z; ++j)
-			{
-				swap(not_fake && bl->bid == bid, _fetched, (std::uint8_t *)bl, block_size);
-				bl = ((block_t *)((std::uint8_t *)bl + block_size));
-			}
-
-			old_ref_node = reference_node;
-
-			l_index = (l_index << 1) + 1 + ((path >> i) & 1);
-			++i;
-		}
 		old_ref_node->unlock();
 
 		multiset_unlock(path);
@@ -542,15 +559,14 @@ namespace obl
 
 				// update the mac for the parent for the evaluation of its mac
 				std::uint8_t *target_mac = (l_index & 1) ? reference_node->parent->adata.left_mac : reference_node->parent->adata.right_mac;
-
-				if (reference_node->trylock() == 0)
+				if (parent->trylock() == 0)
 				{
-					if (parent->trylock() == 0)
+					if (reference_node->trylock() == 0)
 					{
 						std::memcpy(target_mac, mac, sizeof(obl_aes_gcm_128bit_tag_t));
 						pthread_mutex_lock(&multi_set_lock);
-						if (reference_node->valid == true && reference_node->child_r == nullptr && reference_node->child_l == nullptr &&
-							path_req_multi_set.find(l_index) == path_req_multi_set.end())
+						if (reference_node->child_r == nullptr && reference_node->child_l == nullptr &&
+							path_req_multi_set.find(l_index) == path_req_multi_set.end() && reference_node->valid == true)
 						{
 							if (l_index & 1)
 								parent->child_l = nullptr;
@@ -559,9 +575,10 @@ namespace obl
 							flag = true;
 						}
 						pthread_mutex_unlock(&multi_set_lock);
-						parent->unlock();
+
+						reference_node->unlock();
 					}
-					reference_node->unlock();
+				parent->unlock();
 				}
 				if (flag)
 				{

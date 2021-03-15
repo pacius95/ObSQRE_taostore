@@ -31,7 +31,7 @@ namespace obl
 		leaf_id scan_map(leaf_id *map, int idx, leaf_id replacement, bool to_init, bool fake);
 
 	public:
-		taostore_position_map(std::size_t N, std::size_t B, unsigned int csize, oram_factory *allocator);
+		taostore_position_map(std::size_t N, unsigned int csize, oram_factory *allocator);
 		~taostore_position_map();
 
 		leaf_id access(block_id bid, bool fake, leaf_id *_ev_leef);
