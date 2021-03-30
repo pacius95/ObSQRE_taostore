@@ -15,10 +15,11 @@ namespace obl
 		return x & sign_bit;
 	}
 
-	recursive_parallel::recursive_parallel(std::size_t N, std::size_t B, oram_factory *allocator)
+	recursive_parallel::recursive_parallel(std::size_t N, std::size_t B, unsigned int c_size, oram_factory *allocator)
 	{
 		this->N = N;
 		toram = (taostore_oram_parallel *)allocator->spawn_oram(this->N, B);
+		toram->set_position_map(c_size);
 	}
 
 	recursive_parallel::~recursive_parallel()

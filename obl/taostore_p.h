@@ -36,6 +36,7 @@ namespace obl
 		std::size_t block_size;	 //aligned block size
 		std::size_t bucket_size; //aligned/padded encrypted bucket size
 		std::uint32_t K;
+		unsigned int c_size;
 		unsigned int T_NUM;
 		// stash
 		flexible_array<block_t> stash;
@@ -66,8 +67,8 @@ namespace obl
 		std::unordered_multiset<leaf_id> path_req_multi_set;
 
 		oram_factory *allocator;
-		// taostore_position_map_notobl *position_map;
-		taostore_position_map *position_map;
+		taostore_position_map_notobl *position_map;
+		// taostore_position_map *position_map;
 
 		// crypto stuff
 		obl_aes_gcm_128bit_tag_t merkle_root;
@@ -92,7 +93,7 @@ namespace obl
 		virtual void access_thread(request_p_t &_req) = 0;
 
 		std::uint64_t read_path(request_p_t &req, std::uint8_t *_fetched);
-		void answer_request(bool fake, block_id bid, std::int32_t id, std::uint8_t *_fetched);
+		void answer_request(request_p_t &req, std::uint8_t *_fetched);
 		virtual std::uint64_t fetch_path(std::uint8_t *_fetched, block_id bid, leaf_id new_lid, leaf_id path, bool fake) = 0;
 		virtual std::uint64_t eviction(leaf_id path) = 0;
 		virtual void write_back() = 0;
@@ -115,7 +116,7 @@ namespace obl
 		// void print_tree();
 		// void printpath(leaf_id path);
 
-		void wait_end();
+		void set_position_map(unsigned int c_size);
 		void access(block_id bid, std::uint8_t *data_in, std::uint8_t *data_out);
 		void access(block_id bid, leaf_id lif, std::uint8_t *data_in, std::uint8_t *data_out, leaf_id next_lif){};
 

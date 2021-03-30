@@ -138,7 +138,7 @@ namespace obl
 
             // MAC mismatch is a critical error
             //assert(dec != AES_GCM_AUTH_E);
-            assert(dec == 0);
+            // assert(dec == 0);
 
             csb[i] = ternary_op(goal >= i, _closest_src_bucket, BOTTOM);
             std::int64_t jump = get_max_depth_bucket((block_t *)reference_node->payload, Z, path);
@@ -278,10 +278,10 @@ namespace obl
 
                 bl = (block_t *)((std::uint8_t *)bl + block_size);
             }
+            reference_node->valid = false;
             reference_node->unlock();
             reference_node = i != L ? (path >> i) & 1 ? reference_node->child_r : reference_node->child_l : reference_node;
         }
-        // multiset_unlock(path);
 
         local_subtree.insert_write_queue(path);
         return access_counter++;
@@ -388,8 +388,6 @@ namespace obl
         reference_node = local_subtree.getroot();
         old_ref_node = local_subtree.getroot();
 
-        // multiset_lock(path);
-
         pthread_mutex_lock(&stash_locks[0]);
         for (unsigned int i = 0; i < SS - 1; ++i)
         {
@@ -409,6 +407,7 @@ namespace obl
         for (i = 0; i <= L && reference_node != nullptr; ++i)
         {
             reference_node->lock();
+            old_ref_node->valid = false;
             if (i != 0)
                 old_ref_node->unlock();
             else
@@ -477,7 +476,7 @@ namespace obl
                                        (std::uint8_t *)adata,
                                        sizeof(auth_data_t));
 
-            assert(dec == 0);
+            // assert(dec == 0);
 
             bl = (block_t *)reference_node->payload;
             for (unsigned int j = 0; j < Z; ++j)
@@ -520,6 +519,7 @@ namespace obl
             l_index = (l_index << 1) + 1 + ((path >> i) & 1);
             ++i;
         }
+        old_ref_node->valid = false;
         old_ref_node->unlock();
 
         local_subtree.insert_write_queue(path);
@@ -570,10 +570,9 @@ namespace obl
         evict_leaf = evict_path++;
 
         access_counter_1 = eviction(2 * evict_leaf);
-        access_counter_2 = eviction(2 * evict_leaf + 1);
-
         if (access_counter_1 % K == 0)
             write_back();
+        access_counter_2 = eviction(2 * evict_leaf + 1);
         if (access_counter_2 % K == 0)
             write_back();
     }
@@ -605,32 +604,33 @@ namespace obl
                 reference_node = itx.second;
                 parent = reference_node->parent;
 
-                if (reference_node->trylock() == 0)
+                // generate a new random IV
+                gen_rand(iv, OBL_AESGCM_IV_SIZE);
+                reference_node->valid = true;
+                // save encrypted payload
+                wc_AesGcmEncrypt(crypt_handle,
+                                 tree[l_index].payload,
+                                 reference_node->payload,
+                                 Z * block_size,
+                                 iv,
+                                 OBL_AESGCM_IV_SIZE,
+                                 mac,
+                                 OBL_AESGCM_MAC_SIZE,
+                                 (std::uint8_t *)&reference_node->adata,
+                                 sizeof(auth_data_t));
+
+                // save "mac" + iv + reachability flags
+                std::memcpy(tree[l_index].mac, mac, sizeof(obl_aes_gcm_128bit_tag_t));
+                std::memcpy(tree[l_index].iv, iv, sizeof(obl_aes_gcm_128bit_iv_t));
+
+                // update the mac for the parent for the evaluation of its mac
+                std::uint8_t *target_mac = (l_index & 1) ? parent->adata.left_mac : parent->adata.right_mac;
+                if (parent->trylock() == 0)
                 {
-                    // generate a new random IV
-                    gen_rand(iv, OBL_AESGCM_IV_SIZE);
-                    // save encrypted payload
-                    wc_AesGcmEncrypt(crypt_handle,
-                                     tree[l_index].payload,
-                                     reference_node->payload,
-                                     Z * block_size,
-                                     iv,
-                                     OBL_AESGCM_IV_SIZE,
-                                     mac,
-                                     OBL_AESGCM_MAC_SIZE,
-                                     (std::uint8_t *)&reference_node->adata,
-                                     sizeof(auth_data_t));
-
-                    // save "mac" + iv + reachability flags
-                    std::memcpy(tree[l_index].mac, mac, sizeof(obl_aes_gcm_128bit_tag_t));
-                    std::memcpy(tree[l_index].iv, iv, sizeof(obl_aes_gcm_128bit_iv_t));
-
-                    // update the mac for the parent for the evaluation of its mac
-                    std::uint8_t *target_mac = (l_index & 1) ? parent->adata.left_mac : parent->adata.right_mac;
-                    if (parent->trylock() == 0)
+                    if (reference_node->trylock() == 0)
                     {
                         std::memcpy(target_mac, mac, sizeof(obl_aes_gcm_128bit_tag_t));
-                        if (reference_node->child_r == nullptr && reference_node->child_l == nullptr)
+                        if (reference_node->child_r == nullptr && reference_node->child_l == nullptr && reference_node->valid == true)
                         {
                             if (l_index & 1)
                                 parent->child_l = nullptr;
@@ -638,9 +638,9 @@ namespace obl
                                 parent->child_r = nullptr;
                             flag = true;
                         }
-                        parent->unlock();
+                        reference_node->unlock();
                     }
-                    reference_node->unlock();
+                    parent->unlock();
                 }
                 if (flag)
                 {
@@ -655,7 +655,6 @@ namespace obl
             }
             nodes_level_i[i].clear();
         }
-        // pthread_mutex_unlock(&write_back_lock);
         delete[] _paths;
     }
 

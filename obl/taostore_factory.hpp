@@ -30,7 +30,7 @@ namespace obl
             }
             else
             {
-                if (B <= (1 << 5))
+                if (B < (1 << 10))
                 {
                     if (T_NUM >= 2)
                     {
@@ -44,74 +44,12 @@ namespace obl
                         return new taostore_circuit_1(N, B, Z, S, tmp + 1);
                     }
                 }
-                if (B > (1 << 5) && B < (1 << 10))
+                else
                 {
-                    if (N < (1 << 20)) //e maggiore di 1<<10
+                    if (T_NUM >= 4)
                     {
-                        if (T_NUM >= 2)
-                        {
-                            T_NUM = T_NUM - 2;
-                            return new taostore_circuit_1(N, B, Z, S, 3);
-                        }
-                        else
-                        {
-                            int tmp = T_NUM;
-                            T_NUM = 0;
-                            return new taostore_circuit_1(N, B, Z, S, tmp + 1);
-                        }
-                    }
-                    else
-                    {
-                        if (T_NUM >= 3)
-                        {
-                            T_NUM = T_NUM - 3;
-                            return new taostore_circuit_1(N, B, Z, S, 4);
-                        }
-                        else
-                        {
-                            int tmp = T_NUM;
-                            T_NUM = 0;
-                            return new taostore_circuit_1(N, B, Z, S, tmp + 1);
-                        }
-                    }
-                }
-                if (B >= (1 << 10) && B < (1 << 11))
-                {
-                    if (N < (1 << 15)) // e maggiore di 10
-                    {
-                        if (T_NUM >= 2)
-                        {
-                            T_NUM = T_NUM - 2;
-                            return new taostore_circuit_1(N, B, Z, S, 3);
-                        }
-                        else
-                        {
-                            int tmp = T_NUM;
-                            T_NUM = 0;
-                            return new taostore_circuit_1(N, B, Z, S, tmp + 1);
-                        }
-                    }
-                    else
-                    {
-                        if (T_NUM >= 5)
-                        {
-                            T_NUM = T_NUM - 5;
-                            return new taostore_circuit_2(N, B, Z, S, 6);
-                        }
-                        else
-                        {
-                            int tmp = T_NUM;
-                            T_NUM = 0;
-                            return new taostore_circuit_2(N, B, Z, S, tmp + 1);
-                        }
-                    }
-                }
-                if (B >= (1 << 11))
-                {
-                    if (T_NUM >= 5)
-                    {
-                        T_NUM = T_NUM - 5;
-                        return new taostore_circuit_2(N, B, Z, S, 6);
+                        T_NUM = T_NUM - 4;
+                        return new taostore_circuit_2(N, B, Z, S, 5);
                     }
                     else
                     {

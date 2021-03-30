@@ -10,6 +10,7 @@
 #include "obl/rec_parallel.h"
 #include "obl/primitives.h"
 #include "obl/mose.h"
+#include "unistd.h"
 #include <math.h>
 
 #include <stdio.h>
@@ -32,7 +33,7 @@ using tt = std::chrono::time_point<hres, _nano>;
 using namespace std;
 struct buffer
 {
-    std::uint8_t _buffer[4000];
+    std::uint8_t _buffer[8];
 
     bool operator==(const buffer &rhs) const
     {
@@ -95,6 +96,8 @@ void *parallel_test(std::string oname, obl::recursive_oram *rram)
     tt start, end;
     _nano duration;
     int64_t res_time = 0;
+    buffer value_out;
+    unsigned int rnd_bid;
     mirror_data.reserve(N);
 
     work_args args[RUN];
@@ -121,6 +124,14 @@ void *parallel_test(std::string oname, obl::recursive_oram *rram)
     for (unsigned int T = 1; T <= RUN; T *= 2)
     {
         res_time = 0;
+        for (unsigned int i = 0; i < 2000; i++)
+        {
+            obl::gen_rand((std::uint8_t *)&rnd_bid, sizeof(obl::block_id));
+            rnd_bid = (rnd_bid >> 1) % N;
+            rram->access(rnd_bid, nullptr, (std::uint8_t *)&value_out);
+        }
+        usleep(1000000);
+
         start = hres::now();
         for (unsigned int i = 0; i < T; i++)
         {
@@ -171,8 +182,8 @@ void *parallel_test(std::string oname, obl::recursive_oram *rram)
         _75th = 0;
         for (unsigned int i = 0; i < T; i++)
         {
-            _25th += response_times[i][(bench_size/T)/4];
-            _75th += response_times[i][3*(bench_size/T)/4];
+            _25th += response_times[i][(bench_size / T) / 4];
+            _75th += response_times[i][3 * (bench_size / T) / 4];
         }
         _25th = _25th / T;
         _75th = _75th / T;
@@ -180,8 +191,7 @@ void *parallel_test(std::string oname, obl::recursive_oram *rram)
         {
             delete response_times[i];
         }
-        std::cout << (int64_t)mean << "," << (int64_t)var << "," << (int64_t)dev << "," <<_25th << "," <<_75th << "," << std::endl;
-        std::cout << oname << "," << N << "," << sizeof(buffer) << "," << T << "," << bench_size << "," << duration.count() << "," << res_time << std::endl;
+        std::cout << oname << "," << N << "," << sizeof(buffer) << "," << T << "," << bench_size << "," << duration.count() << "," << (int64_t)mean << "," << (int64_t)var << "," << (int64_t)dev << "," << _25th << "," << _75th << std::endl;
     }
     return 0;
 }
@@ -206,27 +216,27 @@ int main()
     // 	delete rram;
     // }
 
-    // {
-    //     obl::taostore_circuit_factory of(3, 8, 13);
-    //     rram = new obl::recursive_oram_standard(N, sizeof(buffer), 6, &of);
-    //     parallel_test("rec_taostore_asynch", rram);
-    //     delete rram;
-    // }
+    {
+        obl::taostore_circuit_factory of(3, 8, 18);
+        rram = new obl::recursive_oram_standard(N, sizeof(buffer), 6, &of);
+        parallel_test("rec_taostore_asynch", rram);
+        delete rram;
+    }
     // {
     //     obl::taostore_circuit_1_parallel_factory of(3, 8, 5);
     //     pram = new obl::recursive_parallel(N, sizeof(buffer), &of);
     //     parallel_test("rec_taostore_circuit_1_parallel", pram);
     //     delete pram;
-    // // }
+    // }
     {
         obl::taostore_circuit_2_parallel_factory of(3, 16, 16);
-        pram = new obl::recursive_parallel(N, sizeof(buffer), &of);
+        pram = new obl::recursive_parallel(N, sizeof(buffer), 5, &of);
         parallel_test("rec_taostore_circuit_2_parallel", pram);
         delete pram;
     }
     {
-        obl::mose_factory of(3, 8, 16);
-        rram = new obl::recursive_oram_standard(N, sizeof(buffer), 6, &of);
+        obl::mose_factory of(3, 8, 5);
+        rram = new obl::recursive_oram_standard(N, sizeof(buffer), 5, &of);
         parallel_test("rec_mose", rram);
         delete rram;
     }

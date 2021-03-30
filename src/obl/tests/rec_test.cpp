@@ -147,28 +147,28 @@ int main()
 	 for (unsigned int T_NUM = 9; T_NUM <= 8; T_NUM++)
 	 {
 	 	obl::taostore_circuit_1_parallel_factory of(3, 8, T_NUM);
-	 	pram = new obl::recursive_parallel(N, sizeof(buffer), &of);
+	 	pram = new obl::recursive_parallel(N, sizeof(buffer), 6, &of);
 	 	parallel_test("rec_taostore_circuit_1_parallel", T_NUM, pram);
 	 	delete pram;
 	 }
 	 for (unsigned int T_NUM = 18; T_NUM <= 16; T_NUM++)
 	 {
 	 	obl::taostore_circuit_1_parallel_factory of(3, T_NUM, T_NUM);
-	 	pram = new obl::recursive_parallel(N, sizeof(buffer), &of);
+	 	pram = new obl::recursive_parallel(N, sizeof(buffer), 6, &of);
 	 	parallel_test("rec_taostore_circuit_1_parallel", T_NUM, pram);
 		delete pram;
 	 }
 	 for (unsigned int T_NUM = 9; T_NUM <= 8; T_NUM++)
 	 {
 	 	obl::taostore_circuit_2_parallel_factory of(3, 8, T_NUM);
-	 	pram = new obl::recursive_parallel(N, sizeof(buffer), &of);
+	 	pram = new obl::recursive_parallel(N, sizeof(buffer), 6, &of);
 	 	parallel_test("rec_taostore_circuit_2_parallel", T_NUM, pram);
 	 	delete pram;
 	 }
 	 for (unsigned int T_NUM = 18; T_NUM <= 16; T_NUM++)
 	 {
 	 	obl::taostore_circuit_2_parallel_factory of(3, T_NUM, T_NUM);
-	 	pram = new obl::recursive_parallel(N, sizeof(buffer), &of);
+	 	pram = new obl::recursive_parallel(N, sizeof(buffer), 6, &of);
 	 	parallel_test("rec_taostore_circuit_2_parallel", T_NUM, pram);
 	 	delete pram;
 	 }

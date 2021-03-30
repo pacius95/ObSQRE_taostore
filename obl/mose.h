@@ -6,6 +6,8 @@
 #include "obl/flexible_array.hpp"
 #include "obl/threadpool.h"
 #include "obl/circuit.h"
+#include "obl/taostore_factory.hpp"
+#include "obl/taostore_circuit_2.h"
 
 #include <atomic>
 
@@ -77,6 +79,7 @@ namespace obl
     {
     private:
         unsigned int Z, S, T_NUM;
+        taostore_circuit_factory* fact;
 
     public:
         mose_factory(unsigned int Z, unsigned int S, unsigned int T_NUM)
@@ -94,7 +97,7 @@ namespace obl
             }
             else
             {
-                return new circuit_oram(N, B, Z, S);
+                return new taostore_circuit_2(N, B, Z, S, 4);
             }
         }
         bool is_taostore() { return false; }

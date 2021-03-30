@@ -60,7 +60,7 @@ namespace obl
         void get_pop_queue(int K, leaf_id *temp);
         void update_valid(leaf_id *_paths, int K, flex &tree, std::unordered_map<std::int64_t, node *> &nodes_map);
         void update_valid_2(leaf_id *_paths, int K, flex &tree, std::unordered_map<std::int64_t, node *> &nodes_map);
- 
+
     };
 
 } // namespace obl

@@ -17,7 +17,7 @@ namespace obl
 		taostore_oram_parallel * toram;
 
 	public:
-		recursive_parallel(std::size_t N, std::size_t B, oram_factory *allocator);
+		recursive_parallel(std::size_t N, std::size_t B,unsigned int c_size, oram_factory *allocator);
 		~recursive_parallel();
 
 		void access(block_id bid, std::uint8_t *data_in, std::uint8_t *data_out);

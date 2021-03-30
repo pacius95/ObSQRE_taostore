@@ -308,7 +308,7 @@ namespace obl
 
         access_counter_1 = read_path(_req, _fetched);
 
-        answer_request(_req.fake, _req.bid, _req.id, _fetched);
+        answer_request(_req, _fetched);
 
         evict_leaf = evict_path++;
 

@@ -49,10 +49,7 @@ namespace obl
         bool handled;
         std::uint8_t *data_out;
         bool res_ready;
-        bool data_ready;
         std::int32_t id;
-        leaf_id lif;
-        leaf_id next_lif;
         pthread_mutex_t cond_mutex;
         pthread_cond_t serializer_res_ready;
     };
@@ -87,11 +84,11 @@ namespace obl
         }
         ~node()
         {
-            pthread_mutex_destroy(&wb_lk);
-            pthread_rwlock_destroy(&lk);
             delete[] payload;
             delete child_l;
             delete child_r;
+            pthread_rwlock_destroy(&lk);
+            pthread_mutex_destroy(&wb_lk);
         }
         int trylock()
         {
