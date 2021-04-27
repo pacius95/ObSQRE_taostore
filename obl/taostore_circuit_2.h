@@ -18,7 +18,7 @@ namespace obl
 		void write_thread(request_t &_req);
 		void read_thread(request_t &_req);
 		
-		void download_path(leaf_id path, std::vector<node *> &fetched_path);
+		void download_path(leaf_id path, std::vector<std::shared_ptr<node>> &fetched_path);
 		std::uint64_t fetch_path(std::uint8_t *_fetched, block_id bid, leaf_id path);
 		std::uint64_t eviction(leaf_id path);
 		void write_back();
@@ -40,7 +40,7 @@ namespace obl
 		tree_oram* spawn_oram(std::size_t N, std::size_t B)	{
 			return new taostore_circuit_2(N, B, Z, S, T_NUM);
 		}
-		bool is_taostore() {return true;}
+		bool is_taostore() {return false;}
 	};
 } // namespace obl
 

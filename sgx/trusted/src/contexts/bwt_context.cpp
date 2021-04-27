@@ -47,7 +47,7 @@ void bwt_context_t::load_index(std::size_t buffer_size)
 	obl::block_id idx = 0;
 	
 	if (allocator->is_taostore())
-		index = new obl::recursive_taoram(no_samples, sample_size, csize, allocator);
+		index = new obl::recursive_parallel(no_samples, sample_size, csize, allocator);
 	else
 		index = new obl::recursive_oram_standard(no_samples, sample_size, csize, allocator);
 	

@@ -49,7 +49,7 @@ namespace obl
 
 			return new taostore_circuit_1(N, B, Z, S, T_NUM);
 		}
-		bool is_taostore() { return true; }
+		bool is_taostore() { return false; }
 	};
 } // namespace obl
 
