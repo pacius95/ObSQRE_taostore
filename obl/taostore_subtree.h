@@ -19,7 +19,7 @@
 
 #ifdef SGX_ENCLAVE_ENABLED
     #include "obl/sgx_host_allocator.hpp"
-    #define printf(a,b) ocall_stdout(a,b);
+    // #define printf(a,b) ocall_stdout(a,b);
     #define flex flexible_array<bucket_t, sgx_host_allocator>
 #else
     #define flex flexible_array<bucket_t>

@@ -6,7 +6,7 @@
 #include "obl/oassert.h"
 
 #ifdef SGX_ENCLAVE_ENABLED
-#define printf(a, b) (ocall_stdout(a, b));
+// #define printf(a, b) (ocall_stdout(a, b));
 #endif
 
 #define DUMMY -1

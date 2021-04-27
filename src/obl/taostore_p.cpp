@@ -6,7 +6,7 @@
 #include "obl/oassert.h"
 
 #ifdef SGX_ENCLAVE_ENABLED
-#define printf(a, b) (ocall_stdout(a, b));
+// #define printf(a, b) (ocall_stdout(a, b));
 #endif
 
 #define DUMMY -1
@@ -105,7 +105,7 @@ namespace obl
 
 	void taostore_oram_parallel::set_position_map(unsigned int c_size)
 	{
-		this->c_size = 5;
+		this->c_size = c_size;
 		// allocator = new coram_factory(3, 8);
 		// allocator = new taostore_circuit_factory(Z,S,20);
 		// position_map = new taostore_position_map(N, c_size, allocator);

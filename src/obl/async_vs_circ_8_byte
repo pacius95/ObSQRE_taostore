@@ -1,0 +1,40 @@
+P = 26, bench = 20, block_size=8byte
+taostore v1/v2 (ottimizzata)  rec_factor=7
+finished init
+printf: 167.8496
+
+circuit rec_factor=5
+printf: 227.5462s
+
+finished init
+Run 0 finished
+printf: 7.11082s
+Run 1 finished
+printf: 7.11742s
+Run 2 finished
+printf: 7.10334s
+Run 3 finished
+printf: 7.13399s
+
+P = 26, bench = 20, C=7, 
+finished init
+Run 0 finished
+printf: 4.59083s
+Run 1 finished
+printf: 4.19238s
+Run 2 finished
+printf: 6.74256s
+Run 3 finished
+printf: 7.50509s
+
+circ 
+
+finished init
+Run 0 finished
+printf: 227.5462s
+Run 1 finished
+printf: 227.7572s
+Run 2 finished
+printf: 227.30334s
+Run 3 finished
+printf: 228.2876s

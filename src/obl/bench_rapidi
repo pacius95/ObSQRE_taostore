@@ -1,0 +1,42 @@
+benchmarc block size:8 bench size: 1048576
+start circuit: 1048576 T_NUM:1
+tempo: 32.85s
+start taostore_circuit_1: 1048576 T_NUM:1
+tempo: 32.31s
+start taostore_circuit_1: 1048576 T_NUM:2
+tempo: 26.55s
+start taostore_circuit_1: 1048576 T_NUM:3
+tempo: 22.53s
+start circuit: 2097152 T_NUM:1
+tempo: 34.71s
+start taostore_circuit_1: 2097152 T_NUM:1
+tempo: 37.03s
+start taostore_circuit_1: 2097152 T_NUM:2
+tempo: 29.32s
+start taostore_circuit_1: 2097152 T_NUM:3
+tempo: 25.43s
+start circuit: 4194304 T_NUM:1
+tempo: 36.93s
+start taostore_circuit_1: 4194304 T_NUM:1
+tempo: 41.19s
+start taostore_circuit_1: 4194304 T_NUM:2
+tempo: 32.63s
+start taostore_circuit_1: 4194304 T_NUM:3
+tempo: 27.89s
+start circuit: 8388608 T_NUM:1
+tempo: 39.12s
+start taostore_circuit_1: 8388608 T_NUM:1
+tempo: 46.11s
+start taostore_circuit_1: 8388608 T_NUM:2
+tempo: 36.67s
+start taostore_circuit_1: 8388608 T_NUM:3
+tempo: 30.32s
+start circuit: 16777216 T_NUM:1
+tempo: 41.08s
+start taostore_circuit_1: 16777216 T_NUM:1
+tempo: 50.92s
+start taostore_circuit_1: 16777216 T_NUM:2
+tempo: 38.9s
+start taostore_circuit_1: 16777216 T_NUM:3
+tempo: 33.81s
+start circuit: 33554432 T_NUM:1
