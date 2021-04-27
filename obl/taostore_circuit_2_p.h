@@ -15,8 +15,8 @@ namespace obl
 	
 		~taostore_circuit_2_parallel();
 		void access_thread(request_p_t &_req);
-		void synch_subtree(leaf_id path, std::vector<std::shared_ptr<node>> &fetched_path);
-		void download_path(leaf_id path, std::vector<std::shared_ptr<node>> &fetched_path);
+		void synch_subtree(leaf_id path, std::vector<node*> &fetched_path);
+		void download_path(leaf_id path, std::vector<node*> &fetched_path);
 		std::uint64_t fetch_path(std::uint8_t *_fetched, block_id bid, leaf_id new_lid, leaf_id path, bool fake);
 		std::uint64_t eviction(leaf_id path);
 		void write_back();

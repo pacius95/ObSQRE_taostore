@@ -32,7 +32,7 @@ namespace obl
 
     private:
         moodycamel::ConcurrentQueue<leaf_id> write_queue;
-        std::shared_ptr<node> root;
+        node *root;
         std::atomic_int32_t nodes_count;
         int L;
 
@@ -54,11 +54,12 @@ namespace obl
         }
 
         void init(size_t _node_size, std::uint8_t *_data, int _L);
-        std::shared_ptr<node> getroot();
+        node *getroot();
+
         void insert_write_queue(leaf_id T);
         void get_pop_queue(int K, leaf_id *temp);
-        void update_valid_2(leaf_id *_paths, int K, flex &tree, std::unordered_map<std::int64_t, std::shared_ptr<node>> &nodes_map);
-        void update_valid(leaf_id *_paths, int K, flex &tree, std::unordered_map<std::int64_t, std::shared_ptr<node>> &nodes_map);
+        void update_valid(leaf_id *_paths, int K, flex &tree, std::unordered_map<std::int64_t, node *> &nodes_map);
+        void update_valid_2(leaf_id *_paths, int K, flex &tree, std::unordered_map<std::int64_t, node *> &nodes_map);
 
     };
 

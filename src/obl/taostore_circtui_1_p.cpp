@@ -63,8 +63,8 @@ namespace obl
         std::int64_t goal = -1;
         std::int64_t goal_t = -1;
 
-        std::shared_ptr<node>reference_node;
-        std::shared_ptr<node>old_ref_node;
+        node *reference_node;
+        node *old_ref_node;
         reference_node = local_subtree.getroot();
         old_ref_node = local_subtree.getroot();
 
@@ -108,7 +108,7 @@ namespace obl
         }
         while (i <= L && valid)
         {
-            (l_index & 1) ? old_ref_node->child_l = std::make_shared<node>(block_size * Z) : old_ref_node->child_r = std::make_shared<node>(block_size * Z);
+            (l_index & 1) ? old_ref_node->child_l = new node(block_size * Z) : old_ref_node->child_r = new node(block_size * Z);
             reference_node = (l_index & 1) ? old_ref_node->child_l : old_ref_node->child_r;
             local_subtree.newnode();
             reference_node->lock();
@@ -148,7 +148,7 @@ namespace obl
 
             // MAC mismatch is a critical error
             //assert(dec != AES_GCM_AUTH_E);
-            assert(dec == 0);
+            // assert(dec == 0);
 
             csb[i] = ternary_op(goal >= i, _closest_src_bucket, BOTTOM);
             std::int64_t jump = get_max_depth_bucket((block_t *)reference_node->payload, Z, path);
@@ -171,7 +171,7 @@ namespace obl
         // fill the other buckets with "empty" blocks
         while (i <= L)
         {
-            (l_index & 1) ? old_ref_node->child_l = std::make_shared<node>(block_size * Z) : old_ref_node->child_r = std::make_shared<node>(block_size * Z);
+            (l_index & 1) ? old_ref_node->child_l = new node(block_size * Z) : old_ref_node->child_r = new node(block_size * Z);
             reference_node = (l_index & 1) ? old_ref_node->child_l : old_ref_node->child_r;
             local_subtree.newnode();
             reference_node->parent = old_ref_node;
@@ -337,8 +337,8 @@ namespace obl
         fetched->bid = DUMMY;
         fetched->lid = DUMMY;
 
-        std::shared_ptr<node>reference_node;
-        std::shared_ptr<node>old_ref_node;
+        node *reference_node;
+        node *old_ref_node;
 
         reference_node = local_subtree.getroot();
         old_ref_node = local_subtree.getroot();
@@ -391,7 +391,7 @@ namespace obl
         }
         while (i <= L && valid)
         {
-            (l_index & 1) ? old_ref_node->child_l = std::make_shared<node>(block_size * Z) : old_ref_node->child_r = std::make_shared<node>(block_size * Z);
+            (l_index & 1) ? old_ref_node->child_l = new node(block_size * Z) : old_ref_node->child_r = new node(block_size * Z);
             reference_node = (l_index & 1) ? old_ref_node->child_l : old_ref_node->child_r;
             local_subtree.newnode();
             reference_node->parent = old_ref_node;
@@ -431,7 +431,7 @@ namespace obl
                                        (std::uint8_t *)adata,
                                        sizeof(auth_data_t));
 
-            assert(dec == 0);
+            // assert(dec == 0);
 
             bl = (block_t *)reference_node->payload;
             for (unsigned int j = 0; j < Z; ++j)
@@ -454,7 +454,7 @@ namespace obl
         // fill the other buckets with "empty" blocks
         while (i <= L)
         {
-            (l_index & 1) ? old_ref_node->child_l = std::make_shared<node>(block_size * Z) : old_ref_node->child_r = std::make_shared<node>(block_size * Z);
+            (l_index & 1) ? old_ref_node->child_l = new node(block_size * Z) : old_ref_node->child_r = new node(block_size * Z);
             reference_node = (l_index & 1) ? old_ref_node->child_l : old_ref_node->child_r;
             reference_node->parent = old_ref_node;
             local_subtree.newnode();
@@ -533,13 +533,13 @@ namespace obl
 
     void taostore_circuit_1_parallel::write_back()
     {
-        std::unordered_map<std::int64_t, std::shared_ptr<node>> nodes_level_i[L + 1];
+        std::unordered_map<std::int64_t, node *> nodes_level_i[L + 1];
         std::int64_t l_index;
         bool flag = false;
         obl_aes_gcm_128bit_iv_t iv;
         obl_aes_gcm_128bit_tag_t mac;
-        std::shared_ptr<node>reference_node;
-        std::shared_ptr<node>parent;
+        node *reference_node;
+        node *parent;
         leaf_id *_paths = new leaf_id[K];
         int tmp = K;
 
@@ -604,7 +604,7 @@ namespace obl
                     if (parent->wb_trylock() == 0)
                         nodes_level_i[i - 1][get_parent(l_index)] = parent;
                     reference_node->wb_unlock();
-                    reference_node = nullptr;
+                    delete reference_node;
                     local_subtree.removenode();
                 }
                 else

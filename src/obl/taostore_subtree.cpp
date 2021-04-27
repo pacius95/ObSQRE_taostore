@@ -18,18 +18,19 @@ namespace obl
         }
         taostore_subtree::~taostore_subtree()
         {
-            root = nullptr;
+            delete root;
         }
         void taostore_subtree::init(size_t _node_size, std::uint8_t *_data, int _L)
         {
             L = _L;
-            root = std::make_shared<node>((_node_size));
+            root = new node(_node_size);
             memcpy(root->payload, _data, _node_size);
         }
-        std::shared_ptr<node> taostore_subtree::getroot()
+        node * taostore_subtree::getroot()
         {
             return root;
         }
+
         void taostore_subtree::insert_write_queue(leaf_id T)
         {
             write_queue.enqueue(T);
@@ -40,10 +41,10 @@ namespace obl
             write_queue.try_dequeue_bulk(temp, K);
         }
 
-        void taostore_subtree::update_valid_2(leaf_id *_paths, int K, flex &tree, std::unordered_map<std::int64_t, std::shared_ptr<node> > &nodes_map)
+        void taostore_subtree::update_valid_2(leaf_id *_paths, int K, flex &tree, std::unordered_map<std::int64_t, node *> &nodes_map)
         {
-            std::shared_ptr<node> reference_node;
-            std::shared_ptr<node> old_reference_node;
+            node *reference_node;
+            node *old_reference_node;
             bool reachable;
             int j=0;
             leaf_id paths;
@@ -63,10 +64,10 @@ namespace obl
             }
         }
 
-        void taostore_subtree::update_valid(leaf_id *_paths, int K, flex &tree, std::unordered_map<std::int64_t, std::shared_ptr<node>> &nodes_map)
+        void taostore_subtree::update_valid(leaf_id *_paths, int K, flex &tree, std::unordered_map<std::int64_t, node *> &nodes_map)
         {
-            std::shared_ptr<node> reference_node;
-            std::shared_ptr<node> old_reference_node;
+            node *reference_node;
+            node *old_reference_node;
             bool reachable;
             leaf_id paths;
             std::int64_t l_index;
@@ -98,8 +99,8 @@ namespace obl
 
                     l_index = (l_index << 1) + 1 + ((paths >> j) & 1);
                 }
-                if (reference_node != nullptr && reference_node->wb_trylock() == 0 )
-                {
+                if (reference_node != nullptr && reference_node->wb_trylock() == 0)
+               {
                     reference_node->adata.valid_l = false;
                     reference_node->adata.valid_r = false;
                     tree[l_index].reach_l = false;

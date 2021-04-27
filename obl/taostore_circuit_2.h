@@ -18,7 +18,7 @@ namespace obl
 		void write_thread(request_t &_req);
 		void read_thread(request_t &_req);
 		
-		void download_path(leaf_id path, std::vector<std::shared_ptr<node>> &fetched_path);
+		void download_path(leaf_id path, std::vector<node*> &fetched_path);
 		std::uint64_t fetch_path(std::uint8_t *_fetched, block_id bid, leaf_id path);
 		std::uint64_t eviction(leaf_id path);
 		void write_back();
