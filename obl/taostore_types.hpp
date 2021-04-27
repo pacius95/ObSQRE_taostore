@@ -6,6 +6,7 @@
 #include <pthread.h>
 #include <cstring>
 #include <atomic>
+#include <memory>
 #include <cstdint>
 
 namespace obl
@@ -64,9 +65,9 @@ namespace obl
         pthread_rwlock_t lk = PTHREAD_RWLOCK_INITIALIZER;
         pthread_mutex_t wb_lk = PTHREAD_MUTEX_INITIALIZER;
         auth_data_t adata;
-        node *child_l;
-        node *child_r;
-        node *parent;
+        std::shared_ptr<node> child_l;
+        std::shared_ptr<node> child_r;
+        std::shared_ptr<node> parent;
         std::atomic<bool> valid;
         std::uint8_t *payload;
 
@@ -85,8 +86,9 @@ namespace obl
         ~node()
         {
             delete[] payload;
-            delete child_l;
-            delete child_r;
+            child_l = nullptr;
+            child_r = nullptr;
+            parent = nullptr;
             pthread_rwlock_destroy(&lk);
             pthread_mutex_destroy(&wb_lk);
         }

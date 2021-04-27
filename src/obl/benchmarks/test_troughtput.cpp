@@ -23,7 +23,7 @@
 
 #define P 15
 #define N (1 << P)
-#define bench_size (1 << 15)
+#define bench_size (1 << 18)
 #define RUN 1
 
 using hres = std::chrono::high_resolution_clock;
@@ -121,6 +121,7 @@ void *parallel_test(std::string oname, obl::recursive_oram *rram)
     for (unsigned int i = 0; i < RUN; i++)
         pthread_join(workers[i], nullptr);
 
+    return 0;
     for (unsigned int T = 1; T <= RUN; T *= 2)
     {
         res_time = 0;
@@ -203,13 +204,13 @@ int main()
 
     obl::recursive_oram_standard *rram;
     obl::recursive_parallel *pram;
-    // {
-    // 	obl::coram_factory of(3, 8);
-    // 	rram = new obl::recursive_oram_standard(N, sizeof(buffer), 6, &of);
-    // 	parallel_test("rec_circuit", rram);
+    {
+    	obl::coram_factory of(3, 8);
+    	rram = new obl::recursive_oram_standard(N, sizeof(buffer), 6, &of);
+    	parallel_test("rec_circuit", rram);
 
-    // 	delete rram;
-    // }
+    	delete rram;
+    }
 
     // {
     // 	obl::path_factory of(4, 32, 3);
@@ -218,12 +219,12 @@ int main()
     // 	delete rram;
     // }
 
-    {
-        obl::taostore_circuit_factory of(3, 8, 18);
-        rram = new obl::recursive_oram_standard(N, sizeof(buffer), 5, &of);
-        parallel_test("rec_taostore_asynch", rram);
-        delete rram;
-    }
+    // {
+    //     obl::taostore_circuit_factory of(3, 8, 18);
+    //     rram = new obl::recursive_oram_standard(N, sizeof(buffer), 5, &of);
+    //     parallel_test("rec_taostore_asynch", rram);
+    //     delete rram;
+    // }
     // {
     //     obl::taostore_circuit_1_parallel_factory of(3, 8, 5);
     //     pram = new obl::recursive_parallel(N, sizeof(buffer), 5, &of);

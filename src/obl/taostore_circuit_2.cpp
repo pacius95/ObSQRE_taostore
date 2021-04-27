@@ -33,7 +33,7 @@ namespace obl
 	std::uint64_t taostore_circuit_2::eviction(leaf_id path)
 	{
 		std::int64_t l_index = 0;
-		std::vector<node *> fetched_path;
+		std::vector<std::shared_ptr<node>> fetched_path;
 		fetched_path.reserve(L + 1);
 
 		int i = 0;
@@ -52,8 +52,8 @@ namespace obl
 		std::int64_t goal = -1;
 		std::int64_t goal_t = -1;
 
-		node *reference_node;
-		node *old_ref_node;
+		std::shared_ptr<node>reference_node;
+		std::shared_ptr<node>old_ref_node;
 		reference_node = local_subtree.getroot();
 		old_ref_node = local_subtree.getroot();
 
@@ -87,7 +87,6 @@ namespace obl
 			old_ref_node = reference_node;
 			l_index = (l_index << 1) + 1 + ((path >> i) & 1);
 			reference_node = (l_index & 1) ? old_ref_node->child_l : old_ref_node->child_r;
-			delete fetched_path[i];
 		}
 		while (i <= L)
 		{
@@ -277,7 +276,7 @@ namespace obl
 			write_back();
 	}
 
-	void taostore_circuit_2::download_path(leaf_id path, std::vector<node *> &fetched_path)
+	void taostore_circuit_2::download_path(leaf_id path, std::vector<std::shared_ptr<node>> &fetched_path)
 	{
 		// always start from root
 		std::int64_t l_index = 0;
@@ -287,8 +286,8 @@ namespace obl
 		int i = 0;
 		block_t *bl;
 
-		node *reference_node = local_subtree.getroot();
-		node *old_ref_node = local_subtree.getroot();
+		std::shared_ptr<node>reference_node = local_subtree.getroot();
+		std::shared_ptr<node>old_ref_node = local_subtree.getroot();
 
 		fetched_path.reserve(L + 1);
 
@@ -311,7 +310,7 @@ namespace obl
 		}
 		while (i <= L && valid)
 		{
-			fetched_path.emplace_back(new node(block_size * Z));
+			fetched_path.emplace_back(std::make_shared<node>(block_size * Z));
 
 			adata = &fetched_path[i]->adata;
 			std::int64_t leftch = get_left(l_index);
@@ -369,7 +368,7 @@ namespace obl
 		// fill the other buckets with "empty" blocks
 		while (i <= L)
 		{
-			fetched_path.emplace_back(new node(block_size * Z));
+			fetched_path.emplace_back(std::make_shared<node>(block_size * Z));
 			bl = (block_t *)fetched_path[i]->payload;
 			for (unsigned int j = 0; j < Z; ++j)
 			{
@@ -390,11 +389,11 @@ namespace obl
 		fetched->bid = DUMMY;
 		fetched->lid = DUMMY;
 
-		std::vector<node *> fetched_path;
+		std::vector<std::shared_ptr<node>> fetched_path;
 
 		//fetch_path della circuit.
-		node *reference_node;
-		node *old_ref_node;
+		std::shared_ptr<node>reference_node;
+		std::shared_ptr<node>old_ref_node;
 		old_ref_node = local_subtree.getroot();
 		reference_node = local_subtree.getroot();
 
@@ -437,7 +436,6 @@ namespace obl
 			reference_node = (path >> i) & 1 ? old_ref_node->child_r : old_ref_node->child_l;
 
 			l_index = (l_index << 1) + 1 + ((path >> i) & 1);
-			delete fetched_path[i];
 		}
 
 		while (i <= L)
@@ -547,13 +545,13 @@ namespace obl
 	}
 	void taostore_circuit_2::write_back()
 	{
-		std::unordered_map<std::int64_t, node *> nodes_level_i[L + 1];
+		std::unordered_map<std::int64_t, std::shared_ptr<node>> nodes_level_i[L + 1];
 		std::int64_t l_index;
 		bool flag = false;
 		obl_aes_gcm_128bit_iv_t iv;
 		obl_aes_gcm_128bit_tag_t mac;
-		node *reference_node;
-		node *parent;
+		std::shared_ptr<node>reference_node;
+		std::shared_ptr<node>parent;
 		leaf_id *_paths = new leaf_id[K];
 		int tmp = K;
 
@@ -594,16 +592,15 @@ namespace obl
 
 				// update the mac for the parent for the evaluation of its mac
 				std::uint8_t *target_mac = (l_index & 1) ? reference_node->parent->adata.left_mac : reference_node->parent->adata.right_mac;
-				if (parent->trylock() == 0)
-					{					
-					std::memcpy(target_mac, mac, sizeof(obl_aes_gcm_128bit_tag_t));
-					if (reference_node->trylock() == 0)
-						{	
+				// if (parent->trylock() == 0)
+				// 	{					
+					// if (reference_node->trylock() == 0)
+					// 	{	
 						pthread_mutex_lock(&multi_set_lock);
 						if (reference_node->child_r == nullptr && reference_node->child_l == nullptr &&
 							path_req_multi_set.find(l_index) == path_req_multi_set.end() && reference_node->valid == true)
 							{
-
+								std::memcpy(target_mac, mac, sizeof(obl_aes_gcm_128bit_tag_t));
 								if (l_index & 1)
 									parent->child_l = nullptr;
 								else
@@ -611,16 +608,16 @@ namespace obl
 								flag = true;
 							}
 						pthread_mutex_unlock(&multi_set_lock);
-						reference_node->unlock();
-					}
-					parent->unlock();
-				}
+				// 		reference_node->unlock();
+				// 	}
+				// 	parent->unlock();
+				// }
 				if (flag)
 				{
 					if (parent->wb_trylock() == 0)
 						nodes_level_i[i - 1][get_parent(l_index)] = parent;
 					reference_node->wb_unlock();
-					delete reference_node;
+					reference_node = nullptr;
 					local_subtree.removenode();
 				}
 				else
