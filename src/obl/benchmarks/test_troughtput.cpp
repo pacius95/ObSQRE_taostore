@@ -3,6 +3,7 @@
 #include "obl/taostore_circuit_2.h"
 #include "obl/taostore_circuit_1_p.h"
 #include "obl/taostore_circuit_2_p.h"
+#include "obl/shadow_mose.h"
 #include "obl/taostore_factory.hpp"
 #include "obl/path.h"
 #include "obl/rec.h"
@@ -21,10 +22,10 @@
 #include <ctime>
 #include <chrono>
 
-#define P 15
+#define P 17
 #define N (1 << P)
 #define bench_size (1 << 18)
-#define RUN 1
+#define RUN 16
 
 using hres = std::chrono::high_resolution_clock;
 using _nano = std::chrono::nanoseconds;
@@ -33,7 +34,7 @@ using tt = std::chrono::time_point<hres, _nano>;
 using namespace std;
 struct buffer
 {
-    std::uint8_t _buffer[4000];
+    std::uint8_t _buffer[24000];
 
     bool operator==(const buffer &rhs) const
     {
@@ -83,7 +84,7 @@ void *work(void *T)
         args.rram->access(rnd_bid, nullptr, (std::uint8_t *)&value_out);
         end = hres::now();
         duration = end - start;
-        assert(value_out == (*args._mirror_data)[rnd_bid]);
+        // assert(value_out == (*args._mirror_data)[rnd_bid]);
         (args.res_time)[j] = duration.count();
     }
     return nullptr;
@@ -96,7 +97,7 @@ void *parallel_test(std::string oname, obl::recursive_oram *rram)
     tt start, end;
     _nano duration;
     int64_t res_time = 0;
-    buffer value_out;
+    buffer value, value_out;
     unsigned int rnd_bid;
     mirror_data.reserve(N);
 
@@ -121,7 +122,17 @@ void *parallel_test(std::string oname, obl::recursive_oram *rram)
     for (unsigned int i = 0; i < RUN; i++)
         pthread_join(workers[i], nullptr);
 
-    return 0;
+
+    for (unsigned int i = 0; i < RUN; i++)
+    {
+        response_times[i] = new int64_t[bench_size / RUN];
+        args[i] = {rram, &mirror_data, RUN, i, response_times[i]};
+        pthread_create(&workers[i], nullptr, work, (void *)&args[i]);
+    }
+
+    for (unsigned int i = 0; i < RUN; i++)
+        pthread_join(workers[i], nullptr);
+
     for (unsigned int T = 1; T <= RUN; T *= 2)
     {
         res_time = 0;
@@ -132,19 +143,18 @@ void *parallel_test(std::string oname, obl::recursive_oram *rram)
             rram->access(rnd_bid, nullptr, (std::uint8_t *)&value_out);
         }
 
+    usleep(1000000);
 
-        usleep(1000000);
+    start = hres::now();
+    for (unsigned int i = 0; i < T; i++)
+    {
+        response_times[i] = new int64_t[bench_size / T];
+        args[i] = {rram, &mirror_data, T, i, response_times[i]};
+        pthread_create(&workers[i], nullptr, work, (void *)&args[i]);
+    }
 
-        start = hres::now();
-        for (unsigned int i = 0; i < T; i++)
-        {
-            response_times[i] = new int64_t[bench_size / T];
-            args[i] = {rram, &mirror_data, T, i, response_times[i]};
-            pthread_create(&workers[i], nullptr, work, (void *)&args[i]);
-        }
-
-        for (unsigned int i = 0; i < T; i++)
-            pthread_join(workers[i], nullptr);
+    for (unsigned int i = 0; i < T; i++)
+        pthread_join(workers[i], nullptr);
 
         end = hres::now();
         duration = end - start;
@@ -204,13 +214,14 @@ int main()
 
     obl::recursive_oram_standard *rram;
     obl::recursive_parallel *pram;
-    {
-    	obl::coram_factory of(3, 8);
-    	rram = new obl::recursive_oram_standard(N, sizeof(buffer), 6, &of);
-    	parallel_test("rec_circuit", rram);
+    obl::shadow_mose *sram;
+    // {
+    // 	obl::coram_factory of(3, 8);
+    // 	rram = new obl::recursive_oram_standard(N, sizeof(buffer), 6, &of);
+    // 	parallel_test("rec_circuit", rram);
 
-    	delete rram;
-    }
+    // 	delete rram;
+    // }
 
     // {
     // 	obl::path_factory of(4, 32, 3);
@@ -220,27 +231,39 @@ int main()
     // }
 
     // {
-    //     obl::taostore_circuit_factory of(3, 8, 18);
-    //     rram = new obl::recursive_oram_standard(N, sizeof(buffer), 5, &of);
+    //     obl::taostore_circuit_factory of(3, 8, 28);
+    //     rram = new obl::recursive_oram_standard(N, sizeof(buffer), 6, &of);
     //     parallel_test("rec_taostore_asynch", rram);
     //     delete rram;
     // }
     // {
     //     obl::taostore_circuit_1_parallel_factory of(3, 8, 5);
-    //     pram = new obl::recursive_parallel(N, sizeof(buffer), 5, &of);
+    //     pram = new obl::recursive_parallel(N, sizeof(buffer), 6, &of);
     //     parallel_test("rec_taostore_circuit_1_parallel", pram);
     //     delete pram;
     // }
-    {
-        obl::taostore_circuit_2_parallel_factory of(3, 16, 16);
-        pram = new obl::recursive_parallel(N, sizeof(buffer), 5, &of);
-        parallel_test("rec_taostore_circuit_2_parallel", pram);
-        delete pram;
-    }
+    // {
+    //     obl::taostore_circuit_2_parallel_factory of(3, 8, 16);
+    //     pram = new obl::recursive_parallel(N, sizeof(buffer), 6, &of);
+    //     parallel_test("rec_taostore_circuit_2_parallel", pram);
+    //     delete pram;
+    // }
     // {
     //     obl::mose_factory of(3, 8, 5);
     //     rram = new obl::recursive_oram_standard(N, sizeof(buffer), 5, &of);
     //     parallel_test("rec_mose", rram);
     //     delete rram;
     // }
+    // {
+    //     obl::shadow_mose_factory of(3, 8, 12, 2);
+    //     sram = new obl::shadow_mose(N, sizeof(buffer), 6, &of);
+    //     parallel_test("shadow_mose", sram);
+    //     delete sram;
+    // }
+    {
+        obl::asynch_mose_factory of (3, 8, 32);
+        rram = new obl::recursive_oram_standard(N, sizeof(buffer), 6, &of);
+        parallel_test("AsynchMOSE", rram);
+        delete rram;
+    }
 }

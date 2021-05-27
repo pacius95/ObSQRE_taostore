@@ -25,13 +25,13 @@ using hres = std::chrono::high_resolution_clock;
 using nano = std::chrono::nanoseconds;
 using tt = std::chrono::time_point<hres, nano>;
 
-const int pow_lower = 14;
-const int pow_upper = 24;
+const int pow_lower = 20;
+const int pow_upper = 20;
 const int bench_size = 1 << 18;
-const int RUN = 1;
+const int RUN = 16;
 struct buffer
 {
-	std::uint8_t _buffer[32];
+	std::uint8_t _buffer[4000];
 	bool operator==(const buffer &rhs) const
 	{
 		return !memcmp(_buffer, rhs._buffer, sizeof(_buffer));
@@ -199,13 +199,13 @@ int main()
 	obl::tree_oram *oram;
 
 	// std::cout << "benchmarc block size:" << sizeof(buffer) << " bench size: " << bench_size << std::endl;
-	for (int p = pow_lower; p <= pow_upper; p+=3)
+	for (int p = pow_lower; p <= pow_upper; p += 3)
 	{
 		std::size_t N = 1 << p;
 
-		oram = new obl::circuit_oram(N, sizeof(buffer), 3, 8);
-		oram_test("circuit", 1, oram);
-		delete oram;
+		// oram = new obl::circuit_oram(N, sizeof(buffer), 3, 8);
+		// oram_test("circuit", 1, oram);
+		// delete oram;
 
 		// oram = new obl::path_oram(N, sizeof(buffer), 4, 32, 3);
 		// oram_test("path_4_3", 1, oram);
@@ -223,30 +223,40 @@ int main()
 		// oram_test("taostore_path_8_8", T_NUM, rram);
 		// rram->wait_end();
 		// delete rram;
-		// for (int T_NUM = 1; T_NUM <= 8; T_NUM++)
+		// for (int T_NUM = 4; T_NUM <= 4; T_NUM++)
 		// {
 		// 	rram = new obl::taostore_circuit_1(N, sizeof(buffer), Z, S, T_NUM);
-		// 	oram_test("taostore_circuit_1", T_NUM, rram);
+		// 	oram_test("AsynchORAM_v1", T_NUM, rram);
 		// 	delete rram;
 		// }
-		// for (int T_NUM = 1; T_NUM <= 8; T_NUM++)
+		// for (int T_NUM = 5; T_NUM <= 5; T_NUM++)
 		// {
 
 		// 	rram = new obl::taostore_circuit_2(N, sizeof(buffer), Z, S, T_NUM);
-		// 	oram_test("taostore_circuit_2", T_NUM, rram);
+		// 	oram_test("AsynchORAM_v2", T_NUM, rram);
 		// 	delete rram;
 		// }
-		for (int T_NUM = 1; T_NUM <= 8; T_NUM++)
+
+		// for (int T_NUM = 5; T_NUM <= 5; T_NUM++)
+		// {
+		// 	pram = new obl::taostore_circuit_1_parallel(N, sizeof(buffer), Z, S, T_NUM);
+		// 	pram->set_position_map(7);
+		// 	parallel_test("ShadowORAM_v1", T_NUM, pram);
+		// 	delete pram;
+		// }
+		for (int T_NUM = 16; T_NUM <= 16; T_NUM++)
 		{
-			pram = new obl::taostore_circuit_1_parallel(N, sizeof(buffer), Z, S, T_NUM);
-			parallel_test("taostore_circuit_1_parallel", T_NUM, pram);
+			pram = new obl::taostore_circuit_2_parallel(N, sizeof(buffer), Z, T_NUM, T_NUM);
+			pram->set_position_map(7);
+			parallel_test("ShadowORAM_v2", T_NUM, pram);
 			delete pram;
 		}
-		for (int T_NUM = 1; T_NUM <= 16; T_NUM++)
-		{
-			pram = new obl::taostore_circuit_2_parallel(N, sizeof(buffer), Z, 16, T_NUM);
-			parallel_test("taostore_circuit_2_parallel", T_NUM, pram);
-			delete pram;
-		}
+		// for (int T_NUM = 10; T_NUM <= 16; T_NUM++)
+		// {
+		// 	pram = new obl::taostore_circuit_2_parallel(N, sizeof(buffer), Z, T_NUM, T_NUM);
+		// 	pram->set_position_map(5);
+		// 	parallel_test("ShadowORAM_v2", T_NUM, pram);
+		// 	delete pram;
+		// }
 	}
 }

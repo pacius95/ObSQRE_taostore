@@ -63,8 +63,8 @@ namespace obl
         std::int64_t goal = -1;
         std::int64_t goal_t = -1;
 
-        std::shared_ptr<node>reference_node;
-        std::shared_ptr<node>old_ref_node;
+        std::shared_ptr<node> reference_node;
+        std::shared_ptr<node> old_ref_node;
         reference_node = local_subtree.getroot();
         old_ref_node = local_subtree.getroot();
 
@@ -148,7 +148,7 @@ namespace obl
 
             // MAC mismatch is a critical error
             //assert(dec != AES_GCM_AUTH_E);
-            assert(dec == 0);
+            // assert(dec == 0);
 
             csb[i] = ternary_op(goal >= i, _closest_src_bucket, BOTTOM);
             std::int64_t jump = get_max_depth_bucket((block_t *)reference_node->payload, Z, path);
@@ -288,6 +288,7 @@ namespace obl
 
                 bl = (block_t *)((std::uint8_t *)bl + block_size);
             }
+            reference_node->valid = false;
             reference_node->unlock();
             reference_node = (path >> i) & 1 ? reference_node->child_r : reference_node->child_l;
         }
@@ -337,8 +338,8 @@ namespace obl
         fetched->bid = DUMMY;
         fetched->lid = DUMMY;
 
-        std::shared_ptr<node>reference_node;
-        std::shared_ptr<node>old_ref_node;
+        std::shared_ptr<node> reference_node;
+        std::shared_ptr<node> old_ref_node;
 
         reference_node = local_subtree.getroot();
         old_ref_node = local_subtree.getroot();
@@ -362,6 +363,7 @@ namespace obl
         for (i = 0; i <= L && reference_node != nullptr; ++i)
         {
             reference_node->lock();
+            old_ref_node->valid = false;
             if (i != 0)
                 old_ref_node->unlock();
             else
@@ -373,7 +375,6 @@ namespace obl
                 swap(not_fake & (bl->bid == bid), _fetched, (std::uint8_t *)bl, block_size);
                 bl = ((block_t *)((std::uint8_t *)bl + block_size));
             }
-
             old_ref_node = reference_node;
 
             reference_node = (path >> i) & 1 ? old_ref_node->child_r : old_ref_node->child_l;
@@ -431,7 +432,7 @@ namespace obl
                                        (std::uint8_t *)adata,
                                        sizeof(auth_data_t));
 
-            assert(dec == 0);
+            // assert(dec == 0);
 
             bl = (block_t *)reference_node->payload;
             for (unsigned int j = 0; j < Z; ++j)
@@ -474,6 +475,7 @@ namespace obl
             l_index = (l_index << 1) + 1 + ((path >> i) & 1);
             ++i;
         }
+        old_ref_node->valid = false;
         old_ref_node->unlock();
 
         fetched->lid = new_lid;
@@ -535,21 +537,18 @@ namespace obl
     {
         std::unordered_map<std::int64_t, std::shared_ptr<node>> nodes_level_i[L + 1];
         std::int64_t l_index;
-        bool flag = false;
         obl_aes_gcm_128bit_iv_t iv;
         obl_aes_gcm_128bit_tag_t mac;
-        std::shared_ptr<node>reference_node;
-        std::shared_ptr<node>parent;
+        std::shared_ptr<node> reference_node;
+        std::shared_ptr<node> parent;
         leaf_id *_paths = new leaf_id[K];
         int tmp = K;
+        bool flag = false;
 
         assert(local_subtree.get_nodes_count() * this->subtree_node_size < MEM_BOUND);
         nodes_level_i[L].reserve(K);
         local_subtree.get_pop_queue(K, _paths);
-        if (access_counter < 3 * this->N)
-            local_subtree.update_valid_2(_paths, K, tree, nodes_level_i[L]);
-        else
-            local_subtree.update_valid(_paths, K, tree, nodes_level_i[L]);
+        local_subtree.update_valid(_paths, K, tree, nodes_level_i[L]);
         for (int i = L; i > 0; --i)
         {
             tmp = tmp / 2;
@@ -562,32 +561,33 @@ namespace obl
                 parent = reference_node->parent;
                 // generate a new random IV
                 gen_rand(iv, OBL_AESGCM_IV_SIZE);
+                reference_node->valid = true;
 
-                if (reference_node->trylock() == 0)
+                // save encrypted payload
+                wc_AesGcmEncrypt(crypt_handle,
+                                 tree[l_index].payload,
+                                 reference_node->payload,
+                                 Z * block_size,
+                                 iv,
+                                 OBL_AESGCM_IV_SIZE,
+                                 mac,
+                                 OBL_AESGCM_MAC_SIZE,
+                                 (std::uint8_t *)&reference_node->adata,
+                                 sizeof(auth_data_t));
+
+                // save "mac" + iv + reachability flags
+                std::memcpy(tree[l_index].mac, mac, sizeof(obl_aes_gcm_128bit_tag_t));
+                std::memcpy(tree[l_index].iv, iv, sizeof(obl_aes_gcm_128bit_iv_t));
+
+                // update the mac for the parent for the evaluation of its mac
+                std::uint8_t *target_mac = (l_index & 1) ? parent->adata.left_mac : parent->adata.right_mac;
+
+                if (parent->trylock() == 0)
                 {
-                    // save encrypted payload
-                    wc_AesGcmEncrypt(crypt_handle,
-                                     tree[l_index].payload,
-                                     reference_node->payload,
-                                     Z * block_size,
-                                     iv,
-                                     OBL_AESGCM_IV_SIZE,
-                                     mac,
-                                     OBL_AESGCM_MAC_SIZE,
-                                     (std::uint8_t *)&reference_node->adata,
-                                     sizeof(auth_data_t));
-
-                    // save "mac" + iv + reachability flags
-                    std::memcpy(tree[l_index].mac, mac, sizeof(obl_aes_gcm_128bit_tag_t));
-                    std::memcpy(tree[l_index].iv, iv, sizeof(obl_aes_gcm_128bit_iv_t));
-
-                    // update the mac for the parent for the evaluation of its mac
-                    std::uint8_t *target_mac = (l_index & 1) ? parent->adata.left_mac : parent->adata.right_mac;
-
-                    if (parent->trylock() == 0)
+                    if (reference_node->trylock() == 0)
                     {
                         std::memcpy(target_mac, mac, sizeof(obl_aes_gcm_128bit_tag_t));
-                        if (reference_node->child_r == nullptr && reference_node->child_l == nullptr)
+                        if (reference_node->child_r == nullptr && reference_node->child_l == nullptr && reference_node->valid == true)
                         {
                             if (l_index & 1)
                                 parent->child_l = nullptr;
@@ -595,15 +595,14 @@ namespace obl
                                 parent->child_r = nullptr;
                             flag = true;
                         }
-                        parent->unlock();
+                        reference_node->unlock();
                     }
-                    reference_node->unlock();
+                    parent->unlock();
                 }
                 if (flag)
                 {
                     if (parent->wb_trylock() == 0)
                         nodes_level_i[i - 1][get_parent(l_index)] = parent;
-                    reference_node->wb_unlock();
                     reference_node = nullptr;
                     local_subtree.removenode();
                 }

@@ -21,6 +21,10 @@ namespace obl
             this->S = S;
             this->T_NUM = T_NUM;
         }
+        unsigned int getT_NUM()
+        {
+            return this->T_NUM;
+        }
 
         tree_oram *spawn_oram(std::size_t N, std::size_t B)
         {
@@ -61,7 +65,7 @@ namespace obl
             }
         }
 
-        bool is_taostore() { return true; }
+        bool is_taostore() { return false; }
     };
 } // namespace obl
 

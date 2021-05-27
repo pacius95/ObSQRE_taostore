@@ -97,8 +97,8 @@ namespace obl
         {
             leaf_id tmp = map[i];
 
-            leef = ternary_op(i == idx , tmp, leef);
-            tmp = ternary_op(to_init , DUMMY_LEAF, tmp);
+            leef = ternary_op(i == idx, tmp, leef);
+            tmp = ternary_op(to_init, DUMMY_LEAF, tmp);
             map[i] = ternary_op((i == idx) & !fake, replacement, tmp);
         }
 
@@ -145,7 +145,6 @@ namespace obl
 
         to_initialize |= leef == DUMMY_LEAF;
         leef = ternary_op(!to_initialize, leef, dummy_leef);
-
 
         /* Access recursive ORAMs */
         for (int i = 0; i < rmap_levs; i++)

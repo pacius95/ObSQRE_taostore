@@ -4,7 +4,7 @@ CXX = g++
 # release flags
 #CFLAGS = -Wall $(INC) -pthread -march=native -mrdrnd -mrdseed -mpopcnt -O2
 # debug flags
-CFLAGS =  -Wall $(INC) -march=sandybridge -mrdseed -mrdrnd -mpopcnt -mavx2 -O3
+CFLAGS =  -Wall $(INC) -march=native -mrdseed -mrdrnd -mpopcnt -mavx2 -O3
 CXXFLAGS = -std=c++11
 
 LDFLAGS = ../../libs/libwolfssl.a -L$(SGX_SDK)/lib64 -lpthread
@@ -24,18 +24,27 @@ BENCHSRCS = $(wildcard ./benchmarks/*.c*)
 BENCHOBJ = $(addsuffix .o, $(basename $(BENCHSRCS)))
 BENCH = $(basename $(BENCHSRCS))
 
+BWTSRCS = $(wildcard ./testBWT/*.c*)
+BWTOBJ = $(addsuffix .o, $(basename $(BWTSRCS)))
+BWT = $(basename $(BWTSRCS))
+
 STATICLIB = ../../libs/libobl.a
 
-.PHONY = static objects all clean benchmarks
+.PHONY = static objects all clean benchmarks bwt
 
 all: $(TEST) $(BENCH)
 	@cp $(TEST) $(BENCH) ../../
 
 test: $(TEST) 
 	@cp $(TEST) ../../
-	
+
 benchmarks: $(BENCH)
-	@cp $(BENCH) ../../
+	@cp $(BENCH) ../../	
+
+bwt: CFLAGS += -fPIC -I./testBWT
+bwt: LDFLAGS += -lcrypto
+bwt: $(BWT)
+	@cp $(BWT) ../../
 
 static: $(STATICLIB)
 
@@ -58,6 +67,9 @@ $(BENCH): $(BENCHOBJ) $(OBJECTS)
 	@$(CXX) $@.o $(OBJECTS) -o $@ $(CFLAGS) $(CXXFLAGS) $(LDFLAGS)
 	@echo "LD  => $@"
 
+$(BWT): $(BWTOBJ) $(OBJECTS)
+	@$(CXX) $@.o $(OBJECTS) -o $@ $(CFLAGS) $(CXXFLAGS) $(LDFLAGS)
+	@echo "LD  => $@"
 #$(NAME): $(OBJECTS)
 #	$(CXX) $^ -o $@ $(CFLAGS) $(CXXFLAGS) $(LDFLAGS)
 
@@ -70,5 +82,5 @@ $(BENCH): $(BENCHOBJ) $(OBJECTS)
 	@echo "CXX => $@"
 
 clean:
-	@rm -rfv $(OBJECTS) $(BENCHOBJ) $(TESTOBJ) $(addprefix "../../", $(notdir $(TEST))) $(addprefix "../../", $(notdir $(BENCH))) $(STATICLIB)
-	@rm -rfv $(TEST) $(BENCH) 
+	@rm -rfv $(OBJECTS) $(BENCHOBJ) $(TESTOBJ) $(BWTOBJ) $(addprefix "../../", $(notdir $(TEST))) $(addprefix "../../", $(notdir $(BENCH))) $(addprefix "../../", $(notdir $(BWT))) $(STATICLIB)
+	@rm -rfv $(TEST) $(BENCH) $(BWT)

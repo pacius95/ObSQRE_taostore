@@ -106,10 +106,10 @@ namespace obl
 	void taostore_oram_parallel::set_position_map(unsigned int c_size)
 	{
 		this->c_size = c_size;
-		// allocator = new coram_factory(3, 8);
+		allocator = new coram_factory(3, 8);
 		// allocator = new taostore_circuit_factory(Z,S,20);
-		// position_map = new taostore_position_map(N, c_size, allocator);
-		position_map = new taostore_position_map_notobl(N);
+		position_map = new taostore_position_map(N, c_size, allocator);
+		// position_map = new taostore_position_map_notobl(N);
 	}
 
 	void *taostore_oram_parallel::serializer_wrap(void *object)
